@@ -5,11 +5,11 @@ NeoModeration by Neomechanical filters Minecraft chat. It blocks swearing, slurs
 [*]Blocks messages that contain a word from a starter list of English swear words and slurs. A rule matches whole words only, so "assignment" and "Scunthorpe" stay clean.
 [*]Also matches common disguises of a listed word: spaced or stretched letters, accents, look-alike letters and leetspeak such as [FONT=Courier New]b4dw0rd[/FONT].
 [*]Blocks a starter list of IP-grabber and scam links, including ones written with [FONT=Courier New](dot)[/FONT] or [FONT=Courier New][.][/FONT].
-[*]Blocks spam: message floods, the same message again and again, messages mostly in capitals, long runs of one character, and command spam.
+[*]Blocks spam: message floods, the same message again and again, messages mostly in capitals and long runs of one character.
 [*]Alerts staff with the [FONT=Courier New]neomoderation.notify[/FONT] permission (operators by default), showing the player, the message, the reason and the action taken.
 [*]Logs each detection as a case on your server. Read them with [FONT=Courier New]/nmod cases[/FONT]. The log leaves out the message text unless you turn it on.
 [/LIST]
-Until you add those actions, nobody is muted, kicked or banned and chat is not cleared. Review the starter lists for your server and change them with [FONT=Courier New]/nmod word[/FONT], [FONT=Courier New]/nmod url[/FONT] and [FONT=Courier New]/nmod allow[/FONT].
+A new install never mutes, kicks or bans a player or clears chat. Review the starter lists for your server and change them with [FONT=Courier New]/nmod word[/FONT], [FONT=Courier New]/nmod url[/FONT] and [FONT=Courier New]/nmod allow[/FONT].
 
 [B]First check[/B]
 [LIST=1]
@@ -17,15 +17,15 @@ Until you add those actions, nobody is muted, kicked or banned and chat is not c
 [*]Run [FONT=Courier New]/nmod test badword[/FONT]. The preview shows the starter rule flagging and blocking the word, and it never acts on a player.
 [*]Run [FONT=Courier New]/nmod doctor[/FONT] to check your setup.
 [/LIST]
-To alert staff without blocking anything, run [FONT=Courier New]/nmod mode monitor[/FONT].
+To have local rules alert staff without blocking, run [FONT=Courier New]/nmod mode monitor[/FONT].
 
 [B]Options, all off on a new install[/B]
 [LIST]
 [*]Star out matched words and links and let the rest of the message through ([FONT=Courier New]moderation.chat.censorLocalDetections[/FONT] in [FONT=Courier New]config.yml[/FONT]).
 [*]Block every link and server IP address, including ones written with [FONT=Courier New](dot)[/FONT] or [FONT=Courier New][.][/FONT] ([FONT=Courier New]moderation.offline.blockAnyUrl[/FONT]).
-[*]Check signs, books, anvil renames and private-message commands such as [FONT=Courier New]/msg[/FONT] and [FONT=Courier New]/tell[/FONT]. Each can monitor, censor or block.
+[*]Check signs, books, anvil renames and chat commands such as [FONT=Courier New]/msg[/FONT] and [FONT=Courier New]/me[/FONT]. Each can monitor, censor or block. Command checks also catch a player who sends those commands too fast.
 [*]Add actions after a block with [FONT=Courier New]/nmod action[/FONT]: clear chat, mute, kick or ban. Mute needs no other plugin.
-[*]Give strikes for repeat detections and act when a player reaches a set count ([FONT=Courier New]moderation.strikes[/FONT]).
+[*]Add a strike for each blocked or starred-out message and act when a player reaches a set count ([FONT=Courier New]moderation.strikes[/FONT]).
 [/LIST]
 
 [B]Optional cloud checks[/B]
@@ -41,7 +41,7 @@ The Neomechanical Moderation API can read each chat message for its meaning, in 
 [/LIST]
 
 [B]Privacy and metrics[/B]
-Without an API key, no chat or map content leaves your server. NeoModeration sends technical metrics to bStats, which hold no chat, player names or API keys. Turn them off in [FONT=Courier New]plugins/bStats/config.yml[/FONT].
+Without an API key, no chat or map content leaves your server. NeoModeration sends technical metrics to bStats, which hold no chat, player names or API keys. Turn them off in [FONT=Courier New]plugins/bStats/config.yml[/FONT]. Once at startup, NeoModeration asks GitHub whether a newer version exists. Turn that off with [FONT=Courier New]updateCheck[/FONT] in [FONT=Courier New]config.yml[/FONT].
 
 [B]Compatibility[/B]
 NeoModeration runs on Bukkit, Spigot, Paper and Purpur, Minecraft 1.18.2 to 26.2. Release checks run on Paper 1.18.2, 1.19.4, 1.20.6 and 1.21.11. In-game messages are in English or Spanish.
