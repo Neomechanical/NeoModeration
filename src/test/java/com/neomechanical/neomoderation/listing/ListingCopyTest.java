@@ -2,10 +2,15 @@ package com.neomechanical.neomoderation.listing;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.commands.NeoModerationCommand;
+import com.neomechanical.neomoderation.moderation.ChatModerationCoordinator;
+import com.neomechanical.neomoderation.moderation.TrialClient;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -38,6 +43,18 @@ class ListingCopyTest {
 
     /** SpigotMC's tag line field, the shortest of the three sites' summary fields. */
     private static final int SUMMARY_LIMIT = 100;
+
+    /**
+     * A command written as code, the argument after it, and any alternatives that follow it:
+     * {@code `/nmod preset family`, `community` or `minimal`}.
+     */
+    private static final Pattern COMMAND =
+            Pattern.compile("`/nmod (\\w+)(?: ([^`\\s]+))?`((?:(?:, | or )`[^`/][^`]*`)*)");
+    private static final Pattern CODE = Pattern.compile("`([^`]+)`");
+
+    /** DESIGN.md section 6: words for one to nine in prose. */
+    private static final String[] NUMBER_WORDS =
+            {"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"};
 
     /** DESIGN.md section 6, as neomechanical-platform's tests/public-copy-voice.test.js reads it. */
     private static final Map<String, Pattern> WRITING_RULES = new LinkedHashMap<>();
@@ -126,25 +143,78 @@ class ListingCopyTest {
     void everyCommandTheCopyNamesExists() throws IOException {
         CommandSender sender = mock(CommandSender.class);
         when(sender.hasPermission(anyString())).thenReturn(true);
-        List<String> commands = new NeoModerationCommand(mock(NeoModerationPlugin.class))
-                .onTabComplete(sender, null, "nmod", new String[]{""});
+        NeoModerationCommand router = new NeoModerationCommand(mock(NeoModerationPlugin.class));
+        List<String> commands = router.onTabComplete(sender, null, "nmod", new String[]{""});
         assertFalse(commands.isEmpty(), "the command router listed no subcommands");
 
         List<String> unknown = new ArrayList<>();
         int named = 0;
-        Pattern command = Pattern.compile("/nmod (\\w+)");
+        int arguments = 0;
         for (Path page : PAGES.keySet()) {
-            Matcher matcher = command.matcher(Files.readString(page));
+            String text = codeAsBackticks(Files.readString(page));
+            assertEquals(count(text, "/nmod"), count(text, "`/nmod"), page + ": write every /nmod command as code");
+            Matcher matcher = COMMAND.matcher(text);
             while (matcher.find()) {
                 named++;
-                if (!commands.contains(matcher.group(1).toLowerCase(Locale.ROOT))) {
-                    unknown.add(page + ": " + matcher.group());
+                String sub = matcher.group(1).toLowerCase(Locale.ROOT);
+                if (!commands.contains(sub)) {
+                    unknown.add(page + ": /nmod " + sub);
+                    continue;
+                }
+                List<String> given = new ArrayList<>();
+                if (matcher.group(2) != null) {
+                    given.add(matcher.group(2));
+                }
+                Matcher alternative = CODE.matcher(matcher.group(3));
+                while (alternative.find()) {
+                    given.add(alternative.group(1));
+                }
+                List<String> choices = given.isEmpty()
+                        ? List.of()
+                        : router.onTabComplete(sender, null, "nmod", new String[]{sub, ""});
+                if (choices.isEmpty()) {
+                    // No argument, or a subcommand that takes free text such as a word or an API key.
+                    continue;
+                }
+                for (String argument : given) {
+                    arguments++;
+                    if (!choices.contains(argument.toLowerCase(Locale.ROOT))) {
+                        unknown.add(page + ": /nmod " + sub + " " + argument);
+                    }
                 }
             }
         }
         assertTrue(named > 0, "the listing names no /nmod commands");
+        assertTrue(arguments > 0, "the listing names no /nmod arguments the plugin completes");
         assertTrue(unknown.isEmpty(), () -> "The listing names commands the plugin does not have:\n"
                 + String.join("\n", unknown));
+    }
+
+    @Test
+    void theNumbersInTheCopyComeFromTheCode() throws Exception {
+        // theThreeSitesSayTheSameThing holds the other two pages to this one.
+        String text = markdownText(Files.readString(DIR.resolve("modrinth.md")));
+
+        Field maxWait = ChatModerationCoordinator.class.getDeclaredField("MAX_WAIT_MS");
+        maxWait.setAccessible(true);
+        String seconds = BigDecimal.valueOf(maxWait.getLong(null), 3).stripTrailingZeros().toPlainString();
+        assertTrue(text.contains("Chat waits at most " + seconds + " seconds for a cloud answer."),
+                "the copy must give ChatModerationCoordinator.MAX_WAIT_MS as " + seconds + " seconds");
+
+        YamlConfiguration config = new YamlConfiguration();
+        config.loadFromString(Files.readString(Path.of("src/main/resources/config.yml")));
+        int categories = config.getConfigurationSection("moderation.categories").getKeys(false).size();
+        Matcher named = Pattern.compile("in (\\w+) categories: ([^.]+)\\.").matcher(text);
+        assertTrue(named.find(), "the copy no longer lists the cloud categories");
+        assertEquals(categories < NUMBER_WORDS.length ? NUMBER_WORDS[categories] : String.valueOf(categories),
+                named.group(1), "config.yml has " + categories + " cloud categories");
+        assertEquals(categories, named.group(2).split(", | and ").length,
+                "the copy must name each of config.yml's cloud categories: " + named.group(2));
+
+        Field trialDays = TrialClient.class.getDeclaredField("TRIAL_DAYS");
+        trialDays.setAccessible(true);
+        assertTrue(text.contains("free " + trialDays.getInt(null) + "-day trial"),
+                "the copy must give TrialClient.TRIAL_DAYS as the trial length");
     }
 
     /** The words of a Markdown page, without its markup. */
@@ -161,6 +231,15 @@ class ListingCopyTest {
                 .replaceAll("\\[URL='[^']*'\\]([^\\[]*)\\[/URL\\]", "$1")
                 .replaceAll("\\[/?(B|LIST(=1)?|FONT(=[^\\]]*)?)\\]", "")
                 .replace("[*]", ""));
+    }
+
+    /** A BBCode page's code spans written as Markdown code, so one pattern reads every page. */
+    private static String codeAsBackticks(String text) {
+        return text.replaceAll("\\[FONT=[^\\]]*\\](.*?)\\[/FONT\\]", "`$1`");
+    }
+
+    private static int count(String text, String part) {
+        return text.split(Pattern.quote(part), -1).length - 1;
     }
 
     private static String words(String text) {
