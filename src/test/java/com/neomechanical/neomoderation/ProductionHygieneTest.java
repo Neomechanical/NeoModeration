@@ -26,7 +26,11 @@ class ProductionHygieneTest {
                 Path.of("src/main/resources/plugin.yml"),
                 Path.of("src/main/resources/config.yml"),
                 Path.of("src/main/resources/locale/en_US.yml"),
-                Path.of("src/main/resources/locale/es_ES.yml")
+                Path.of("src/main/resources/locale/es_ES.yml"),
+                Path.of("assets/listing/summary.txt"),
+                Path.of("assets/listing/modrinth.md"),
+                Path.of("assets/listing/hangar.md"),
+                Path.of("assets/listing/spigotmc.bbcode")
         );
         // Forbidden markers are constructed at runtime to avoid the markers themselves
         // appearing as literals in tracked content (which would trigger the public integrity gate).
