@@ -152,5 +152,9 @@ moderation:
 
 ## Maintainers
 
+There is no CI. GitHub Actions is off for this repository, so do not add a workflow or rely on
+one. Before every push, run `mvn -B clean verify` with Java 17 to 21 (set `JAVA_HOME` if your
+default Java is another version); it builds the plugin and runs every test.
+
 The build, marketplace publishing, review, and post-release verification
 process is documented in [docs/RELEASING.md](docs/RELEASING.md).
