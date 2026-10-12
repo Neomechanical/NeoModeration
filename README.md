@@ -152,5 +152,12 @@ moderation:
 
 ## Maintainers
 
+There is no CI. GitHub Actions is off for this repository, so do not add a workflow or rely on
+one. Before every push, run `mvn -B clean verify` with Java 17 to 21 (set `JAVA_HOME` if your
+default Java is another version); it builds the plugin and runs every test. Then run the public
+integrity check with the maintainers' pattern, which is not kept in this repository:
+`PUBLIC_INTEGRITY_PATTERN='<pattern>' PUBLIC_INTEGRITY_BASE_SHA=$(git merge-base origin/main HEAD) bash .github/scripts/public-integrity-check.sh .`
+It fails when a new commit message, a file path or a tracked file matches the pattern.
+
 The build, marketplace publishing, review, and post-release verification
 process is documented in [docs/RELEASING.md](docs/RELEASING.md).
