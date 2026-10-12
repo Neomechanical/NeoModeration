@@ -22,6 +22,8 @@ import com.google.gson.JsonElement;
  */
 public final class TrialClient {
     private static final String PLUGIN_SECRET = "nm_trial_sec_2026_eval_sign";
+    /** The trial length, as the platform's TRIAL_DURATION_DAYS; used when a reply leaves it out. */
+    private static final int TRIAL_DAYS = 14;
 
     private static final HttpClient HTTP = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
@@ -146,8 +148,8 @@ public final class TrialClient {
         if (apiKey.isBlank()) {
             throw new TrialException(TrialError.INVALID_RESPONSE, "Missing apiKey in trial response");
         }
-        return new TrialResult(apiKey, stringField(response, "expiresAt", "14 days"),
-                daysField(response, 14), stringField(response, "claimUrl", CloudRecovery.SIGNUP_URL));
+        return new TrialResult(apiKey, stringField(response, "expiresAt", TRIAL_DAYS + " days"),
+                daysField(response, TRIAL_DAYS), stringField(response, "claimUrl", CloudRecovery.SIGNUP_URL));
     }
 
     static TrialStatusResult parseStatusSuccess(String body) throws TrialException {
