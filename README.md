@@ -1,8 +1,8 @@
 # NeoModeration
 
-Chat **and map-art** moderation for Minecraft. A starter English word list, configured URL rules, and anti-spam run locally without an account. Fresh installs block local matches without muting players or clearing everyone's chat; review the starter list for your server. Optional Neomechanical cloud checks add context-aware chat scanning and NSFW detection on filled maps.
+NeoModeration by Neomechanical moderates chat and map art on Minecraft servers. A starter English word list, configured URL rules, and anti-spam run locally without an account. Fresh installs block local matches without muting players or clearing everyone's chat; review the starter list for your server. Optional Neomechanical cloud checks add context-aware chat scanning and NSFW detection on filled maps.
 
-**Control the rollout:** `/nmod test <message>` previews a decision without taking action. Run `/nmod mode monitor` if you want local detections to alert staff without blocking. Cloud judgements start in **monitor mode** even while local rules enforce; enable cloud blocking separately with `/nmod cloudmode enforce` after reviewing them. See exactly what data stays on your server with `/nmod privacy` ([privacy details](docs/PRIVACY.md)).
+**Control the rollout:** `/nmod test <message>` previews a decision without taking action. Run `/nmod mode monitor` if you want local detections to alert staff without blocking. Cloud judgements start in **monitor mode** even while local rules enforce; enable cloud blocking separately with `/nmod cloudmode enforce` after reviewing them. See exactly what data stays on your server with `/nmod privacy` ([privacy details](PRIVACY.md)).
 
 ## Setup
 
@@ -143,7 +143,7 @@ moderation:
 ## Notes
 
 - Without a key, local word/link and anti-spam rules run — no chat or map content leaves your server. bStats reports technical metrics and aggregate configuration/detection buckets (including cloud state); it sends no chat, player names or API keys. Disable reporting in `plugins/bStats/config.yml`.
-- With a key, checked chat is sent to `https://api.neomechanical.com/v1/events` with `no_store` retention and training disabled. Details: [docs/PRIVACY.md](docs/PRIVACY.md).
+- With a key, checked chat is sent to `https://api.neomechanical.com/v1/events` with `no_store` retention and training disabled. Details: [PRIVACY.md](PRIVACY.md).
 - Mute is built into NeoModeration (no Essentials required).
 - Cloud failures and busy workers follow `moderation.chat.failOpen` (true by default). In cloud enforce mode, fail-closed blocks that message without strikes, mutes or other player punishments. Cloud monitor mode allows it; local rules still run.
 - Cloud chat uses two workers with no waiting queue. Saturation is reported as busy and follows the same failure policy. Map scans allow two concurrent tasks and deduplicate pending map IDs.
@@ -159,5 +159,4 @@ integrity check with the maintainers' pattern, which is not kept in this reposit
 `PUBLIC_INTEGRITY_PATTERN='<pattern>' PUBLIC_INTEGRITY_BASE_SHA=$(git merge-base origin/main HEAD) bash .github/scripts/public-integrity-check.sh .`
 It fails when a new commit message, a file path or a tracked file matches the pattern.
 
-The build, marketplace publishing, review, and post-release verification
-process is documented in [docs/RELEASING.md](docs/RELEASING.md).
+The maintainers keep the release procedure outside this repository.
