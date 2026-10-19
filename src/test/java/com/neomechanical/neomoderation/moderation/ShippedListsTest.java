@@ -399,4 +399,25 @@ class ShippedListsTest {
         assertTrue(checked > 150, "checked only " + checked);
         assertTrue(missed.isEmpty(), () -> "Words in tiny text got through:\n" + String.join("\n", missed));
     }
+
+    /** A digit after a word may be read as its last letter ("shi 7"), but never hides the word before it. */
+    @Test
+    void everyShippedWordFollowedByANumberIsCaught() throws Exception {
+        OfflineModerationSettings settings = shipped(List.of("all"));
+        List<String> missed = new ArrayList<>();
+        int checked = 0;
+        for (String word : unspacedShippedWords()) {
+            for (int digit = 0; digit <= 9; digit++) {
+                for (String line : List.of(word + " " + digit, word + ", " + digit, word + " " + digit + " lol",
+                        "you " + word + " " + digit + " times")) {
+                    checked++;
+                    if (!OfflineModerationEngine.evaluate(line, settings, "en_us").flagged()) {
+                        missed.add(line);
+                    }
+                }
+            }
+        }
+        assertTrue(checked > 6000, "checked only " + checked);
+        assertTrue(missed.isEmpty(), () -> "Words followed by a number got through:\n" + String.join("\n", missed));
+    }
 }

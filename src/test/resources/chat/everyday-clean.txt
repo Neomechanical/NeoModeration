@@ -323,3 +323,55 @@ puto, passa-me a espada
 # language: pt_br
 entrem no minecraftservers.org pra votar
 entra no minecraftskins.com e pega a skin
+# language: nl_nl
+pak 1 diamant en kom
+pak 1 stack ijzer uit mijn kist
+ik wil een huis huren voor een uur
+hoeveel kost huren per week?
+huren kost 10 coins per uur
+# language: en_us
+pak 1 diamant en kom
+ur a 5 hit kill lol
+is a 5 x 5 room ok?
+# language: da_dk
+dyk 3 blokke ned
+fag 5 er svært
+jeg har fag 5 timer i dag
+slut 5 min, så går vi
+mine ure er gået i stå, så det er slut
+# language: sv_se
+hur 3 gånger?
+när tar eventet slut?
+fick 4 elytras idag
+fick inget loot från kistan, typiskt
+# language: es_es
+dale a kike 5 diamantes
+pásale a kike 5 de hierro
+kike tiene 100 likes en su video
+# language: hr_hr
+umro sam 3 puta danas
+umro sam 5 puta u netheru
+# language: pt_pt
+o puto ganhou 2 vezes
+a bicha tem 5 pessoas
+o puto tem full diamond armor e sharpness 5
+# language: fr_fr
+retard de 5 min dsl
+# language: ca_es
+retard de 5 minuts, espereu-me
+quin retard més gros, tio
+# language: it_it
+guarda questa immagine di Verga, sembra mio nonno
+# language: fr_fr
+j'arrive, petit retard
+# language: ca_es
+tinc retard, comenceu sense mi
+# language: hr_hr
+pet puta dnevno idem u nether
+Marica je na spawnu
+# language: nl_nl
+huren is duur op deze server
+# language: da_dk
+jeg har ikke mere foder til kyllingerne
+# language: sv_se
+foder till hästarna finns i ladan

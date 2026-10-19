@@ -18,8 +18,8 @@ es: kike porra
 # Portuguese in Portugal: "os putos", the kids; "a bicha", the queue
 pt_pt: puto putos bicha bichas
 # Swedish and Danish: "slut", the end; Swedish "fick", got; "putta", put
-sv: slut fick putta
-da: slut
+sv: slut fick putta foder
+da: slut foder
 # Danish and Norwegian: "fag", a school subject; "putte", put; Norwegian
 # "slutt", the end, and "kikke", to look
 da no nb nn: fag putte
@@ -27,6 +27,6 @@ no nb nn: slutt kikke
 # Dutch: "huren", to rent
 nl: huren
 # Croatian, Serbian and Bosnian: "dva puta", twice
-hr sr bs: puta
+hr sr bs: puta marica
 # Italian: "verga", a rod, and the writer Giovanni Verga
 it: verga

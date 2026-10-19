@@ -75,7 +75,14 @@ class ServerAdDetectorTest {
                 "join epicmc.it guys",
                 "ip is coolsmp.at for real",
                 "join coolsmp.to now",
-                "server ip coolsmp.be today")) {
+                "server ip coolsmp.be today",
+                "entre en coolsmp.net",
+                "entre a coolsmp.net",
+                "join craftingtable.gg",
+                "ip: topg.gg",
+                "join kick.gg:25565",
+                "join minecraftservers.de",
+                "join youtube.de:25565")) {
             assertTrue(advertised(ad).orElse("").startsWith("server_ad:"), "missed a server ad: " + ad);
         }
     }
@@ -118,6 +125,12 @@ class ServerAdDetectorTest {
                 "entra no globo.com",
                 "entra a marca.com",
                 "das kommt auf amazon.de an",
+                "estoy entre hypixel.net y mineplex.com, cuál es mejor?",
+                "kommt auf minecraft-serverlist.net zum voten",
+                "viens sur serveur-minecraft.com pour voter",
+                "entra en minecraft-server.eu para votar",
+                "the recipe is on craftingtable.gg",
+                "mira google.com.mx",
                 "we play minecraft.net on weekends",
                 "привет. как дела")) {
             assertEquals(Optional.empty(), advertised(clean), "flagged ordinary chat: " + clean);

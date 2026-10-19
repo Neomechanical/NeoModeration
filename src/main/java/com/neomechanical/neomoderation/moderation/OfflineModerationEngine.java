@@ -32,6 +32,20 @@ public final class OfflineModerationEngine {
 
     public static OfflineModerationResult evaluate(String message, OfflineModerationSettings settings,
                                                    String speaker) {
+        return evaluate(message, settings, speaker, false);
+    }
+
+    /**
+     * Evaluates text that may go on, as the split window's joined fragments may:
+     * a number at its end may count a word still to come ("pak", "1", "diamant").
+     */
+    static OfflineModerationResult evaluateUnfinished(String message, OfflineModerationSettings settings,
+                                                      String speaker) {
+        return evaluate(message, settings, speaker, true);
+    }
+
+    private static OfflineModerationResult evaluate(String message, OfflineModerationSettings settings,
+                                                    String speaker, boolean unfinished) {
         if (!settings.enabled()) {
             return OfflineModerationResult.clear();
         }
@@ -75,7 +89,7 @@ public final class OfflineModerationEngine {
             return OfflineModerationResult.clear();
         }
         boolean[] masked = OfflineRuleCompiler.maskAllowedPhrases(text, allowedFor(rules, text, speaker));
-        EverydayWords everyday = new EverydayWords(text, rules.everydayScope(speaker));
+        EverydayWords everyday = new EverydayWords(text, rules.everydayScope(speaker), unfinished);
 
         for (CompiledWord word : rules.words()) {
             if (!text.collapsed().contains(word.collapsed())) {
@@ -151,7 +165,7 @@ public final class OfflineModerationEngine {
                     TextNormalizer.normalize(new String(raw), settings.normalizeLeetspeak());
             if (text.length() > 0) {
                 boolean[] masked = OfflineRuleCompiler.maskAllowedPhrases(text, allowedFor(rules, text, speaker));
-                EverydayWords everyday = new EverydayWords(text, rules.everydayScope(speaker));
+                EverydayWords everyday = new EverydayWords(text, rules.everydayScope(speaker), false);
                 for (CompiledWord word : rules.words()) {
                     if (!text.collapsed().contains(word.collapsed())) {
                         continue;

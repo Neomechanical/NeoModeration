@@ -122,8 +122,9 @@ final class OfflineRuleCompiler {
 
     /**
      * The first match of {@code word} at or after {@code from} that is not
-     * everyday words of one language (see {@link EverydayWords}), or {@code null}.
-     * A word written with a space is read across every space.
+     * everyday words of one language (see {@link EverydayWords}), nor a word and
+     * the number after it ("pak 1 diamant"), or {@code null}. A word written with
+     * a space is read across every space.
      */
     static int[] findWord(
             TextNormalizer.Normalized text,
@@ -136,7 +137,8 @@ final class OfflineRuleCompiler {
         while ((match = findMatch(text, word, masked, from)) != null) {
             // A word written with a space is read across every space, unless a French elision inside
             // the match shows French words: "j'ai pas pu, t'es où ?" is no "pu tes".
-            boolean readAsWords = (!word.spaced() || everyday.throughElision(match[0], match[1]))
+            boolean readAsWords = everyday.endsInCount(match[1], !word.ownList())
+                    || (!word.spaced() || everyday.throughElision(match[0], match[1]))
                     && everyday.innocent(match[0], match[1], !word.ownList());
             if (!readAsWords) {
                 return match;

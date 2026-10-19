@@ -59,7 +59,7 @@ final class ServerAdDetector {
      * name reads as a game server, as "play" does.
      */
     private static final Pattern FOREIGN_INVITATION_BEFORE = intentBefore(
-            "entr(?:a|en|em)(?:\\s+(?:a|al|en|no|na))?|entre\\s+(?:no|na)|[uú]n(?:e|a)(?:te|nse)(?:\\s+a)?|jueg(?:a|uen)\\s+en"
+            "entr(?:a|en|em)(?:\\s+(?:a|al|en|no|na))?|entre\\s+(?:a|al|en|no|na)|[uú]n(?:e|a)(?:te|nse)(?:\\s+a)?|jueg(?:a|uen)\\s+en"
                     + "|vengan\\s+a\\s+jugar\\s+a|jog(?:a|ue|uem)\\s+(?:no|na)|(?:vem|venham)\\s+jogar\\s+(?:no|na)"
                     + "|rejoin(?:s|dre)|rejoign(?:ez|ons)(?:\\s+nous)?|(?:venez|viens)(?:\\s+jouer)?\\s+sur"
                     + "|komm(?:t)?\\s+auf|spielt\\s+auf|joint|gelin|oyna");
@@ -116,7 +116,8 @@ final class ServerAdDetector {
             // Minecraft resource, skin and vote sites players link each other to.
             "mcpedl.com", "minecraftskins.com", "minecraft-heads.com", "mcstacker.net", "mcversions.net",
             "minecraft-mp.com", "minecraftservers.org", "minecraft-server-list.com", "topg.org", "minecraft.wiki",
-            "craftingtable.com");
+            "craftingtable.com", "minecraft-server.eu", "minecraft-serverlist.net", "serveur-prive.net",
+            "serveurs-minecraft.org", "serveur-minecraft.com", "top-serveurs.net");
 
     /** The names of {@link #NEVER_SERVER_AD_DOMAINS}, so google.com.br counts as Google too. */
     private static final Set<String> NEVER_SERVER_AD_NAMES = NEVER_SERVER_AD_DOMAINS.stream()
@@ -138,6 +139,10 @@ final class ServerAdDetector {
      * after a full stop) reads as a sentence unless the host has a server signal.
      */
     private static final Set<String> WORD_TLDS = Set.of("it", "in", "to", "at", "be", "no", "my", "us");
+
+    /** Two-letter endings sold to anyone, which are no country's own address in practice (craftingtable.gg). */
+    private static final Set<String> GLOBAL_TWO_LETTER_TLDS =
+            Set.of("gg", "io", "me", "tv", "co", "cc", "ws", "gs", "ly", "to", "fm", "ai", "sh", "so");
 
     private static final int MAX_REPORTED_ADDRESS = 64;
 
@@ -285,15 +290,17 @@ final class ServerAdDetector {
         if (port != null || (labels.length >= 3 && SERVER_LABELS.contains(labels[0]))) {
             return true;
         }
-        // A safe site's own country address (google.com.br, amazon.de) is as safe as the site.
-        if (tld.length() == 2 && NEVER_SERVER_AD_NAMES.contains(siteName(labels))) {
+        String before = text.substring(Math.max(0, host.start() - 32), host.start());
+        // A safe site's own country address (google.com.br, amazon.de) is as safe as the site, unless the
+        // message invites players to it: "join minecraftservers.de" is someone's server.
+        if (tld.length() == 2 && !GLOBAL_TWO_LETTER_TLDS.contains(tld)
+                && NEVER_SERVER_AD_NAMES.contains(siteName(labels)) && !INVITATION_BEFORE.matcher(before).find()) {
             return false;
         }
         // Without a server signal, only an invitation makes an ordinary domain an ad.
         if (isWebPage(text, host.end())) {
             return false;
         }
-        String before = text.substring(Math.max(0, host.start() - 32), host.start());
         if (labels.length == 2 && WORD_TLDS.contains(tld) && sentenceContinues(text, host.end())) {
             return INVITATION_BEFORE.matcher(before).find();
         }

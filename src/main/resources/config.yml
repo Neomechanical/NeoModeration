@@ -146,7 +146,8 @@ moderation:
     # language and banned in another, such as French "retard", Spanish "Kike",
     # Swedish "slut" and Danish "fag" (a school subject).
     # They pass for everyone when "locale" is that language, and for a player
-    # whose game language it is when the message is written in that language.
+    # whose game language it is when most of the message is in that language
+    # and no common English word aims an insult ("you", "dirty").
     languagePacks: [auto]
     bannedUrls:
       - "grabify.link"

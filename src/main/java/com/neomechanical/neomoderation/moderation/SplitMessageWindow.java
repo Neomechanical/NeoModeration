@@ -113,7 +113,8 @@ public final class SplitMessageWindow {
                 joined.append(entry.fragment());
             }
 
-            OfflineModerationResult joinedResult = OfflineModerationEngine.evaluate(joined.toString(), settings, speaker);
+            OfflineModerationResult joinedResult =
+                    OfflineModerationEngine.evaluateUnfinished(joined.toString(), settings, speaker);
             if (joinedResult.flagged()) {
                 deque.clear();
                 // Messages are always read across a space here; "split_" already says so.

@@ -29,10 +29,15 @@ import java.util.Map;
  * read as one word. Only an English contraction's ending ('s, 're, 't, 'd, 'm,
  * 've, 'll) never begins a banned word, so "let's hit" is not "s hit". A "re"
  * before a hyphen is marked as a prefix ("who re-did"), and the word after it is
- * read on its own. A token made only of digits is a number, so "5 hits" and
- * "455 diamonds" keep their digits; a lone digit among spelled-out letters such
- * as {@code 5 h 1 t} or {@code sl u 7} still reads as a letter, but not a
- * quantity after a one-letter word that follows a word ("put a 5 tick delay").</p>
+ * read on its own; "_", "-", "*", "~", "+" and "/" between letters join pieces
+ * the way an apostrophe does ("put_a"), without making a contraction. A token
+ * made only of digits is a number, so "5 hits" and "455 diamonds" keep their
+ * digits; a lone digit among spelled-out letters such as {@code 5 h 1 t} or
+ * {@code sl u 7} still reads as a letter, but not a quantity after a one-letter
+ * word that follows a word ("put a 5 tick delay"). A lone digit after a piece
+ * that is no English word reads as that piece's last letter ("shi 7") and never
+ * starts a match; {@link EverydayWords#endsInCount} drops a match it ends when
+ * the digit is a number after all ("pak 1 diamant").</p>
  */
 final class TextNormalizer {
 
@@ -48,12 +53,12 @@ final class TextNormalizer {
     private static final Map<Character, Character> CONFUSABLES = new HashMap<>();
 
     static {
-        String cyrillic = "авсеhкморѕтхуіјdνq";
-        String cyrillicLatin = "abcehkmopstxyijdvq";
+        String cyrillic = "авсеһкморѕтхуүіјӏԛ";
+        String cyrillicLatin = "abcehkmopstxyyijlq";
         String greek = "αβεζηικνορτυχγ";
         String greekLatin = "abeznikvoptuxy";
-        String other = "օոսցԁԝѡıƒ";
-        String otherLatin = "onugdwwif";
+        String other = "օոսցԁԝѡıƒɡɑ";
+        String otherLatin = "onugdwwifga";
         // Small capitals, as in "ɴɪɢɢᴇʀ".
         String smallCapitals = "ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘʀꜱᴛᴜᴠᴡʏᴢ";
         String smallCapitalsLatin = "abcdefghijklmnoprstuvwyz";
@@ -81,7 +86,8 @@ final class TextNormalizer {
      *                     after an apostrophe inside a word ('s, 're, 't, 'd, 'm, 've,
      *                     'll); a match never starts there
      * @param apostrophe   whether each char began a token after any apostrophe inside
-     *                     a word, contraction or not ("f'uck", "bad'word")
+     *                     a word, contraction or not ("f'uck", "bad'word"), or after
+     *                     "_", "-", "*", "~", "+" or "/" between letters ("put_a")
      * @param prefix       whether each char began a "re" written before a hyphen
      *                     ("re-did"), which is an English prefix rather than a word piece
      * @param noStart      whether each char is a lone digit read as the last letter of
@@ -114,6 +120,7 @@ final class TextNormalizer {
         Builder out = new Builder(value.length());
         boolean atTokenStart = true;
         boolean afterInWordApostrophe = false;
+        boolean afterInWordJoiner = false;
 
         for (int i = 0; i < value.length(); ) {
             int codePoint = value.codePointAt(i);
@@ -132,18 +139,20 @@ final class TextNormalizer {
                 // Drawn as nothing, so it reads as the space it stands for: "putㅤa" is "put a".
                 atTokenStart = true;
                 afterInWordApostrophe = false;
-                continue;
-            }
-            if (isApostrophe(codePoint)) {
-                afterInWordApostrophe = !atTokenStart
-                        && i < value.length()
-                        && Character.isLetter(value.codePointAt(i));
-                atTokenStart = true;
+                afterInWordJoiner = false;
                 continue;
             }
             if (isHyphen(codePoint) && i < value.length() && Character.isLetter(value.codePointAt(i))
                     && out.endsWithWord("re")) {
                 out.markPrefix(2);  // "re-did": a prefix, and "did" is read on its own
+            }
+            if (isApostrophe(codePoint) || isJoiner(codePoint)) {
+                boolean inWord = !atTokenStart && i < value.length() && Character.isLetter(value.codePointAt(i));
+                // Only an apostrophe makes a contraction: "who-re" is no "who're".
+                afterInWordApostrophe = inWord && isApostrophe(codePoint);
+                afterInWordJoiner = inWord && !afterInWordApostrophe;
+                atTokenStart = true;
+                continue;
             }
 
             String decomposed = Normalizer.normalize(
@@ -171,17 +180,26 @@ final class TextNormalizer {
                 if (c == 'ß') {
                     // German sharp s is spelled "ss" in every word list.
                     out.add('s', rawAt, atTokenStart, atTokenStart && afterInWordApostrophe, (char) 0, false);
+                    if (atTokenStart && afterInWordJoiner) {
+                        out.markJoined();
+                    }
                     out.add('s', rawAt, false, false, (char) 0, false);
                     atTokenStart = false;
                     afterInWordApostrophe = false;
+                    afterInWordJoiner = false;
                 } else if (Character.isLetterOrDigit(c)) {
                     out.add(c, rawAt, atTokenStart, atTokenStart && afterInWordApostrophe, digit,
                             !typedAsLetter && Character.isLetter(c));
+                    if (atTokenStart && afterInWordJoiner) {
+                        out.markJoined();
+                    }
                     atTokenStart = false;
                     afterInWordApostrophe = false;
+                    afterInWordJoiner = false;
                 } else {
                     atTokenStart = true;
                     afterInWordApostrophe = false;
+                    afterInWordJoiner = false;
                 }
             }
         }
@@ -192,13 +210,25 @@ final class TextNormalizer {
         return codePoint == '-' || codePoint == '\u2010' || codePoint == '\u2011';
     }
 
+    /**
+     * Punctuation that joins two pieces of one word when typed between letters:
+     * "put_a" and "go-ok" are read like "put'a", never as everyday words.
+     */
+    private static boolean isJoiner(int codePoint) {
+        return isHyphen(codePoint) || codePoint == '_' || codePoint == '*' || codePoint == '~' || codePoint == '+'
+                || codePoint == '/';
+    }
+
     private static boolean isApostrophe(int codePoint) {
         return codePoint == '\'' || codePoint == '’' || codePoint == '‘'
                 || codePoint == 'ʼ' || codePoint == '`'
-                // Marks typed or drawn as an apostrophe: ´ ′ ‵ ＇ ׳ ՚ ՙ ⸯ ॱ.
+                // Marks typed or drawn as an apostrophe: ´ ′ ‵ ＇ ׳ ՚ ՙ ⸯ ॱ, the Greek ´ ΄ ʹ ᾿ ῾,
+                // ｀ ‛ ″ ❛ ❜ and ՛.
                 || codePoint == 0x00B4 || codePoint == 0x2032 || codePoint == 0x2035 || codePoint == 0xFF07
                 || codePoint == 0x05F3 || codePoint == 0x055A || codePoint == 0x0559 || codePoint == 0x2E2F
-                || codePoint == 0x0971
+                || codePoint == 0x0971 || codePoint == 0x1FFD || codePoint == 0x0384 || codePoint == 0x0374
+                || codePoint == 0x1FBF || codePoint == 0x1FFE || codePoint == 0xFF40 || codePoint == 0x201B
+                || codePoint == 0x2033 || codePoint == 0x275B || codePoint == 0x275C || codePoint == 0x055B
                 // Modifier letters and tone marks drawn as ticks, accents or dots (ʹ ʻ ˈ ˌ ː ˮ ꞌ ꜀),
                 // but never one that folds to a letter: ˡ ˢ ˣ are the l, s and x of "tiny text".
                 || ((codePoint >= 0x02B9 && codePoint <= 0x02FF || codePoint >= 0xA700 && codePoint <= 0xA71F
@@ -249,6 +279,8 @@ final class TextNormalizer {
         private int[] rawIndex;
         private boolean[] tokenStart;
         private boolean[] joinBlocked;
+        /** Per char, whether it begins a piece joined to the one before by "_", "-" or the like ("put_a"). */
+        private boolean[] joined;
         private boolean[] prefix;
         private boolean[] leet;
         private char[] digits;
@@ -260,6 +292,7 @@ final class TextNormalizer {
             rawIndex = new int[capacity];
             tokenStart = new boolean[capacity];
             joinBlocked = new boolean[capacity];
+            joined = new boolean[capacity];
             prefix = new boolean[capacity];
             leet = new boolean[capacity];
             digits = new char[capacity];
@@ -272,6 +305,7 @@ final class TextNormalizer {
                 rawIndex = Arrays.copyOf(rawIndex, capacity);
                 tokenStart = Arrays.copyOf(tokenStart, capacity);
                 joinBlocked = Arrays.copyOf(joinBlocked, capacity);
+                joined = Arrays.copyOf(joined, capacity);
                 prefix = Arrays.copyOf(prefix, capacity);
                 leet = Arrays.copyOf(leet, capacity);
                 digits = Arrays.copyOf(digits, capacity);
@@ -283,6 +317,11 @@ final class TextNormalizer {
             leet[count] = typedAsSymbol;
             digits[count] = digit;
             count++;
+        }
+
+        /** Marks the character just added as the start of a piece joined to the one before ("put_a"). */
+        void markJoined() {
+            joined[count - 1] = true;
         }
 
         /** Marks the token being built, {@code length} characters long, as a prefix. */
@@ -314,6 +353,9 @@ final class TextNormalizer {
             boolean[] trailing = trailingDigits(finalStart, finalEnd);
             restoreNumbers(finalChars, finalStart, finalEnd, trailing);
             boolean[] apostrophe = Arrays.copyOf(joinBlocked, count);
+            for (int i = 0; i < count; i++) {
+                apostrophe[i] |= joined[i];
+            }
             keepContractionEndingsOnly(finalChars, finalEnd);
 
             StringBuilder collapsed = new StringBuilder(count);
@@ -330,10 +372,12 @@ final class TextNormalizer {
         /**
          * Puts the digits back in every all-digit token, except a single digit
          * among spelled-out letters, which is how "5 h 1 t", "r e 7 ard" and
-         * "sl u 7" are typed: one beside a one-character token. A digit right
-         * after a one-letter word is a quantity, and stays one, when a word of
-         * three letters or more comes before that letter or the message starts
-         * with it: "put a 5 tick delay", "a 5 hit combo".
+         * "sl u 7" are typed (one beside a one-character token), and a digit read
+         * as the last letter of the piece before it ({@code trailing}). A digit
+         * right after a one-letter word is a quantity, and stays one, when no
+         * spelled letter follows it and a word comes before that letter (three
+         * letters or more, an English word or a contraction's ending) or the
+         * message starts with it: "put a 5 tick delay", "it's a 5 hit combo".
          */
         private void restoreNumbers(char[] out, boolean[] starts, boolean[] ends, boolean[] trailing) {
             int begin = 0;
@@ -393,10 +437,10 @@ final class TextNormalizer {
                 return false;
             }
             // "put a 5 tick", "it's a 5 hit combo": a quantity after a one-letter word that follows a word,
-            // unless spelled letters follow it ("is a 5 h i t").
+            // unless a spelled letter follows it ("is a 5 h i t", "dickh e 4 d").
             boolean afterLetterWord = before == 1 && digits[begin - 1] == 0
                     && ONE_LETTER_WORDS.contains(chars[begin - 1]);
-            boolean quantity = afterLetterWord && after < 2 && (begin - 1 == 0 || wordEndsAt(begin - 2, starts));
+            boolean quantity = afterLetterWord && after == 0 && (begin - 1 == 0 || wordEndsAt(begin - 2, starts));
             return !quantity;
         }
 
