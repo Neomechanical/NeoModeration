@@ -6,8 +6,8 @@ NeoModeration by Neomechanical moderates chat and map art on Minecraft servers. 
 
 ## Setup
 
-1. Drop `NeoModeration-1.6.6.jar` into `plugins/` and restart.
-2. Run `/nmod test badword`. It should show the bundled local rule as **FLAGGED** and the result as **blocked**. The preview itself never blocks or punishes anyone. Review the starter English word list in `config.yml` and extend it for your server. This command previews content rules; rate and repetition checks need live messages.
+1. Drop `NeoModeration-1.7.0.jar` into `plugins/` and restart.
+2. Run `/nmod test badword`. It should show the bundled local rule as **FLAGGED** and the result as **blocked**. The preview itself never blocks or punishes anyone. Review the starter word list in `config.yml` and extend it for your server. This command previews content rules; rate, repetition and split-message checks need live messages.
 3. Optional: for context-aware cloud moderation, start an instant 14-day evaluation trial:
 
 ```text
@@ -44,20 +44,21 @@ before deciding whether cloud checks fit your server.
 
 Beyond chat, all running on local rules (no API key needed):
 
-- **Anti-spam**: message rate, duplicate/similar messages, caps, character floods, command-rate. On by default; tune under `moderation.spam` or disable per-check.
+- **Multilingual starter words**: bundled profanity and slur packs for English, Spanish, French, German, Portuguese, and Turkish activate automatically when `locale` is set in `config.yml` (`moderation.offline.multilingualStarterWords: true`).
+- **Anti-spam & split-message evasion**: message rate, duplicate/similar messages, caps, character floods, command-rate, and banned words split across rapid short messages. On by default; tune under `moderation.spam` or disable per-check.
 - **Censor**: set `moderation.chat.censorLocalDetections: true` to replace matched words with `****` instead of blocking the whole message.
 - **Optional strikes**: disabled on a new install. If enabled after policy review, detections accumulate and decay; the configured ladder can kick at 4. Configure `moderation.strikes`.
 - **More surfaces**: signs, books, anvil renames, and `/msg`-style commands. Configure in-game with `/nmod surface` or independently set `off`/`monitor`/`censor`/`block` under `moderation.surfaces` (all off by default).
-- **Case history**: `/nmod cases [player]` and `/nmod case <id>` browse a local SQLite log of detections.
+- **Case history & triage**: `/nmod cases [player]`, `/nmod case <id>`, and `/nmod cases resolve|dismiss <id>` browse and triage a local SQLite log of detections with clickable in-game actions.
 
 ## Trust & control
 
 - **Mode control**: `/nmod mode monitor|enforce` controls local rules independently from cloud decisions. `/nmod mode` shows what would have happened since startup.
-- **Preview content decisions**: `/nmod test badword` proves the bundled local rule works; `/nmod test <message>` checks local content rules and, if reached, cloud. Rate, repetition, commands and maps need live context.
+- **Preview content decisions**: `/nmod test badword` proves the bundled local rule works; `/nmod test <message>` checks local content rules and, if reached, cloud. Rate, repetition, split messages, commands and maps need live context.
 - **Setup diagnostics**: `/nmod doctor` finds misconfigurations before they bite.
 - **Exceptions**: `/nmod allow word|url add <value>` fixes false positives instantly; allowed phrases/links always win over banned rules.
 - **Cloud presets**: `/nmod preset family|community|minimal` tunes cloud category thresholds without changing local rules or punishments. Cloud checks require an API key. Each category also accepts a custom threshold (0.05 to 0.99) in `config.yml`.
-- **Staff alerts**: players with `neomoderation.notify` see every detection in-game (message preview optional).
+- **Staff alerts & Discord webhook**: players with `neomoderation.notify` see clickable detection alerts in-game (message preview optional), and `moderation.alerts.discordWebhookUrl` forwards alerts to a Discord staff channel without extra plugins.
 - **Privacy surface**: `/nmod privacy` shows what runs locally, what the cloud receives, and the `no_store`/no-training guarantees.
 
 ## What happens on detect
@@ -89,7 +90,7 @@ Mute durations: `30s`, `5m`, `1h`, `1d` (or bare seconds).
 | `/nmod cloudmode [monitor\|enforce]` | Show or switch cloud enforcement mode |
 | `/nmod test <message>` | Preview how a message would be moderated (never acts) |
 | `/nmod doctor` | Diagnose configuration, account API, and event health |
-| `/nmod cases [player]` / `/nmod case <id>` | Browse the local detection history |
+| `/nmod cases [player\|resolve\|dismiss]` / `/nmod case <id>` | Browse and resolve the local detection history |
 | `/nmod preset <family\|community\|minimal>` | Tune cloud category thresholds |
 | `/nmod word add\|remove\|list [value]` | Manage blocked words |
 | `/nmod url add\|remove\|list [value]` | Manage blocked links |
@@ -102,7 +103,7 @@ Mute durations: `30s`, `5m`, `1h`, `1d` (or bare seconds).
 | `/nmod on` / `/nmod off` | Enable or disable moderation |
 | `/nmod reload` | Reload config from disk |
 
-Aliases: `/neomod`, `/nmod`, `/neomoderation`. In-game messages ship in English (`en_US`), Spanish (`es_ES`), French (`fr_FR`), German (`de_DE`), Portuguese (`pt_BR`), and Turkish (`tr_TR`).
+Aliases: `/neomod`, `/nmod`, `/neomoderation`. In-game messages and starter word packs ship in English (`en_US`), Spanish (`es_ES`), French (`fr_FR`), German (`de_DE`), Portuguese (`pt_BR`), and Turkish (`tr_TR`).
 
 ## Compatibility
 

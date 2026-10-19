@@ -15,6 +15,7 @@ public final class ChatModerationProcessor {
     private final PlayerMuteService muteService;
     private final SpamDetector spamDetector;
     private final DetectionHandler handler;
+    private final SplitMessageWindow splitMessageWindow;
 
     public ChatModerationProcessor(
             NeoModerationPlugin plugin,
@@ -23,11 +24,23 @@ public final class ChatModerationProcessor {
             SpamDetector spamDetector,
             DetectionHandler handler
     ) {
+        this(plugin, coordinator, muteService, spamDetector, handler, new SplitMessageWindow());
+    }
+
+    public ChatModerationProcessor(
+            NeoModerationPlugin plugin,
+            ChatModerationCoordinator coordinator,
+            PlayerMuteService muteService,
+            SpamDetector spamDetector,
+            DetectionHandler handler,
+            SplitMessageWindow splitMessageWindow
+    ) {
         this.plugin = plugin;
         this.coordinator = coordinator;
         this.muteService = muteService;
         this.spamDetector = spamDetector;
         this.handler = handler;
+        this.splitMessageWindow = splitMessageWindow;
     }
 
     public ChatDecision handleAsyncChat(Player player, String message) {
@@ -58,6 +71,7 @@ public final class ChatModerationProcessor {
 
         OfflineModerationResult offlineResult = OfflineModerationEngine.evaluate(message, settings.offline());
         if (offlineResult.flagged()) {
+            splitMessageWindow.clear(player.getUniqueId());
             String censored = null;
             DetectionHandler.Disposition requested = DetectionHandler.Disposition.BLOCK;
             if (settings.chatCensorLocal()) {
@@ -70,6 +84,14 @@ public final class ChatModerationProcessor {
             return toDecision(
                     handler.handle(player, "chat", offlineResult.reason(), message, requested),
                     censored);
+        }
+
+        Optional<String> splitReason = splitMessageWindow.recordAndCheck(
+                player.getUniqueId(), message, settings.offline());
+        if (splitReason.isPresent()) {
+            return toDecision(
+                    handler.handle(player, "chat", splitReason.get(), message, DetectionHandler.Disposition.BLOCK),
+                    null);
         }
 
         if (settings.api().apiKey().isBlank() || settings.categories().enabledCount() == 0) {

@@ -29,6 +29,12 @@ public final class MonitorStats {
         }
     }
 
+    public long cloudTotal() {
+        synchronized (lock) {
+            return byReason.getOrDefault("platform", 0L) + byReason.getOrDefault("map_art", 0L);
+        }
+    }
+
     public Map<String, Long> byReason() {
         synchronized (lock) {
             return new LinkedHashMap<>(byReason);

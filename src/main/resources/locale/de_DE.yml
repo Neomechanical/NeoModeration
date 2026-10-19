@@ -75,6 +75,7 @@ trial:
   status-active: "{prefix} &aCloud-Test aktiv &8(&f{days} &7Tag(e) übrig, läuft ab am &f{expires}&8)&7. Upgrade unter &f{url}"
   status-expired: "{prefix} &cDein 14-Tage-Cloud-Test ist am &f{expires} &cabgelaufen. &7Upgrade unter &f{url} &7und führe &e/nmod setup <key> &7aus."
   status-standard: "{prefix} &aStandard-Workspace-Schlüssel von Neomechanical aktiv. &7Führe &e/nmod usage &7für Guthaben und Limits aus."
+  cta-button: "  &a[Kostenlosen 14-Tage-Cloud-Test starten] &8(/nmod trial)"
 toggle:
   on: "{prefix} &7Moderation wurde &aAKTIVIERT&7."
   off: "{prefix} &7Moderation wurde &cDEAKTIVIERT&7."
@@ -221,3 +222,8 @@ preset:
 
 chat:
   cloud-unavailable: "{prefix} &eCloud-Moderation ist derzeit nicht erreichbar. Bitte versuche es gleich erneut; dies ist kein Regelverstoß."
+
+welcome:
+  title: "{prefix} &7Lokale Chat- und Anti-Spam-Regeln sind &aaktiv&7. Klicke unten, um Bereiche einzurichten oder den 14-Tage-Cloud-Test zu starten."
+  surfaces-btn: "  &b[Zusätzliche Bereiche konfigurieren] &8(/nmod surface)"
+

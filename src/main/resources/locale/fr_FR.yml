@@ -75,6 +75,7 @@ trial:
   status-active: "{prefix} &aEssai cloud actif &8(&f{days} &7jour(s) restants, expire le &f{expires}&8)&7. Passez à un plan sur &f{url}"
   status-expired: "{prefix} &cVotre essai cloud de 14 jours a expiré le &f{expires}&c. &7Passez à un plan sur &f{url} &7et exécutez &e/nmod setup <key>&7."
   status-standard: "{prefix} &aClé d'espace Neomechanical standard active. &7Exécutez &e/nmod usage &7pour voir vos crédits et limites."
+  cta-button: "  &a[Démarrer l'essai cloud gratuit de 14 jours] &8(/nmod trial)"
 toggle:
   on: "{prefix} &7La modération a été &aACTIVÉE&7."
   off: "{prefix} &7La modération a été &cDÉSACTIVÉE&7."
@@ -221,3 +222,8 @@ preset:
 
 chat:
   cloud-unavailable: "{prefix} &eLa modération cloud est indisponible. Réessayez dans un instant; ce n'est pas une infraction du joueur."
+
+welcome:
+  title: "{prefix} &7Les règles locales de chat et d'anti-spam sont &aactives&7. Cliquez ci-dessous pour configurer les surfaces ou démarrer un essai cloud de 14 jours."
+  surfaces-btn: "  &b[Configurer les surfaces supplémentaires] &8(/nmod surface)"
+

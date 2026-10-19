@@ -103,6 +103,7 @@ public class TestCmd implements SubCommand {
             plugin.messages().send(sender, "test.cloud-skipped-key", Map.of(
                     "url", CloudRecovery.SIGNUP_URL
             ));
+            com.neomechanical.neomoderation.commands.TrialPromptSupport.sendTrialCtaIfPlayer(plugin, sender);
             sendOutcome(sender, settings, false, DetectionHandler.Source.LOCAL, false);
             plugin.messages().sendFooter(sender);
             return;

@@ -122,7 +122,7 @@ class MapArtListenerTest {
                     .when(plugin).runAsync(any(Runnable.class));
             doAnswer(call -> { ((Runnable) call.getArgument(1)).run(); return null; })
                     .when(plugin).runForEntity(any(), any(Runnable.class));
-            try (var scanner = mockStatic(MapArtScanner.class)) {
+            try (var scanner = mockStatic(MapArtScanner.class, org.mockito.Mockito.CALLS_REAL_METHODS)) {
                 scanner.when(() -> MapArtScanner.getBase64Image(7)).thenReturn("first-image");
                 listener.onItemHeld(event);
                 coordinator.recordApiResult(ModerationApiResult.transientTransport());
@@ -196,7 +196,7 @@ class MapArtListenerTest {
         when(event.getPlayer()).thenReturn(player);
         when(event.getNewSlot()).thenReturn(0);
         try (ChatModerationCoordinator coordinator = new ChatModerationCoordinator(Logger.getLogger("test"));
-             var scanner = mockStatic(MapArtScanner.class)) {
+             var scanner = mockStatic(MapArtScanner.class, org.mockito.Mockito.CALLS_REAL_METHODS)) {
             when(plugin.coordinator()).thenReturn(coordinator);
             scanner.when(() -> MapArtScanner.getBase64Image(7))
                     .thenReturn("first-image", "second-image", "second-image");

@@ -25,11 +25,17 @@ public record ModerationSettings(
         CaseSettings cases,
         boolean chatCensorLocal
 ) {
-    public record AlertSettings(boolean enabled, boolean includeMessage) {
+    public record AlertSettings(boolean enabled, boolean includeMessage, String discordWebhookUrl) {
+        public AlertSettings(boolean enabled, boolean includeMessage) {
+            this(enabled, includeMessage, "");
+        }
+
         public static AlertSettings from(ConfigView config) {
+            String rawWebhook = config.getString("moderation.alerts.discordWebhookUrl", "");
             return new AlertSettings(
                     config.getBoolean("moderation.alerts.enabled", true),
-                    config.getBoolean("moderation.alerts.includeMessage", true)
+                    config.getBoolean("moderation.alerts.includeMessage", true),
+                    rawWebhook == null ? "" : rawWebhook.trim()
             );
         }
     }

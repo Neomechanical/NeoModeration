@@ -28,8 +28,22 @@ public final class CaseLog implements AutoCloseable {
             String reason,
             String action,
             String mode,
-            String preview
+            String preview,
+            String status
     ) {
+        public CaseRecord(
+                long id,
+                long timestamp,
+                String uuid,
+                String player,
+                String surface,
+                String reason,
+                String action,
+                String mode,
+                String preview
+        ) {
+            this(id, timestamp, uuid, player, surface, reason, action, mode, preview, "open");
+        }
     }
 
     private final Object lock = new Object();
@@ -54,8 +68,14 @@ public final class CaseLog implements AutoCloseable {
                           reason TEXT NOT NULL,
                           action TEXT NOT NULL,
                           mode TEXT NOT NULL,
-                          preview TEXT NOT NULL DEFAULT ''
+                          preview TEXT NOT NULL DEFAULT '',
+                          status TEXT NOT NULL DEFAULT 'open'
                         )""");
+                try {
+                    statement.executeUpdate("ALTER TABLE cases ADD COLUMN status TEXT NOT NULL DEFAULT 'open'");
+                } catch (SQLException ignored) {
+                    // Column already exists on fresh or already-migrated databases.
+                }
                 statement.executeUpdate(
                         "CREATE INDEX IF NOT EXISTS cases_player ON cases(player COLLATE NOCASE)");
             }
@@ -70,14 +90,15 @@ public final class CaseLog implements AutoCloseable {
         return connection != null;
     }
 
-    public void record(long timestamp, String uuid, String player, String surface,
+    public long record(long timestamp, String uuid, String player, String surface,
                        String reason, String action, String mode, String preview) {
         if (connection == null) {
-            return;
+            return -1L;
         }
         synchronized (lock) {
             try (PreparedStatement insert = connection.prepareStatement(
-                    "INSERT INTO cases (ts, uuid, player, surface, reason, action, mode, preview) VALUES (?,?,?,?,?,?,?,?)")) {
+                    "INSERT INTO cases (ts, uuid, player, surface, reason, action, mode, preview, status) VALUES (?,?,?,?,?,?,?,?,'open')",
+                    Statement.RETURN_GENERATED_KEYS)) {
                 insert.setLong(1, timestamp);
                 insert.setString(2, uuid);
                 insert.setString(3, player);
@@ -87,8 +108,44 @@ public final class CaseLog implements AutoCloseable {
                 insert.setString(7, mode);
                 insert.setString(8, preview == null ? "" : preview);
                 insert.executeUpdate();
+                try (ResultSet keys = insert.getGeneratedKeys()) {
+                    if (keys.next()) {
+                        return keys.getLong(1);
+                    }
+                }
             } catch (SQLException ignored) {
                 // A failed audit row must never break moderation.
+            }
+        }
+        return -1L;
+    }
+
+    public boolean updateStatus(long id, String status) {
+        if (connection == null || status == null || status.isBlank()) {
+            return false;
+        }
+        synchronized (lock) {
+            try (PreparedStatement update = connection.prepareStatement(
+                    "UPDATE cases SET status = ? WHERE id = ?")) {
+                update.setString(1, status.trim().toLowerCase(java.util.Locale.ROOT));
+                update.setLong(2, id);
+                return update.executeUpdate() > 0;
+            } catch (SQLException ignored) {
+                return false;
+            }
+        }
+    }
+
+    public long totalCount() {
+        if (connection == null) {
+            return 0L;
+        }
+        synchronized (lock) {
+            try (Statement statement = connection.createStatement();
+                 ResultSet rows = statement.executeQuery("SELECT COUNT(*) FROM cases")) {
+                return rows.next() ? rows.getLong(1) : 0L;
+            } catch (SQLException ignored) {
+                return 0L;
             }
         }
     }
@@ -137,6 +194,14 @@ public final class CaseLog implements AutoCloseable {
     }
 
     private static CaseRecord read(ResultSet rows) throws SQLException {
+        String status = "open";
+        try {
+            String rawStatus = rows.getString("status");
+            if (rawStatus != null && !rawStatus.isBlank()) {
+                status = rawStatus;
+            }
+        } catch (SQLException ignored) {
+        }
         return new CaseRecord(
                 rows.getLong("id"),
                 rows.getLong("ts"),
@@ -146,7 +211,8 @@ public final class CaseLog implements AutoCloseable {
                 rows.getString("reason"),
                 rows.getString("action"),
                 rows.getString("mode"),
-                rows.getString("preview")
+                rows.getString("preview"),
+                status
         );
     }
 

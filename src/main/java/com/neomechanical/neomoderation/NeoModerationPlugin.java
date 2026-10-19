@@ -3,6 +3,7 @@ package com.neomechanical.neomoderation;
 import com.neomechanical.neomoderation.commands.NeoModerationCommand;
 import com.neomechanical.neomoderation.config.BukkitConfigView;
 import com.neomechanical.neomoderation.config.ModerationSettings;
+import com.neomechanical.neomoderation.listener.AdminWelcomeListener;
 import com.neomechanical.neomoderation.listener.ChatModerationListener;
 import com.neomechanical.neomoderation.listener.MapArtListener;
 import com.neomechanical.neomoderation.listener.PaperAsyncChatBridge;
@@ -20,13 +21,10 @@ import com.neomechanical.neomoderation.moderation.PlayerMuteService;
 import com.neomechanical.neomoderation.moderation.SpamDetector;
 import com.neomechanical.neomoderation.moderation.StartupSummary;
 import com.neomechanical.neomoderation.moderation.StrikeService;
-import com.neomechanical.neomoderation.platform.PlatformScheduler;
-import org.bstats.bukkit.Metrics;
-import org.bstats.charts.SimplePie;
 import com.neomechanical.neomoderation.moderation.ClientIdentity;
-import com.neomechanical.neomoderation.moderation.ModerationApiResult;
 import com.neomechanical.neomoderation.moderation.UpdateChecker;
-import com.neomechanical.neomoderation.platform.InstallTelemetry;
+import com.neomechanical.neomoderation.platform.MetricsRegistrar;
+import com.neomechanical.neomoderation.platform.PlatformScheduler;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Entity;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -88,6 +86,7 @@ public final class NeoModerationPlugin extends JavaPlugin {
         }
         getServer().getPluginManager().registerEvents(new MapArtListener(this), this);
         getServer().getPluginManager().registerEvents(new SurfaceModerationListener(this, detectionHandler), this);
+        getServer().getPluginManager().registerEvents(new AdminWelcomeListener(this), this);
         PluginCommand command = getCommand("neomod");
         if (command != null) {
             NeoModerationCommand executor = new NeoModerationCommand(this);
@@ -95,65 +94,12 @@ public final class NeoModerationPlugin extends JavaPlugin {
             command.setTabCompleter(executor);
         }
         ClientIdentity.configure(getDescription().getVersion(), scheduler.platformName());
-        registerMetrics();
+        MetricsRegistrar.register(this, BSTATS_PLUGIN_ID, BUNDLED_WORD_COUNT);
         checkForUpdates();
         // A fresh install blocks bundled local-rule matches without punishing
         // players, while cloud judgements start in monitor mode. The startup
         // summary makes the active protection and limits visible to admins.
         StartupSummary.lines(settings, getDescription().getVersion()).forEach(getLogger()::info);
-    }
-
-    /**
-     * Registers every custom chart. Each id here must also exist on bstats.org
-     * or its data is silently discarded on arrival -- which is exactly what
-     * happened to the original three charts, leaving no way to tell an armed
-     * install from an inert one.
-     */
-    private void registerMetrics() {
-        Metrics metrics = new Metrics(this, BSTATS_PLUGIN_ID);
-
-        // Retained from earlier versions so their history stays continuous.
-        metrics.addCustomChart(new SimplePie("moderation_mode",
-                () -> settings.mode().name().toLowerCase(java.util.Locale.ROOT)));
-        metrics.addCustomChart(new SimplePie("cloud_enabled",
-                () -> InstallTelemetry.cloudEnabledState(settings)));
-        metrics.addCustomChart(new SimplePie("chat_censor",
-                () -> InstallTelemetry.censorState(settings)));
-
-        // Is this install actually protecting anything?
-        metrics.addCustomChart(new SimplePie("protection_state",
-                () -> InstallTelemetry.protectionState(settings)));
-        metrics.addCustomChart(new SimplePie("has_ever_detected",
-                () -> InstallTelemetry.hasEverDetected(monitorStats.total())));
-        metrics.addCustomChart(new SimplePie("detections_bucket",
-                () -> InstallTelemetry.detectionsBucket(monitorStats.total())));
-
-        // Is the cloud unconfigured, or configured and failing?
-        metrics.addCustomChart(new SimplePie("cloud_state", () -> {
-            ModerationApiResult.Kind kind = coordinator.lastCloudResultKind();
-            return InstallTelemetry.cloudState(
-                    settings,
-                    !coordinator.isRemoteCallAllowed(),
-                    kind == null ? null : kind.name());
-        }));
-
-        // What did the operator actually configure?
-        metrics.addCustomChart(new SimplePie("word_list_state",
-                () -> InstallTelemetry.wordListState(settings, BUNDLED_WORD_COUNT)));
-        metrics.addCustomChart(new SimplePie("surfaces_armed",
-                () -> InstallTelemetry.surfacesArmed(settings)));
-        metrics.addCustomChart(new SimplePie("spam_state",
-                () -> InstallTelemetry.spamState(settings)));
-        metrics.addCustomChart(new SimplePie("strike_state",
-                () -> InstallTelemetry.strikeState(settings)));
-        metrics.addCustomChart(new SimplePie("map_art_state",
-                () -> InstallTelemetry.mapArtState(settings)));
-        metrics.addCustomChart(new SimplePie("locale_state",
-                () -> InstallTelemetry.localeState(getConfig().getString("locale", "en_US"))));
-
-        // Did Folia and proxy support reach anyone?
-        metrics.addCustomChart(new SimplePie("platform_family",
-                () -> InstallTelemetry.platformFamily(getServer().getName(), scheduler.isFolia())));
     }
 
     /**

@@ -15,16 +15,9 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.MapMeta;
-import org.bukkit.map.MapView;
 
-import java.lang.reflect.Method;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
-import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -48,7 +41,7 @@ public final class MapArtListener implements Listener {
     private final Set<CacheKey> flaggedMaps;
     private final Set<Integer> pendingMaps = ConcurrentHashMap.newKeySet();
     private final Semaphore scanSlots = new Semaphore(2);
-    private final Material filledMapMaterial = resolveFilledMapMaterial();
+    private final Material filledMapMaterial = MapArtScanner.resolveFilledMapMaterial();
 
     public MapArtListener(NeoModerationPlugin plugin) {
         this.plugin = plugin;
@@ -66,9 +59,9 @@ public final class MapArtListener implements Listener {
             return;
         }
         Player player = event.getPlayer();
-        ItemStack held = mainHand(player.getInventory());
+        ItemStack held = MapArtScanner.mainHand(player.getInventory());
         if (!isFilledMap(held)) {
-            held = offHand(player.getInventory());
+            held = MapArtScanner.offHand(player.getInventory());
         }
         if (isFilledMap(held)) {
             handleMapItem(player, held);
@@ -104,7 +97,7 @@ public final class MapArtListener implements Listener {
         if (!(mapItem.getItemMeta() instanceof MapMeta meta)) {
             return;
         }
-        Integer mapId = resolveMapId(meta);
+        Integer mapId = MapArtScanner.resolveMapId(meta);
         if (mapId == null) {
             return;
         }
@@ -124,7 +117,7 @@ public final class MapArtListener implements Listener {
                 if (base64Image == null) {
                     return;
                 }
-                CacheKey key = new CacheKey(imageHash(base64Image), settings.api(), settings.categories());
+                CacheKey key = new CacheKey(MapArtScanner.imageHash(base64Image), settings.api(), settings.categories());
                 if (flaggedMaps.contains(key)) {
                     plugin.runForEntity(player, () -> applyFlaggedMap(player, mapItem, mapId, settings, "mapart.blocked"));
                     return;
@@ -147,8 +140,6 @@ public final class MapArtListener implements Listener {
                 if (!result.isFlagged()) {
                     return;
                 }
-                // Folia: confiscation edits this player's inventory, so it must run
-                // on that player's entity scheduler rather than any global thread.
                 flaggedMaps.add(key);
                 plugin.runForEntity(player, () -> applyFlaggedMap(player, mapItem, mapId, settings, "mapart.confiscated"));
             } finally {
@@ -170,15 +161,6 @@ public final class MapArtListener implements Listener {
 
     private record CacheKey(String imageHash, ModerationApiSettings api, ModerationCategorySettings categories) { }
 
-    private static String imageHash(String image) {
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                    .digest(image.getBytes(StandardCharsets.US_ASCII)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 unavailable", e);
-        }
-    }
-
     /** Main thread only. Monitor mode alerts staff instead of messaging/confiscating. */
     private void handleFlaggedMap(Player player, ItemStack mapItem, int mapId, String messageKey) {
         ModerationSettings settings = plugin.settings();
@@ -187,7 +169,9 @@ public final class MapArtListener implements Listener {
         String actionText = config().confiscate() ? "confiscate" : "warn";
         boolean monitor = DetectionHandler.Source.CLOUD.modeIn(settings) == ModerationMode.MONITOR;
         if (monitor) {
-            plugin.monitorStats().record(reason);
+            if (plugin.monitorStats() != null) {
+                plugin.monitorStats().record(reason);
+            }
             if (plugin.notifier() != null) {
                 plugin.notifier().notifyDetection(player, "map_art", reason, preview, settings, actionText, true);
             }
@@ -242,14 +226,6 @@ public final class MapArtListener implements Listener {
         return item != null && item.getType() == filledMapMaterial;
     }
 
-    private static Material resolveFilledMapMaterial() {
-        try {
-            return Material.valueOf("FILLED_MAP");
-        } catch (IllegalArgumentException ignored) {
-            return Material.MAP;
-        }
-    }
-
     /** A thread-safe, insertion-ordered set that evicts its oldest entry past {@code maxSize}. */
     private static <T> Set<T> boundedSet(int maxSize) {
         return Collections.synchronizedSet(Collections.newSetFromMap(
@@ -259,45 +235,5 @@ public final class MapArtListener implements Listener {
                         return size() > maxSize;
                     }
                 }));
-    }
-
-    private static ItemStack mainHand(PlayerInventory inventory) {
-        try {
-            Method method = inventory.getClass().getMethod("getItemInMainHand");
-            return (ItemStack) method.invoke(inventory);
-        } catch (ReflectiveOperationException ignored) {
-            return inventory.getItemInHand();
-        }
-    }
-
-    private static ItemStack offHand(PlayerInventory inventory) {
-        try {
-            Method method = inventory.getClass().getMethod("getItemInOffHand");
-            return (ItemStack) method.invoke(inventory);
-        } catch (ReflectiveOperationException ignored) {
-            return null;
-        }
-    }
-
-    private static Integer resolveMapId(MapMeta meta) {
-        try {
-            Method getMapView = meta.getClass().getMethod("getMapView");
-            Object view = getMapView.invoke(meta);
-            if (view instanceof MapView mapView) {
-                return (int) mapView.getId();
-            }
-        } catch (ReflectiveOperationException ignored) {
-            // Fall through to legacy map id.
-        }
-        try {
-            Method getMapId = meta.getClass().getMethod("getMapId");
-            Object id = getMapId.invoke(meta);
-            if (id instanceof Number number) {
-                return number.intValue();
-            }
-        } catch (ReflectiveOperationException ignored) {
-            // Unsupported on this server version.
-        }
-        return null;
     }
 }

@@ -1,7 +1,12 @@
 package com.neomechanical.neomoderation.moderation;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.map.MapPalette;
+import org.bukkit.map.MapView;
 
 import javax.imageio.ImageIO;
 import java.awt.Color;
@@ -11,8 +16,12 @@ import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
+import java.util.HexFormat;
 import java.util.zip.GZIPInputStream;
 
 public final class MapArtScanner {
@@ -22,6 +31,61 @@ public final class MapArtScanner {
     private static final int MAX_NBT_COLLECTION_LENGTH = 16 * 1024 * 1024;
 
     private MapArtScanner() {
+    }
+
+    public static String imageHash(String image) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(image.getBytes(StandardCharsets.US_ASCII)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
+        }
+    }
+
+    public static Material resolveFilledMapMaterial() {
+        try {
+            return Material.valueOf("FILLED_MAP");
+        } catch (IllegalArgumentException ignored) {
+            return Material.MAP;
+        }
+    }
+
+    public static ItemStack mainHand(PlayerInventory inventory) {
+        try {
+            Method method = inventory.getClass().getMethod("getItemInMainHand");
+            return (ItemStack) method.invoke(inventory);
+        } catch (ReflectiveOperationException ignored) {
+            return inventory.getItemInHand();
+        }
+    }
+
+    public static ItemStack offHand(PlayerInventory inventory) {
+        try {
+            Method method = inventory.getClass().getMethod("getItemInOffHand");
+            return (ItemStack) method.invoke(inventory);
+        } catch (ReflectiveOperationException ignored) {
+            return null;
+        }
+    }
+
+    public static Integer resolveMapId(MapMeta meta) {
+        try {
+            Method getMapView = meta.getClass().getMethod("getMapView");
+            Object view = getMapView.invoke(meta);
+            if (view instanceof MapView mapView) {
+                return (int) mapView.getId();
+            }
+        } catch (ReflectiveOperationException ignored) {
+        }
+        try {
+            Method getMapId = meta.getClass().getMethod("getMapId");
+            Object id = getMapId.invoke(meta);
+            if (id instanceof Number number) {
+                return number.intValue();
+            }
+        } catch (ReflectiveOperationException ignored) {
+        }
+        return null;
     }
 
     public static String getBase64Image(int mapId) {

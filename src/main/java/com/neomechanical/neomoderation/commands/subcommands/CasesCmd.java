@@ -32,12 +32,20 @@ public class CasesCmd implements SubCommand {
 
     @Override
     public String getUsage() {
-        return "/nmod cases [player|id]";
+        return "/nmod cases [player|id|resolve <id>|dismiss <id>]";
     }
 
     @Override
     public List<String> getAliases() {
         return List.of("case");
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, String[] args) {
+        if (args.length == 2) {
+            return SubCommand.filterPrefix(args[1], "resolve", "dismiss");
+        }
+        return List.of();
     }
 
     @Override
@@ -51,12 +59,29 @@ public class CasesCmd implements SubCommand {
             return;
         }
         String argument = args.length >= 2 ? args[1].trim() : null;
+        if (argument != null && ("resolve".equalsIgnoreCase(argument) || "dismiss".equalsIgnoreCase(argument))) {
+            if (args.length < 3 || parseId(args[2].trim()) == null) {
+                plugin.messages().send(sender, "cases.not-found", Map.of("id", args.length >= 3 ? args[2].trim() : "?"));
+                return;
+            }
+            long targetId = parseId(args[2].trim());
+            String newStatus = "resolve".equalsIgnoreCase(argument) ? "resolved" : "dismissed";
+            plugin.runAsync(() -> {
+                boolean updated = plugin.caseLog().updateStatus(targetId, newStatus);
+                Optional<CaseLog.CaseRecord> record = updated ? plugin.caseLog().byId(targetId) : Optional.empty();
+                plugin.runSync(() -> record.ifPresentOrElse(
+                        found -> renderDetail(sender, label, found),
+                        () -> plugin.messages().send(sender, "cases.not-found", Map.of("id", String.valueOf(targetId)))
+                ));
+            });
+            return;
+        }
         Long id = argument != null ? parseId(argument) : null;
         if (id != null) {
             plugin.runAsync(() -> {
                 Optional<CaseLog.CaseRecord> record = plugin.caseLog().byId(id);
                 plugin.runSync(() -> record.ifPresentOrElse(
-                        found -> renderDetail(sender, found),
+                        found -> renderDetail(sender, label, found),
                         () -> plugin.messages().send(sender, "cases.not-found", Map.of("id", String.valueOf(id)))
                 ));
             });
@@ -109,20 +134,55 @@ public class CasesCmd implements SubCommand {
         }
     }
 
-    private void renderDetail(CommandSender sender, CaseLog.CaseRecord row) {
+    private void renderDetail(CommandSender sender, String label, CaseLog.CaseRecord row) {
         plugin.messages().send(sender, "cases.title");
         plugin.messages().send(sender, "cases.line", Map.of(
                 "id", String.valueOf(row.id()),
                 "player", row.player(),
                 "surface", row.surface(),
                 "reason", row.reason(),
-                "actions", row.action(),
+                "actions", row.action() + " [" + row.status() + "]",
                 "mode", row.mode(),
                 "ago", ago(row.timestamp())
         ));
         if (!row.preview().isBlank()) {
             plugin.messages().send(sender, "cases.preview", Map.of("value", row.preview()));
         }
+        if (sender instanceof org.bukkit.entity.Player) {
+            java.util.List<com.neomechanical.neomoderation.messages.MenuRenderer.Line> actions = new java.util.ArrayList<>();
+            String resolveCmd = "/" + label + " cases resolve " + row.id();
+            String dismissCmd = "/" + label + " cases dismiss " + row.id();
+            actions.add(com.neomechanical.neomoderation.messages.MenuRenderer.clickableLine(
+                    "  &a[Resolve #" + row.id() + "] &8(" + resolveCmd + ")",
+                    resolveCmd, "&a" + resolveCmd,
+                    com.neomechanical.neomoderation.messages.MenuRenderer.ClickAction.RUN));
+            actions.add(com.neomechanical.neomoderation.messages.MenuRenderer.clickableLine(
+                    "  &e[Dismiss #" + row.id() + "] &8(" + dismissCmd + ")",
+                    dismissCmd, "&e" + dismissCmd,
+                    com.neomechanical.neomoderation.messages.MenuRenderer.ClickAction.RUN));
+            String matchedWord = extractBlockedWord(row.reason());
+            if (matchedWord != null) {
+                String allowCmd = "/" + label + " allow word " + matchedWord;
+                actions.add(com.neomechanical.neomoderation.messages.MenuRenderer.clickableLine(
+                        "  &b[Allow word \"" + matchedWord + "\"] &8(" + allowCmd + ")",
+                        allowCmd, "&b" + allowCmd,
+                        com.neomechanical.neomoderation.messages.MenuRenderer.ClickAction.RUN));
+            }
+            plugin.messages().sendMenu(sender, actions);
+        }
+    }
+
+    static String extractBlockedWord(String reason) {
+        if (reason == null) {
+            return null;
+        }
+        String prefix = reason.startsWith("split_blocked_word:") ? "split_blocked_word:"
+                : reason.startsWith("blocked_word:") ? "blocked_word:" : null;
+        if (prefix == null) {
+            return null;
+        }
+        String word = reason.substring(prefix.length()).trim();
+        return word.isEmpty() ? null : word;
     }
 
     private static String ago(long timestamp) {

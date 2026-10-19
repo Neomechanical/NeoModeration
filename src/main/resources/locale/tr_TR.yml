@@ -75,6 +75,7 @@ trial:
   status-active: "{prefix} &aBulut denemesi aktif &8(&f{days} &7gün kaldı, bitiş: &f{expires}&8)&7. &f{url} &7adresinden yükseltin."
   status-expired: "{prefix} &c14 günlük bulut denemeniz &f{expires} &ctarihinde sona erdi. &f{url} &7adresinden yükseltin ve &e/nmod setup <key> &7çalıştırın."
   status-standard: "{prefix} &aStandart Neomechanical çalışma alanı anahtarı kullanılıyor. &7Kredi ve limitler için &e/nmod usage &7çalıştırın."
+  cta-button: "  &a[Ücretsiz 14 günlük bulut denemesini başlat] &8(/nmod trial)"
 toggle:
   on: "{prefix} &7Moderasyon &aETKİNLEŞTİRİLDİ&7."
   off: "{prefix} &7Moderasyon &cDEVRE DIŞI BIRAKILDI&7."
@@ -221,3 +222,8 @@ preset:
 
 chat:
   cloud-unavailable: "{prefix} &eBulut moderasyonu şu anda kullanılamıyor. Lütfen birazdan tekrar deneyin; bu bir oyuncu ihlali değildir."
+
+welcome:
+  title: "{prefix} &7Yerel sohbet ve anti-spam kuralları &aaktif&7. Ek yüzeyleri yapılandırmak veya 14 günlük bulut denemesini başlatmak için aşağıya tıklayın."
+  surfaces-btn: "  &b[Ek yüzeyleri yapılandır] &8(/nmod surface)"
+

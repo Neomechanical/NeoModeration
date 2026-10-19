@@ -40,6 +40,9 @@ public final class MenuRenderer {
      * servers, and this keeps unit tests honest.
      */
     static String translate(String legacy) {
+        if (legacy == null) {
+            return "";
+        }
         String hexed = HEX_SEQUENCE.matcher(legacy)
                 .replaceAll((MatchResult match) -> "§x" + match.group(1).replace("&", "§"));
         return ChatColor.translateAlternateColorCodes('&', hexed);

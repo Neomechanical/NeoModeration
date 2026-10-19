@@ -224,6 +224,8 @@ moderation:
     # Include a short preview of the offending message in the alert. Set to
     # false to redact content from staff chat.
     includeMessage: true
+    # Optional Discord webhook URL for staff alerts when moderators are offline in-game.
+    discordWebhookUrl: ""
 
   chat:
     # Hook Paper's async chat event for lower-latency scanning.

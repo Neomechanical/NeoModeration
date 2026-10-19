@@ -76,6 +76,7 @@ trial:
   status-active: "{prefix} &aCloud trial active &8(&f{days} &7day(s) left, expires &f{expires}&8)&7. Upgrade at &f{url}"
   status-expired: "{prefix} &cYour 14-day cloud trial expired on &f{expires}&c. &7Upgrade at &f{url} &7and run &e/nmod setup <key>&7."
   status-standard: "{prefix} &aUsing a standard Neomechanical workspace key. &7Run &e/nmod usage &7for credits and limits."
+  cta-button: "  &a[Start free 14-day cloud trial] &8(/nmod trial)"
 toggle:
   on: "{prefix} &7Moderation has been &aENABLED&7."
   off: "{prefix} &7Moderation has been &cDISABLED&7."
@@ -222,3 +223,8 @@ preset:
 
 chat:
   cloud-unavailable: "{prefix} &eCloud moderation is unavailable. Please try again shortly; this is not a player violation."
+
+welcome:
+  title: "{prefix} &7Local chat and anti-spam rules are &aactive&7. Click below to configure surfaces or start a free 14-day cloud trial."
+  surfaces-btn: "  &b[Configure extra surfaces] &8(/nmod surface)"
+

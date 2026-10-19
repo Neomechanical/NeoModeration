@@ -72,6 +72,7 @@ public class StatusCmd implements SubCommand {
             plugin.messages().send(sender, "status.cloud-no-key", Map.of(
                     "url", CloudRecovery.SIGNUP_URL
             ));
+            com.neomechanical.neomoderation.commands.TrialPromptSupport.sendTrialCtaIfPlayer(plugin, sender);
         } else {
             plugin.messages().send(sender, cloudStatusKey(plugin.coordinator().lastCloudResultKind()), Map.of(
                     "keysUrl", CloudRecovery.API_KEYS_URL,

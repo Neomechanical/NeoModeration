@@ -2,12 +2,12 @@ NeoModeration by Neomechanical filters Minecraft chat. It blocks swearing, slurs
 
 ## What a new install does
 
-- Blocks messages that contain a word from a starter list of English swear words and slurs. A rule matches whole words only, so "assignment" and "Scunthorpe" stay clean.
-- Also matches common disguises of a listed word: spaced or stretched letters, accents, look-alike letters and leetspeak such as `b4dw0rd`.
+- Blocks messages that contain a word from starter lists of swear words and slurs (English by default, plus Spanish, French, German, Portuguese and Turkish when `locale` is set in `config.yml`). A rule matches whole words only, so "assignment" and "Scunthorpe" stay clean.
+- Also matches common disguises of a listed word: spaced or stretched letters, accents, look-alike letters, leetspeak such as `b4dw0rd`, and words split across rapid short messages.
 - Blocks a starter list of IP-grabber and scam links, including ones written with `(dot)` or `[.]`.
 - Blocks spam: message floods, the same message again and again, messages mostly in capitals and long runs of one character.
-- Alerts staff with the `neomoderation.notify` permission (operators by default), showing the player, the message, the reason and the action taken.
-- Logs each detection as a case on your server. Read them with `/nmod cases`. The log leaves out the message text unless you turn it on.
+- Alerts staff with the `neomoderation.notify` permission (operators by default), showing the player, the message, the reason and the action taken, with a clickable link to the player's case history.
+- Logs each detection as a case on your server. Read them with `/nmod cases` and mark them with `/nmod cases resolve` or `dismiss`. The log leaves out the message text unless you turn it on.
 
 A new install never mutes, kicks or bans a player or clears chat. Review the starter lists for your server and change them with `/nmod word`, `/nmod url` and `/nmod allow`.
 
@@ -24,6 +24,7 @@ To have local rules alert staff without blocking, run `/nmod mode monitor`.
 - Star out matched words and links and let the rest of the message through (`moderation.chat.censorLocalDetections` in `config.yml`).
 - Block every link and server IP address, including ones written with `(dot)` or `[.]` (`moderation.offline.blockAnyUrl`).
 - Check signs, books, anvil renames and chat commands such as `/msg` and `/me` with `/nmod surface`. Each can monitor, censor or block. Command checks also catch a player who sends those commands too fast.
+- Send detection alerts to a Discord staff channel webhook (`moderation.alerts.discordWebhookUrl`).
 - Add actions after a block with `/nmod action`: clear chat, mute, kick or ban. Mute needs no other plugin.
 - Add a strike for each blocked or starred-out message and act when a player reaches a set count (`moderation.strikes`).
 
