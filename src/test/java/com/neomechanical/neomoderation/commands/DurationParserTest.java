@@ -34,4 +34,14 @@ class DurationParserTest {
         assertThrows(IllegalArgumentException.class, () -> DurationParser.parseSeconds("106751991167301d", 300));
         assertEquals(InputLimits.MAX_MUTE_SECONDS, DurationParser.parseSeconds("30d", 300));
     }
+
+    @Test
+    void timeLeftReadsInItsTwoLargestUnits() {
+        assertEquals("9m 55s", DurationParser.remaining(595));
+        assertEquals("10m", DurationParser.remaining(600));
+        assertEquals("23h 59m", DurationParser.remaining(86_340));
+        assertEquals("2d 3h", DurationParser.remaining(2 * 86_400 + 3 * 3_600 + 59));
+        assertEquals("45s", DurationParser.remaining(45));
+        assertEquals("0s", DurationParser.remaining(0));
+    }
 }

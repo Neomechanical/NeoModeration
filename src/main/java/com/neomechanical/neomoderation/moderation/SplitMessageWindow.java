@@ -18,9 +18,11 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class SplitMessageWindow {
 
-    public static final long DEFAULT_WINDOW_MS = 6_000L;
+    /** As long as the spam limit's window, so letters typed one per message within it are read together. */
+    public static final long DEFAULT_WINDOW_MS = 10_000L;
     public static final int MAX_FRAGMENT_LENGTH = 12;
-    public static final int MAX_WINDOW_MESSAGES = 4;
+    /** Enough for "b", "i", "t", "c", "h" and more, should a server allow more messages than the default. */
+    public static final int MAX_WINDOW_MESSAGES = 8;
     private static final int MAX_ENTRIES_BEFORE_CLEANUP = 1_000;
 
     private record Entry(long timestamp, String fragment) {

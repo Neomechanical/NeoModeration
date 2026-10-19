@@ -59,6 +59,32 @@ public final class DurationParser {
         return (seconds / 86_400) + "d";
     }
 
+    /**
+     * Time left, in its two largest units: "9m 55s", "23h 59m", "2d 3h". A mute
+     * set for 10 minutes reads "9m 55s" a few seconds later, never "595s".
+     */
+    public static String remaining(int seconds) {
+        if (seconds <= 0) {
+            return "0s";
+        }
+        int[] sizes = {86_400, 3_600, 60, 1};
+        String[] units = {"d", "h", "m", "s"};
+        for (int unit = 0; unit < sizes.length; unit++) {
+            if (seconds >= sizes[unit]) {
+                String text = (seconds / sizes[unit]) + units[unit];
+                if (unit + 1 < sizes.length) {
+                    int rest = (seconds % sizes[unit]) / sizes[unit + 1];
+                    if (rest > 0) {
+                        text += " " + rest + units[unit + 1];
+                    }
+                }
+                return text;
+            }
+        }
+        return seconds + "s";
+    }
+
+    /** A duration as it was set, such as "10m" or "90s". */
     public static String format(int seconds) {
         if (seconds <= 0) {
             return "0s";

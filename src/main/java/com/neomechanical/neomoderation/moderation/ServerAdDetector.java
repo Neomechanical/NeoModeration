@@ -16,11 +16,12 @@ import java.util.regex.Pattern;
  * public IPv4 address, any address with a port, a host whose first label is a
  * server-style prefix ({@code play.}, {@code mc.}, {@code smp.} ...), a
  * subdomain of a free Minecraft host, or a host written straight after "join",
- * "ip:", "server is" or "play on". "play" alone is not enough, because players
- * invite each other to browser games ("lets play skribbl.io"). A private address
- * such as {@code 192.168.1.1} is not reachable from outside, so it counts only
- * with a port, and a well-known public DNS resolver ({@code 1.1.1.1},
- * {@code 8.8.8.8} ...) only with a port. An ordinary domain after "join" that
+ * "ip:", "server is" or "play on". "play" alone ("play coolsmp.net", "come play
+ * hypixel.net") counts only before a host whose name reads as a game server,
+ * because players invite each other to browser games ("lets play skribbl.io").
+ * A private address such as {@code 192.168.1.1} is not reachable from outside,
+ * so it counts only with a port, and a well-known public DNS resolver
+ * ({@code 1.1.1.1}, {@code 8.8.8.8} ...) only with a port. An ordinary domain after "join" that
  * goes on to a page ({@code example.net/watch}) is a link, not a server; a path
  * never clears an address with a server signal, so {@code play.evil.net/} is
  * still an ad. A two-label host whose ending is also a word
@@ -51,6 +52,14 @@ final class ServerAdDetector {
     /** Words that, right before an address, make it an invitation, though they also begin sentences. */
     private static final Pattern AD_INTENT_BEFORE = intentBefore(
             INVITATIONS + "|server|play\\s+(?:on|at)|hop\\s+on|come\\s+(?:to|on|play\\s+on)");
+
+    /** "play" telling someone to play ("play ...", "come play ...", "lets play ..."), not "i play ...". */
+    private static final Pattern PLAY_BEFORE = Pattern.compile(
+            "(?:^|(?:^|[^a-z])(?:come|lets|let's|go|pls|please)\\s+)play\\s*(?::|-|>)?\\s*$");
+
+    /** Parts of a host's name that mark a game server or network. */
+    private static final Pattern SERVER_NAME = Pattern.compile(
+            "smp|mc|craft|pvp|network|server|survival|skyblock|anarchy|factions|prison|hypixel|cubecraft|mineplex");
 
     /** First labels that mark a game-server address (play.example.net). */
     private static final Set<String> SERVER_LABELS = Set.of(
@@ -257,7 +266,9 @@ final class ServerAdDetector {
         if (labels.length == 2 && WORD_TLDS.contains(tld) && sentenceContinues(text, host.end())) {
             return INVITATION_BEFORE.matcher(before).find();
         }
-        return AD_INTENT_BEFORE.matcher(before).find();
+        return AD_INTENT_BEFORE.matcher(before).find()
+                || (SERVER_NAME.matcher(labels[labels.length - 2]).find()
+                        && PLAY_BEFORE.matcher(text.substring(0, host.start())).find());
     }
 
     private static String mask(String text, List<String> allowedUrls) {

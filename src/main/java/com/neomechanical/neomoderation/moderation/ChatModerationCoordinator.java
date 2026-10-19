@@ -209,6 +209,7 @@ public final class ChatModerationCoordinator implements AutoCloseable {
             Thread.currentThread().interrupt();
             if (waiter.compareAndSet(Waiter.QUEUED, Waiter.SKIPPED)) {
                 future.cancel(false);
+                workers.purge();
             } else {
                 waiter.compareAndSet(Waiter.ASKING, Waiter.LATE);
             }

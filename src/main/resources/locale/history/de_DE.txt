@@ -157,7 +157,7 @@ doctor.detail.discord-rate-limited	8447283f084a2f7a
 doctor.detail.discord-unreachable	dbe2f35d0c54e2bd
 doctor.detail.endpoint-bad	29cc0e7b0d5e942f
 doctor.detail.events-auth	b01d97edd015206d
-doctor.detail.events-busy	94f336ee844fbbf2,c0815fd9fe5a45bd
+doctor.detail.events-busy	8d0a0c13225ae2bf,94f336ee844fbbf2,c0815fd9fe5a45bd
 doctor.detail.events-credits	d466a1967c1cb92e
 doctor.detail.events-none	2f4b59bd76f236c1
 doctor.detail.events-ok	cc7b05470c8a1679
@@ -232,7 +232,7 @@ help.entry-hover	9eef20069aedf572
 help.entry-usage	acded8b7ee84b020
 help.footer	08ced042544daf2e,63e1be82ff037479
 help.hint	058cd23bbcd37011,309ba9370e9a3ae8,e07d47a0d8565db8
-help.hint-console	ca0021ae476ce64a
+help.hint-console	44e3510ea91e6a8a,ca0021ae476ce64a
 help.page	3f83b8e95640d355,80c11d950d064de9
 help.section.admin	0b3866b90906e8d7,499108844c93e69b
 help.section.rules	db56e5028e3210ee,eabe720090e3ed85
@@ -277,7 +277,7 @@ mapart.blocked	498cf09d0ef23241,ffda0b9ec750a925
 mapart.capped	1679fef33791aa3a
 mapart.confiscated	222456b41c72afd0,8bfbaabde4675cbd,b9977e04d1e3ca10
 migrated.language-packs	5768637e7d400fd2
-migrated.map-art-cap	2c95db0c6999ab4a
+migrated.map-art-cap	2c95db0c6999ab4a,4b2c3c6bfe1a923b
 migrated.per-player-off	603acde6f5d10e8d
 migrated.per-player-on	6924d11d2fea38af
 migrated.server-ads	880e438374626d27

@@ -110,45 +110,86 @@ class ShippedListsTest {
 
     /**
      * Every banned word that everyday words of one language spell, written
-     * "language: pieces = word". These pass for players who write that language
-     * (English everywhere), so a split that is not ordinary chat in that language
-     * is an evasion: adding an everyday word that makes a new one fails here
-     * until someone decides whether players of that language say it.
+     * "language: pieces = word", including spellings that stretch a letter
+     * across the gap ("put to" for "puto"). These pass for players who write
+     * that language (English everywhere), so a split that is not ordinary chat
+     * in that language is an evasion: adding an everyday word that makes a new
+     * one fails here until someone decides whether players of that language say
+     * it. A word that is never innocent is listed with its space instead
+     * ("pu tain", "mari cones").
      */
     private static final Set<String> KNOWN_EVERYDAY_SPELLINGS = Set.of(
             "en: bad word = badword",
             "en: go ok = gook",
+            "en: gg go ok = gook",
             "en: put a = puta",
             "en: put as = putas",
-            "en: put o = puto",
-            "en: put a in = putain",
+            "en: put a as = putas",
+            "en: put to = puto",
             "es: mari con = maricon",
-            "es: mari con es = maricones",
             "es: ni que = nique",
+            "es: vi a dos = viados",
             "fr: mer de = merde",
             "fr: mer des = merdes",
+            "fr: mer de es = merdes",
             "fr: pu te = pute",
-            "fr: pu tes = putes",
             "fr: en foire = enfoire",
             "de: jo der = joder",
+            "de: jo oder = joder",
             "da: jo der = joder",
-            "pt: pa ki = paki",
+            "da: jo de er = joder",
+            "da: jo dette = jodete",
             "pt: via do = viado",
             "pt: via dos = viados",
+            "pt: via do os = viados",
+            "pt: via a do = viado",
+            "pt: via a dos = viados",
+            "pt: vi a do = viado",
+            "pt: vi a dos = viados",
             "sv: hur en = huren"
     );
 
-    /** Every way to cut {@code letters} into two or three pieces. */
+    /**
+     * Every way to cut {@code letters} into two or three pieces, also with one
+     * run of a letter stretched by one or two ("putto", "kikkke"), which the
+     * matcher reads as the same word.
+     */
     private static List<String[]> splits(String letters) {
+        Set<String> spellings = new java.util.LinkedHashSet<>();
+        spellings.add(letters);
+        for (int at = 0; at < letters.length(); at++) {
+            if (at > 0 && letters.charAt(at) == letters.charAt(at - 1)) {
+                continue;
+            }
+            char letter = letters.charAt(at);
+            spellings.add(letters.substring(0, at) + letter + letters.substring(at));
+            spellings.add(letters.substring(0, at) + letter + letter + letters.substring(at));
+        }
         List<String[]> splits = new ArrayList<>();
-        for (int first = 1; first < letters.length(); first++) {
-            splits.add(new String[]{letters.substring(0, first), letters.substring(first)});
-            for (int second = first + 1; second < letters.length(); second++) {
-                splits.add(new String[]{letters.substring(0, first), letters.substring(first, second),
-                        letters.substring(second)});
+        for (String spelling : spellings) {
+            for (int first = 1; first < spelling.length(); first++) {
+                addUnlessTrailingStretch(splits, spelling.substring(0, first), spelling.substring(first));
+                for (int second = first + 1; second < spelling.length(); second++) {
+                    addUnlessTrailingStretch(splits, spelling.substring(0, first), spelling.substring(first, second),
+                            spelling.substring(second));
+                }
             }
         }
         return splits;
+    }
+
+    /**
+     * Adds a split, unless its last piece only repeats the letter before it
+     * ("mer de e"): the matcher ends a word at the first place it can, so that
+     * reads as "mer de" and a stray "e".
+     */
+    private static void addUnlessTrailingStretch(List<String[]> splits, String... pieces) {
+        String last = pieces[pieces.length - 1];
+        char before = pieces[pieces.length - 2].charAt(pieces[pieces.length - 2].length() - 1);
+        if (last.chars().allMatch(letter -> letter == before)) {
+            return;
+        }
+        splits.add(pieces);
     }
 
     /** The shipped words a player cannot write without a space: those written with one are read across every space. */
@@ -192,6 +233,7 @@ class ShippedListsTest {
     @Test
     void everydayWordsOfOneLanguageSpellOnlyTheBannedWordsWeKnowAbout() throws Exception {
         OfflineModerationSettings settings = shipped(List.of("all"));
+        Set<String> ownList = new java.util.HashSet<>(settings.bannedWords());
         Set<String> found = new TreeSet<>();
         List<String> wrong = new ArrayList<>();
         for (String word : unspacedShippedWords()) {
@@ -202,12 +244,22 @@ class ShippedListsTest {
                         return;
                     }
                     String spelling = language + ": " + String.join(" ", pieces) + " = " + word;
-                    found.add(spelling);
+                    if (!found.add(spelling)) {
+                        return;
+                    }
                     String line = "well " + String.join(" ", pieces) + " then";
-                    if (OfflineModerationEngine.evaluate(line, settings, language + "_" + language).flagged()) {
+                    String speaker = language + "_" + language;
+                    boolean english = Arrays.stream(pieces).allMatch(BundledWordPacks.everydayWords("en")::contains);
+                    if (!english && ownList.contains(word)) {
+                        // A word on the server's own list takes no excuse from a player's game language.
+                        if (!OfflineModerationEngine.evaluate(line, settings, speaker).flagged()) {
+                            wrong.add(spelling + ": passed on an English server for a player of that language");
+                        }
+                        return;
+                    }
+                    if (OfflineModerationEngine.evaluate(line, settings, speaker).flagged()) {
                         wrong.add(spelling + ": blocked for a player of that language");
                     }
-                    boolean english = Arrays.stream(pieces).allMatch(BundledWordPacks.everydayWords("en")::contains);
                     if (!english && !OfflineModerationEngine.evaluate(line, settings, "en_us").flagged()) {
                         wrong.add(spelling + ": passed for an English player on an English server");
                     }
@@ -218,6 +270,9 @@ class ShippedListsTest {
         unknown.removeAll(KNOWN_EVERYDAY_SPELLINGS);
         Set<String> gone = new TreeSet<>(KNOWN_EVERYDAY_SPELLINGS);
         gone.removeAll(found);
+        // Own-list words with non-English pieces are caught everywhere but on that language's servers.
+        unknown.removeIf(spelling -> !spelling.startsWith("en: ")
+                && ownList.contains(spelling.substring(spelling.indexOf(" = ") + 3)));
         assertTrue(unknown.isEmpty(), () -> "Everyday words now spell more banned words. For each, decide whether "
                 + "players of that language say it and list it here, or drop the word from common-words.txt:\n"
                 + String.join("\n", unknown));
@@ -266,6 +321,32 @@ class ShippedListsTest {
         assertTrue(OfflineModerationEngine.evaluate("you fag", english, "da_dk").flagged());
         assertTrue(OfflineModerationEngine.evaluate("kike", english, "es_es").flagged(),
                 "one word on its own reads as no language");
+        // One cheap word of the language is not a message written in it.
+        for (String[] line : new String[][]{
+                {"you kike e", "es_mx"}, {"dirty kike xd", "es_mx"}, {"shut up kike que", "es_es"},
+                {"you are a kike de", "es_es"}, {"you retard y", "fr_fr"}, {"shut up retard le", "fr_fr"},
+                {"you slut pa", "sv_se"}, {"what a slut och", "sv_se"}, {"you fag er", "da_dk"},
+                {"shut up fag og", "nb_no"}, {"you verga e", "it_it"}}) {
+            assertTrue(OfflineModerationEngine.evaluate(line[0], shipped(List.of("all")), line[1]).flagged(),
+                    line[0] + " (" + line[1] + ")");
+        }
+    }
+
+    @Test
+    void aWordOnTheServersOwnListTakesNoExcuseFromAPlayersGameLanguage() throws Exception {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("moderation.offline.bannedWords", List.of("joder"));
+        config.set("moderation.offline.languagePacks", List.of());
+        OfflineModerationSettings ownList = OfflineModerationSettings.from(new BukkitConfigView(config));
+        assertTrue(OfflineModerationEngine.evaluate("jo der ist gut", ownList, "de_de").flagged(),
+                "a German game does not make the server's own word German chat");
+        config.set("locale", "de_DE");
+        assertFalse(OfflineModerationEngine.evaluate("jo der ist gut", OfflineModerationSettings.from(
+                new BukkitConfigView(config)), "en_us").flagged(), "on a German server it is German chat");
+
+        OfflineModerationSettings pack = shipped(List.of("es"));
+        assertFalse(OfflineModerationEngine.evaluate("jo der ist gut", pack, "de_de").flagged(),
+                "the Spanish pack's word passes in a German player's German");
     }
 
     @Test

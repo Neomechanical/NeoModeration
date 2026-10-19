@@ -1,7 +1,9 @@
 # Everyday phrases every server allows, where a banned word is also an ordinary
-# word inside the phrase. One phrase per line. Everyday words of one language
-# written apart ("put a", and "Mari con" for Spanish players) never read as a
-# banned word in the first place: see common-words.txt.
+# word inside the phrase. One phrase per line. A phrase lets its banned word
+# through wherever it appears, even inside an insult, so only phrases nobody
+# would insult with belong here. Everyday words of one language written apart
+# ("put a torch", or "Mari con" from a Spanish player) are handled by
+# common-words.txt instead.
 #
 # French: "retard" means late
 en retard

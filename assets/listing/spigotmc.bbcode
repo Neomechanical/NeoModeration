@@ -3,7 +3,7 @@ NeoModeration by Neomechanical filters Minecraft chat. It blocks swearing, slurs
 [B]What a new install does[/B]
 [LIST]
 [*]Blocks messages that contain a word from starter lists of swear words and slurs: English, plus the Spanish, French, German, Portuguese or Turkish list that matches [FONT=Courier New]locale[/FONT] in [FONT=Courier New]config.yml[/FONT] ([FONT=Courier New]languagePacks[/FONT] turns on more). A word only matches from the start of a word to the end of one, so "assignment" and "Scunthorpe" stay clean, and so do everyday words that together spell a listed word, as in "put a torch here". A word one language uses every day, such as French "retard" (late), passes for players writing in that language.
-[*]Also matches common disguises of a listed word: spaced or stretched letters, accents, look-alike letters, leetspeak such as [FONT=Courier New]b4dw0rd[/FONT], and words split across rapid short messages.
+[*]Also matches common disguises of a listed word: spaced, punctuated or stretched letters, accents, look-alike letters, leetspeak such as [FONT=Courier New]b4dw0rd[/FONT], and words split across rapid short messages.
 [*]Blocks ads for other Minecraft servers: public IP addresses, addresses with a port, [FONT=Courier New]play.[/FONT] and [FONT=Courier New]mc.[/FONT] style addresses, free hosts such as [FONT=Courier New]aternos.me[/FONT], and "join myserver.net". Ordinary links stay. Let your own server's address through with [FONT=Courier New]/nmod allow url[/FONT].
 [*]Blocks a starter list of IP-grabber and scam links, including ones written with [FONT=Courier New](dot)[/FONT] or [FONT=Courier New][.][/FONT].
 [*]Blocks spam: message floods, the same message again and again and long runs of one character. Messages in capitals go out in lower case.
@@ -48,7 +48,7 @@ The Neomechanical Moderation API can read each chat message for its meaning, in 
 Without an API key or a Discord webhook, no chat or map content leaves your server. NeoModeration sends technical metrics to bStats, which hold no chat, player names or API keys. Turn them off in [FONT=Courier New]plugins/bStats/config.yml[/FONT]. Once at startup, NeoModeration asks GitHub whether a newer version exists. Turn that off with [FONT=Courier New]updateCheck[/FONT] in [FONT=Courier New]config.yml[/FONT].
 
 [B]Compatibility[/B]
-NeoModeration runs on Spigot, Paper and Purpur, Minecraft 1.18.2 to 26.3, and on Folia from 1.19.4. Release checks run on Paper 1.18.2, 1.19.4, 1.20.6, 1.21.11, 26.1.2, 26.2 and 26.3 and on Folia 1.21.11. In-game messages are in English, Spanish, French, German, Portuguese or Turkish, and each player reads them in their own game language.
+NeoModeration runs on Spigot, Paper and Purpur, Minecraft 1.18.2 to 26.3, and on Folia. Release checks run on Paper 1.18.2, 1.19.4, 1.20.6, 1.21.11, 26.1.2, 26.2 and 26.3, on Folia 1.21.11 and on Spigot 1.21.11. In-game messages are in English, Spanish, French, German, Portuguese or Turkish, and each player reads them in their own game language.
 
 [B]Links[/B]
 [LIST]

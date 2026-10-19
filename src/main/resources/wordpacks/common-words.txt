@@ -1,19 +1,20 @@
-# Everyday words by language, used to tell two words from one word split up.
-# A banned word is never read across a space when every piece of it is an
-# everyday word of one language, and that language is English, the server's
-# "locale" or the player's game language: "put a" is not "puta", and for a
-# Spanish player "Mari con" is not "maricon". Pieces from different languages
-# are still read as one word ("pa ki", "bean er"), and so are pieces that are
-# not words ("f uck", "ni gger", "k y s"). A banned word written with a space
-# ("ass hole") is always read across spaces.
+# Everyday words by language, used to tell everyday words from one banned word
+# split up. A banned word is not read across a space when every piece of it is
+# an everyday word of one language, and that language is English, the server's
+# "locale" or the player's game language: "put a torch here" stays clean, and
+# for a Spanish player so does "vino Mari con su novio". A word on the server's
+# own list only takes English or the server's language as its excuse. Pieces
+# from different languages are still read as one word ("bean er"), and so are
+# pieces that are not words ("f uck", "ni gger", "k y s"). A banned word written
+# with a space ("ass hole") is always read across spaces.
 #
 # "<language>: <word> <word> ...". A language may take several lines, and
 # several languages may share one ("hr sr bs:"). ShippedListsTest names every
 # banned word that everyday words of one language spell, so adding a word here
 # that makes a new one fails the build until someone decides. Slurs and swear
-# words are never listed here, and neither are the words in languages.txt.
-# English, with Minecraft words
-en: a i o u am an as at be by do go he hi if in is it me my no of oh ok on or so to up us we ya ye
+# words are never listed here, nor laughter and emoticons ("jaja", "kkk", "xd"),
+# nor the words in languages.txt.
+en: a i u am an as at be by do go he hi if in is it me my no of oh ok on or so to up us we ya ye
 en: yo ah eh uh um hm ha lo ow aw ay ox ex the and are can get got had has her him his how its let
 en: lets man may not now off old one our out own see she too two was way who why yes yet you all
 en: any big bit boy but day did end few for fun god guy hey new nor pay put ran red run sad say
@@ -66,17 +67,18 @@ en: thing think third those three throw tiger title today token total touch towe
 en: train treat trick tried truck trust truth twice uncle under until upper usual value video
 en: visit voice waste watch water wheat wheel where which while white whole woman women world
 en: worry worth would write wrong young yours zombie okey op
+en: lol lmao omg gg wp bruh idk btw pls plz thx ty np brb afk irl rn ngl tbh
 # Spanish
 es: a e o u y al da de di el en es ha he la le lo me mi ni no os se si su te ti tu un va ve ya yo
 es: que con por para pero como una uno los las del sus mis tus muy hay ser son soy eres era fue
 es: ver voy vas van vamos tengo tiene hace hola bien mal mas aqui alli ahi esto eso este esta ese
 es: esa nada todo todos mucho poco casa juan pepe mari dejo deja dejar pues pal pos vale oye mira
-es: jaja tio tia amigo amiga perro gato novio novia hijo hija madre padre dos tres res sal cosa
-es: algo alguien nunca siempre ahora antes luego tarde noche dia vez ves dime dame toma vino vida
-es: mundo juego jugar server agua fuego hacemos hacer hago porque cuando donde quien cual tambien
-es: solo gracias claro ven venga bueno buena buenas hoy ayer aca dale jajaja xd mucha muchos
-es: muchas otro otra otros estoy estas estamos tienes tenemos puedo puedes quiero quieres ayuda
-es: granja aldea cueva equipo hambre final
+es: tio tia amigo amiga perro gato novio novia hijo hija madre padre dos tres res sal cosa algo
+es: alguien nunca siempre ahora antes luego tarde noche dia vez ves dime dame toma vino vida mundo
+es: juego jugar server agua fuego hacemos hacer hago porque cuando donde quien cual tambien solo
+es: gracias claro ven venga bueno buena buenas hoy ayer aca dale mucha muchos muchas otro otra
+es: otros estoy estas estamos tienes tenemos puedo puedes quiero quieres ayuda granja aldea cueva
+es: equipo hambre final vi hermano hermana
 # French
 fr: a y ce de du en et il je la le ma me ne ni on ou sa se si te tu un va vu ca ai as es eu lu pu
 fr: mer des les une aux est sont pas plus bas re foire fait mal bon bien oui non qui quoi mais
@@ -85,7 +87,7 @@ fr: mes tes ses mere pere fils fille chat chien ville train jeu jeux merci salut
 fr: tres encore jamais toujours quand alors donc aussi faire dire voir avoir etre vais vas peut
 fr: veux sais sans svp stp aucun aucune aujourd hui demain hier ici deja vraiment juste comme
 fr: cette ces leur leurs notre votre nos vos quel quelle parce pourquoi comment beaucoup desole
-fr: attends viens allez allons ouais bah mdr village diamants echanger miner diner veut
+fr: attends viens allez allons ouais bah village diamants echanger miner diner veut gros
 # German
 de: ab am an da du er es im in ja ob so um wo zu je der die das den dem des ein eine einen ist ich
 de: sie wir ihr und mit von auf aus bei hat war wie was wer nicht noch nur auch aber oder wenn
@@ -97,11 +99,11 @@ de: stimmt digga alter wieder spielen dorf eisen
 # Portuguese
 pt: a e o as os da de do em eu ja la me na no se si so te tu um ou ai oi vc pq to uma das dos nas
 pt: nos com por pra para mas mais que nao sim ele ela eles elas voce isso isto esse essa aqui ali
-pt: tudo nada muito pouco bem mal cara mano vai vem foi ser sou tem tenho alho meu minha seu sua
-pt: casa jogo jogar via pa ki estao estou esta estamos onde quando porque tambem obrigado obrigada
-pt: valeu beleza agora hoje ontem amanha depois antes vamos bora gente kkk kkkk ne tipo entao
-pt: fazer faz sabe sei quero pode posso jogando alguem trocar diamantes minerar fica vila pao
-pt: metro blocos vidro fundos
+pt: tudo nada muito pouco bem mal cara mano vai vem foi ser sou tem tenho meu minha seu sua casa
+pt: jogo jogar via estao estou esta estamos onde quando porque tambem obrigado obrigada valeu
+pt: beleza agora hoje ontem amanha depois antes vamos bora gente ne tipo entao fazer faz sabe sei
+pt: quero pode posso jogando alguem trocar diamantes minerar fica vila pao metro blocos vidro
+pt: fundos vi
 # Turkish
 tr: o bu su ve ki mi mu de da ne ya en is at el ev ay bir ben sen biz siz onlar var yok cok ama
 tr: ile gibi icin daha iyi kotu evet hayir tamam abi kanka oyun sunucu ak al bak gel git ver neden
@@ -112,10 +114,13 @@ it: di da il lo la le un una che non per con mi ti si ci vi ma ho ha io lui lei 
 it: siamo come cosa dove quando perche anche molto bene male ciao grazie gioco giocare casa libro
 it: letto
 # Dutch
-nl: de het een en je jij we ze is in te van dat die niet wat ja nee met voor
+nl: de het een en je jij we ze is in te van dat die niet wat ja nee met voor ik kan kost om op
+nl: maar dan nog ook hoe waar wie mijn jouw zijn haar ons hun heb heeft hebben ben bent waren
+nl: wordt moet moeten wil willen ga gaat gaan kom komt komen doe doen spelen huis goed dank
+nl: bedankt hoi hallo doei jullie zij hij zo nu hier daar alles niks iets iemand plot shop
 # Swedish
 sv: och att det som en pa ar av for med har jag du han hon vi ni de nu inte men eller ja nej tack
-sv: hej var vad hur nar kan ska vill hade kom vem spela mat diamant present
+sv: hej var vad hur nar kan ska vill hade kom vem spela mat diamant present den
 # Polish
 pl: i w z na nie to jest ze sie co jak tak ale po do od za
 # Danish

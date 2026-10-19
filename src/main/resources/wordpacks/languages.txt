@@ -1,8 +1,10 @@
-# Everyday words in one language that another language's list bans. They pass
-# for everyone on a server whose locale is the language named, and for a player
-# whose game language is, when the same message has another everyday word of
-# that language (common-words.txt): "quel retard ce train" passes for a French
-# player, "shut up retard" does not. "<language>: <word> <word> ..."; several
+# Everyday words in one language that another language's list bans, or that
+# read as a banned word with a letter doubled ("slutt"). They pass for everyone
+# on a server whose locale is the language named, and for a player whose game
+# language is, when the message is written in that language: at least two other
+# everyday words of it (common-words.txt) that English does not use, and more of
+# them than English ones. "quel retard ce train" passes for a French player;
+# "shut up retard le" does not. "<language>: <word> <word> ..."; several
 # languages may share a line, and a language such as "pt_pt" names one
 # country's form, "sv" every Swedish one.
 #
@@ -13,11 +15,16 @@ ca: retard retards
 es: kike porra
 # Portuguese in Portugal: "os putos", the kids; "a bicha", the queue
 pt_pt: puto putos bicha bichas
-# Swedish and Danish: "slut", the end; Swedish "fick", got
-sv: slut fick
-da: slut
-# Danish and Norwegian: "fag", a school subject
-da no nb nn: fag
+# Swedish and Danish: "slut", the end; Swedish "fick", got; "putta", put;
+# "kyss" and Danish "kys", a kiss
+sv: slut fick putta kyss
+da: slut kys
+# Danish and Norwegian: "fag", a school subject; "putte", put; Norwegian
+# "slutt", the end, and "kikke", to look
+da no nb nn: fag putte
+no nb nn: slutt kikke
+# Dutch: "huren", to rent
+nl: huren
 # Croatian, Serbian and Bosnian: "dva puta", twice
 hr sr bs: puta
 # Italian: "verga", a rod, and the writer Giovanni Verga

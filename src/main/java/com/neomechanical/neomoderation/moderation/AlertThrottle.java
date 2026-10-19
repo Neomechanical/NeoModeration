@@ -3,6 +3,7 @@ package com.neomechanical.neomoderation.moderation;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -10,11 +11,11 @@ import java.util.Set;
 /**
  * Keeps staff chat readable during a raid. Past three alerts about one player in
  * 30 seconds, or a dozen about anyone in 10 seconds, one line says alerts are
- * paused, and they stay paused for as long as the raid lasts: until that player
- * has had at most one alert in the last 30 seconds, or everyone together at most
- * three in the last 10. The first alert after a pause comes with how many staff
- * missed. Every detection still reaches the console and the case history, and
- * Discord in batches.
+ * paused, and they stay paused until a quiet minute: one in which that player
+ * had at most one alert, or everyone together at most three. A raid that comes
+ * in waves stays one pause. The first alert after a pause comes with how many
+ * staff missed. Every detection still reaches the console and the case history,
+ * and Discord in batches.
  */
 final class AlertThrottle {
     enum Kind {
@@ -41,45 +42,48 @@ final class AlertThrottle {
     static final long PLAYER_WINDOW_MS = 30_000L;
     static final int OVERALL = 12;
     static final long OVERALL_WINDOW_MS = 10_000L;
-    /** At most this many alerts in the last window, and a pause ends. */
+    /** A pause ends after this long with at most the calm number of alerts. */
+    static final long CALM_WINDOW_MS = 60_000L;
     static final int PLAYER_CALM = 1;
     static final int OVERALL_CALM = 3;
     /** Past this many players, players with nothing recent are dropped. */
     private static final int CLEANUP_THRESHOLD = 256;
 
-    /** The most recent alert times within one window, and what a pause has held back. */
+    /** The most recent alert times, and what a pause has held back. */
     private static final class Recent {
-        private final long window;
         private final int capacity;
         private final ArrayDeque<Long> times = new ArrayDeque<>();
         private final Set<String> heldPlayers = new HashSet<>();
         private boolean paused;
         private int held;
 
-        Recent(long window, int capacity) {
-            this.window = window;
+        Recent(int capacity) {
             this.capacity = capacity;
         }
 
-        /** How many alerts the last window holds, counting up to the capacity. */
-        int count(long now) {
-            while (!times.isEmpty() && now - times.peekFirst() >= window) {
-                times.pollFirst();
+        /** How many alerts came in the {@code window} before {@code now}, counting up to the capacity. */
+        int count(long now, long window) {
+            int count = 0;
+            for (Iterator<Long> newest = times.descendingIterator(); newest.hasNext(); ) {
+                if (now - newest.next() >= window) {
+                    break;
+                }
+                count++;
             }
-            return times.size();
+            return count;
         }
 
-        /** Counts an alert; returns how many the last window holds with it. */
-        int add(long now) {
+        /** Counts an alert; returns how many the last {@code window} holds with it. */
+        int add(long now, long window) {
             times.addLast(now);
             if (times.size() > capacity) {
                 times.pollFirst();
             }
-            return count(now);
+            return count(now, window);
         }
 
-        void hold(String player) {
-            held++;
+        void hold(String player, int alerts) {
+            held += alerts;
             heldPlayers.add(player);
         }
 
@@ -94,40 +98,45 @@ final class AlertThrottle {
     }
 
     private final Map<String, Recent> players = new HashMap<>();
-    private final Recent overall = new Recent(OVERALL_WINDOW_MS, OVERALL + 1);
+    private final Recent overall = new Recent(OVERALL + 1);
 
     synchronized Decision admit(String player, long now) {
         String key = player.toLowerCase(Locale.ROOT);
         Missed missed = null;
         if (overall.paused) {
-            if (overall.count(now) > OVERALL_CALM) {
-                overall.add(now);
-                overall.hold(key);
+            if (overall.count(now, CALM_WINDOW_MS) > OVERALL_CALM) {
+                overall.add(now, OVERALL_WINDOW_MS);
+                overall.hold(key, 1);
                 return Decision.QUIET;
             }
+            // Alerts a player's own pause held back belong in the same summary.
+            players.forEach((name, recent) -> {
+                if (recent.held > 0) {
+                    overall.hold(name, recent.held);
+                }
+            });
             missed = overall.resume(null);
-            // What each player did during the raid is in the summary; start them afresh.
             players.clear();
         }
-        if (overall.add(now) > OVERALL) {
+        if (overall.add(now, OVERALL_WINDOW_MS) > OVERALL) {
             overall.paused = true;
             return new Decision(Kind.PAUSE_ALL, missed);
         }
 
         if (players.size() > CLEANUP_THRESHOLD) {
-            players.values().removeIf(recent -> !recent.paused && recent.count(now) == 0);
+            players.values().removeIf(recent -> !recent.paused && recent.count(now, CALM_WINDOW_MS) == 0);
         }
-        Recent own = players.computeIfAbsent(key, ignored -> new Recent(PLAYER_WINDOW_MS, PER_PLAYER + 1));
+        Recent own = players.computeIfAbsent(key, ignored -> new Recent(PER_PLAYER + 1));
         if (own.paused) {
-            if (own.count(now) > PLAYER_CALM) {
-                own.add(now);
-                own.hold(key);
+            if (own.count(now, CALM_WINDOW_MS) > PLAYER_CALM) {
+                own.add(now, PLAYER_WINDOW_MS);
+                own.hold(key, 1);
                 return new Decision(Kind.QUIET, missed);
             }
             Missed theirs = own.resume(player);
             missed = missed != null ? missed : theirs;
         }
-        if (own.add(now) > PER_PLAYER) {
+        if (own.add(now, PLAYER_WINDOW_MS) > PER_PLAYER) {
             own.paused = true;
             return new Decision(Kind.PAUSE_PLAYER, missed);
         }

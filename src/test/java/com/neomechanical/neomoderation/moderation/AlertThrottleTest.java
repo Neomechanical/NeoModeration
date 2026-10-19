@@ -81,9 +81,45 @@ class AlertThrottleTest {
         }
         assertEquals(0, shown);
 
-        AlertThrottle.Decision after = throttle.admit("Steve", now + 15_000);
+        assertEquals(QUIET, throttle.admit("Steve", now + 30_000).kind(), "half a minute is not yet calm");
+        AlertThrottle.Decision after = throttle.admit("Steve", now + 91_000);
         assertEquals(SHOW, after.kind());
-        assertEquals(new Missed(null, 9_002, 30), after.missed());
+        assertEquals(new Missed(null, 9_003, 31), after.missed());
+    }
+
+    @Test
+    void aRaidInWavesStaysOnePause() {
+        AlertThrottle throttle = new AlertThrottle();
+        long now = 0;
+        int shown = 0;
+        // Fourteen new accounts every 12 seconds for five minutes, each pacing itself under the spam limit.
+        for (int wave = 0; wave < 25; wave++) {
+            now += 12_000;
+            for (int bot = 0; bot < 14; bot++) {
+                if (throttle.admit("wave" + wave + "bot" + bot, now + bot).kind() != QUIET) {
+                    shown++;
+                }
+            }
+        }
+
+        assertEquals(13, shown, "a dozen alerts and one pause line, not a dozen every wave");
+        assertEquals(new Missed(null, 337, 337), throttle.admit("Steve", now + 61_000).missed());
+    }
+
+    @Test
+    void theSummaryCountsWhatAPlayersOwnPauseHeldBack() {
+        AlertThrottle throttle = new AlertThrottle();
+        for (int i = 0; i < 6; i++) {
+            throttle.admit("Steve", i);  // three shown, one pause line, two held
+        }
+        for (int i = 0; i < 13; i++) {
+            throttle.admit("raider" + i, 20_000 + i);  // a dozen shown, then the pause line
+        }
+        throttle.admit("raider13", 20_100);
+
+        AlertThrottle.Decision back = throttle.admit("Alex", 90_000);
+
+        assertEquals(new Missed(null, 3, 2), back.missed(), "Steve's two and raider13's one");
     }
 
     @Test
@@ -93,7 +129,7 @@ class AlertThrottleTest {
             throttle.admit("Steve", i);
         }
 
-        AlertThrottle.Decision back = throttle.admit("Steve", 60_000L);
+        AlertThrottle.Decision back = throttle.admit("Steve", 61_000L);
 
         assertEquals(SHOW, back.kind());
         assertNull(back.missed());

@@ -1,6 +1,8 @@
 # Spanish starter list. Severe swearing and slurs only, written without accents
 # (the filter folds accents, so "cabrón" matches "cabron"). A phrase is written
-# with its spaces, such as "hijo de puta", and also matches "hijodeputa".
+# with its spaces, such as "hijo de puta", and also matches "hijodeputa". A word
+# written with a space is read across every space, even where its pieces are
+# everyday words, so "mari cones" also catches "mari con es".
 mierda
 mierdas
 joder
@@ -18,7 +20,7 @@ pendejo
 pendejos
 pendeja
 maricon
-maricones
+mari cones
 marica
 culiao
 culiaos

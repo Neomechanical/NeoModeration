@@ -157,7 +157,7 @@ doctor.detail.discord-rate-limited	f89b20d4b8b1693f
 doctor.detail.discord-unreachable	00048263020d10a1
 doctor.detail.endpoint-bad	6629a55670793fb3
 doctor.detail.events-auth	6f4830b949097810
-doctor.detail.events-busy	2d55b90d29121563,91604d0d308e395b
+doctor.detail.events-busy	10eaa4d982f2f224,2d55b90d29121563,91604d0d308e395b
 doctor.detail.events-credits	4631db6a71b14a39
 doctor.detail.events-none	5714d23e57756a6b
 doctor.detail.events-ok	c93c70aa4488b994
@@ -232,7 +232,7 @@ help.entry-hover	9eef20069aedf572
 help.entry-usage	acded8b7ee84b020
 help.footer	08ced042544daf2e,63e1be82ff037479
 help.hint	3c8cbeb3a8d3904e,79917f5668731954,f5a9fc7ac578e4ae
-help.hint-console	e2dc544846a01137
+help.hint-console	334c63ca1575b697,e2dc544846a01137
 help.page	4ebcd66a559a84a8,9b5043bb4f661e1e
 help.section.admin	47a7d60f960acb8e,e83edf65039c0582
 help.section.rules	57585133e18d3201,a5fa344b567699c1

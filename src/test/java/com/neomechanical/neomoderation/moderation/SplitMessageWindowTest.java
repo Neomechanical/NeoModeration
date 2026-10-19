@@ -44,13 +44,13 @@ class SplitMessageWindowTest {
 
     @Test
     void fragmentsSeparatedByMoreThanWindowDoNotFlag() {
-        // DEFAULT_WINDOW_MS is 6,000ms; messages separated by 7,000ms should evict previous fragments
+        // DEFAULT_WINDOW_MS is 10,000ms; messages separated by 11,000ms evict the fragment before
         long t = 0L;
 
         assertEquals(Optional.empty(), window.recordAndCheck(player, "f", settings, null, t));
-        assertEquals(Optional.empty(), window.recordAndCheck(player, "u", settings, null, t + 7_000L));
-        assertEquals(Optional.empty(), window.recordAndCheck(player, "c", settings, null, t + 14_000L));
-        assertEquals(Optional.empty(), window.recordAndCheck(player, "k", settings, null, t + 21_000L));
+        assertEquals(Optional.empty(), window.recordAndCheck(player, "u", settings, null, t + 11_000L));
+        assertEquals(Optional.empty(), window.recordAndCheck(player, "c", settings, null, t + 22_000L));
+        assertEquals(Optional.empty(), window.recordAndCheck(player, "k", settings, null, t + 33_000L));
     }
 
     @Test
@@ -128,9 +128,22 @@ class SplitMessageWindowTest {
         }
 
         // Now advance time past DEFAULT_WINDOW_MS; next recordAndCheck should trigger cleanup
-        long laterTime = oldTime + 10_000L;
+        long laterTime = oldTime + 11_000L;
         UUID activePlayer = UUID.randomUUID();
         Optional<String> res = window.recordAndCheck(activePlayer, "test", settings, null, laterTime);
         assertEquals(Optional.empty(), res);
+    }
+
+    @Test
+    void aSixLetterWordTypedOneLetterPerSecondIsCaught() {
+        OfflineModerationSettings words = new OfflineModerationSettings(
+                true, false, true, List.of("retard"), List.of(), List.of(), List.of());
+        long t = 1_000L;
+        Optional<String> last = Optional.empty();
+        for (String letter : List.of("r", "e", "t", "a", "r", "d")) {
+            last = window.recordAndCheck(player, letter, words, null, t);
+            t += 1_000L;
+        }
+        assertEquals(Optional.of("split_blocked_word:retard"), last);
     }
 }

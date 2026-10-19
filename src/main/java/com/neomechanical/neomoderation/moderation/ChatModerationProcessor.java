@@ -61,7 +61,7 @@ public final class ChatModerationProcessor {
         if (muteService.isMuted(player.getUniqueId())) {
             int remaining = muteService.remainingSeconds(player.getUniqueId());
             plugin.messages().send(player, "mute.blocked", Map.of(
-                    "duration", DurationParser.format(remaining)
+                    "duration", DurationParser.remaining(remaining)
             ));
             return ChatDecision.block();
         }

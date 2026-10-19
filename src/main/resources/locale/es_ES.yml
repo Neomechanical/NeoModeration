@@ -46,7 +46,7 @@ help:
   dashboard: "{#brand}&lNeoModeration{#faint} {version}{#muted}. Reglas locales: {#text}{mode}{#muted}, nube: {#text}{cloud}{#muted}, {#text}{total}{#muted} detecciones desde el inicio"
   page: "{#faint}Página {page} de 2. {#muted}Más: {#brand}/nmod help {next}"
   hint: "{#faint}Haz clic en un comando para ejecutarlo o ponerlo en tu chat. Pasa el ratón por encima para ver qué hace."
-  hint-console: "{#faint}Escribe un comando de abajo para ejecutarlo."
+  hint-console: "{#faint}Escribe uno de estos comandos para ejecutarlo."
   entry-usage: "  {#brand}{usage}"
   entry-desc: "  {#muted}{desc}"
   entry-hover: "{#brand}{usage}\n{#muted}{desc}"
@@ -242,7 +242,7 @@ usage:
 mapart:
   confiscated: "{prefix} {#risk}Se quitó ese mapa: su imagen no está permitida aquí."
   blocked: "{prefix} {#risk}La imagen de ese mapa no está permitida aquí."
-  capped: "{prefix} {#muted}Los dibujos de {#text}{player}{#muted} no se envían a la nube durante el resto de la hora: se alcanzó el límite de moderation.mapArt.checksPerPlayerPerHour ({#text}{limit}{#muted})."
+  capped: "{prefix} {#muted}Las imágenes de mapa de {#text}{player}{#muted} no se envían a la nube durante el resto de la hora: se alcanzó el límite de moderation.mapArt.checksPerPlayerPerHour ({#text}{limit}{#muted})."
 
 mute:
   blocked: "{prefix} {#muted}Estás silenciado durante {#text}{duration}{#muted}."
@@ -355,7 +355,7 @@ allow:
 mode:
   usage: "{prefix} {#muted}Usa {#brand}/{label} mode <monitor|enforce>{#muted}."
   current: "{prefix} {#muted}Reglas locales: {#text}{value}"
-  stats: "{prefix} {#muted}Detectado desde que el servidor arrancó hace {#text}{since}{#muted}: {#text}{total}"
+  stats: "{prefix} {#muted}Detecciones desde que el servidor arrancó hace {#text}{since}{#muted}: {#text}{total}"
   stats-line: "  {#faint}{count} {#muted}{what}"
   set-monitor: "{prefix} {#review}Ahora las reglas locales solo avisan al staff. {#muted}No se bloquea nada hasta que ejecutes {#brand}/nmod mode enforce{#muted}."
   set-enforce: "{prefix} {#safe}Ahora las reglas locales bloquean. {#muted}Las acciones de {#brand}/nmod action{#muted} también se ejecutan."
@@ -479,7 +479,7 @@ doctor:
     events-credits: "sin créditos"
     events-request: "rechazada; revisa moderation.api.endpoint"
     events-transient: "la nube no respondió"
-    events-busy: "{count} mensajes desde el inicio solo pasaron por las reglas locales porque el chat iba más rápido de lo que la nube podía revisar"
+    events-busy: "mensajes desde el inicio que solo pasaron por las reglas locales, porque el chat iba más rápido de lo que la nube podía revisar: {count}"
     account-ok: "{ms} ms, espacio de trabajo {workspace}, plan {plan}"
     account-auth: "la clave fue rechazada ({ms} ms). Cámbiala en {url} y luego ejecuta /nmod setup <clave>"
     account-credits: "sin créditos ({ms} ms). Añade más en {url}"

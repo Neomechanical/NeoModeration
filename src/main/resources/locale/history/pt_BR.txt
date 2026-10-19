@@ -157,7 +157,7 @@ doctor.detail.discord-rate-limited	4a0122964987184f
 doctor.detail.discord-unreachable	9ff18167a30db943
 doctor.detail.endpoint-bad	b0ecc331d03f3064
 doctor.detail.events-auth	2e0460842035a8b7
-doctor.detail.events-busy	742e45c4820c67bf,e8c3b0d20d0212ff
+doctor.detail.events-busy	4bad841cf631b9e1,742e45c4820c67bf,e8c3b0d20d0212ff
 doctor.detail.events-credits	a029223fa4da8df7
 doctor.detail.events-none	4e5a6ff0b3516c8f
 doctor.detail.events-ok	9216fa03cb073371
@@ -232,7 +232,7 @@ help.entry-hover	9eef20069aedf572
 help.entry-usage	acded8b7ee84b020
 help.footer	08ced042544daf2e,63e1be82ff037479
 help.hint	470c45032595390e,87216e691dbd14b6,94ec77767c967222
-help.hint-console	e19b53b89f34511b
+help.hint-console	cb2aaa610c0fcd4b,e19b53b89f34511b
 help.page	37b00346f4310362,822d7c2f773fd430
 help.section.admin	3e1feee61a5ea0fe,7b401452a2538183
 help.section.rules	ad93abf329a87747,c3f8f9b768ca5f37
@@ -286,7 +286,7 @@ migrated.words	b3db02a39cdb07be
 mode.current	02fab8ada4bf0c83,183a8b0acfdedf22
 mode.set-enforce	6ef2e56b4483aea7,eb79a0d09e7b7ff3
 mode.set-monitor	4cc13420146b0bb2,9a0ffc06c3e1ef8d
-mode.stats	42bb7f8cf4881610,74acfa0c624c465a,829827d2d3f459ec,e32f1a83792bd9a2
+mode.stats	42bb7f8cf4881610,74acfa0c624c465a,829827d2d3f459ec,e32f1a83792bd9a2,fe8993b212731e01
 mode.stats-line	228804bb9e98988e,5f6d7482a41f9dc0
 mode.usage	27ecc050d6f712e2,cd0abf7ff5e31226
 mute.blocked	5fa4d93e7b4d6c72,96b6c62c75ffadf1

@@ -1,14 +1,16 @@
 # French starter list. Severe swearing and slurs only, written without accents
 # (the filter folds accents, so "enculé" matches "encule"). Everyday mild words
 # such as "bordel" are left out on purpose. A phrase is written with its spaces,
-# such as "va te faire foutre", and also matches "vatefairefoutre".
+# such as "va te faire foutre", and also matches "vatefairefoutre". A word
+# written with a space is read across every space, even where its pieces are
+# everyday words, so "pu tain" also catches "put a in".
 merde
 merdes
 merdeux
-putain
-putains
+pu tain
+pu tains
 pute
-putes
+pu tes
 salope
 salopes
 salop
@@ -28,7 +30,7 @@ tapette
 branleur
 branleurs
 enfoire
-enfoires
+en foires
 nique
 nique ta mere
 ntm

@@ -25,11 +25,13 @@ import java.util.Map;
  * the match to start and end on token boundaries, which is what keeps
  * {@code scampi}, {@code assignment} and {@code Scunthorpe} clean.</p>
  *
- * <p>Two kinds of token are never treated as fragments of a disguised word. A
- * token after an apostrophe inside a word ({@code let's}, {@code who're}) is the
- * end of a contraction, so "let's hit" is not "s hit". A token made only of
- * digits is a number, so "5 hits" and "455 diamonds" keep their digits; a lone
- * digit inside a spaced-out run such as {@code 5 h 1 t} still reads as a letter.</p>
+ * <p>An apostrophe inside a word splits it but hides nothing: "f'uck" is still
+ * read as one word. Only an English contraction's ending ('s, 're, 't, 'd, 'm,
+ * 've, 'll) never begins a banned word, so "let's hit" is not "s hit". A hyphen
+ * after "re" joins it to the word ("re-did"). A token made only of digits is a
+ * number, so "5 hits" and "455 diamonds" keep their digits; a lone digit among
+ * spelled-out letters such as {@code 5 h 1 t} still reads as a letter, but not
+ * one beside a one-letter word ("put a 5 tick delay").</p>
  */
 final class TextNormalizer {
 
@@ -49,11 +51,15 @@ final class TextNormalizer {
         String cyrillicLatin = "abcehkmopstxyijdvq";
         String greek = "αβεζηικνορτυχγ";
         String greekLatin = "abeznikvoptuxy";
-        String other = "օոսցԁԝѡı";
-        String otherLatin = "onugdwwi";
+        String other = "օոսցԁԝѡıƒ";
+        String otherLatin = "onugdwwif";
+        // Small capitals, as in "ɴɪɢɢᴇʀ".
+        String smallCapitals = "ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘʀꜱᴛᴜᴠᴡʏᴢ";
+        String smallCapitalsLatin = "abcdefghijklmnoprstuvwyz";
         put(cyrillic, cyrillicLatin);
         put(greek, greekLatin);
         put(other, otherLatin);
+        put(smallCapitals, smallCapitalsLatin);
     }
 
     private static void put(String from, String to) {
@@ -70,8 +76,9 @@ final class TextNormalizer {
      * @param rawIndex     for each char, the index it came from in the raw message
      * @param tokenStart   whether each char began a whitespace/punctuation-delimited token
      * @param tokenEnd     whether each char ended one
-     * @param joinBlocked  whether each char began a token that follows an apostrophe
-     *                     inside a word; a match may neither start there nor run into it
+     * @param joinBlocked  whether each char began an English contraction's ending
+     *                     after an apostrophe inside a word ('s, 're, 't, 'd, 'm, 've,
+     *                     'll); a match never starts there
      * @param leet         whether each char was typed as a digit or symbol ("g0" for "go")
      * @param collapsed    {@code chars} with runs of the same character reduced to
      *                     one, used only as a cheap necessary-condition prefilter
@@ -118,6 +125,10 @@ final class TextNormalizer {
                 atTokenStart = true;
                 continue;
             }
+            if (isHyphen(codePoint) && i < value.length() && Character.isLetter(value.codePointAt(i))
+                    && out.endsWithWord("re")) {
+                continue;  // "re-did" is one word, not "re" and "did"
+            }
 
             String decomposed = Normalizer.normalize(
                     new String(Character.toChars(codePoint)), Normalizer.Form.NFKD);
@@ -161,6 +172,10 @@ final class TextNormalizer {
         return out.build();
     }
 
+    private static boolean isHyphen(int codePoint) {
+        return codePoint == '-' || codePoint == '\u2010' || codePoint == '\u2011';
+    }
+
     private static boolean isApostrophe(int codePoint) {
         return codePoint == '\'' || codePoint == '’' || codePoint == '‘'
                 || codePoint == 'ʼ' || codePoint == '`';
@@ -185,6 +200,11 @@ final class TextNormalizer {
             default -> c;
         };
     }
+
+    /** What follows the apostrophe of an English contraction: let's, who're, don't, I'd, I'm, we've, it'll. */
+    private static final java.util.Set<String> CONTRACTION_ENDINGS = java.util.Set.of("s", "re", "t", "d", "m", "ve", "ll");
+    /** Letters that are words on their own ("a", "i", "u"), never part of a spelled-out word beside a digit. */
+    private static final java.util.Set<Character> ONE_LETTER_WORDS = java.util.Set.of('a', 'e', 'i', 'o', 'u', 'y');
 
     /** Collects normalised characters, then derives token ends and restores numbers. */
     private static final class Builder {
@@ -225,6 +245,20 @@ final class TextNormalizer {
             count++;
         }
 
+        /** Whether the token being built so far is exactly {@code word}. */
+        boolean endsWithWord(String word) {
+            int begin = count - word.length();
+            if (begin < 0 || !tokenStart[begin]) {
+                return false;
+            }
+            for (int i = 0; i < word.length(); i++) {
+                if (chars[begin + i] != word.charAt(i) || (i > 0 && tokenStart[begin + i])) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         Normalized build() {
             char[] finalChars = Arrays.copyOf(chars, count);
             boolean[] finalStart = Arrays.copyOf(tokenStart, count);
@@ -233,6 +267,7 @@ final class TextNormalizer {
                 finalEnd[i] = (i == count - 1) || finalStart[i + 1];
             }
             restoreNumbers(finalChars, finalStart, finalEnd);
+            keepContractionEndingsOnly(finalChars, finalEnd);
 
             StringBuilder collapsed = new StringBuilder(count);
             for (int i = 0; i < count; i++) {
@@ -246,7 +281,10 @@ final class TextNormalizer {
 
         /**
          * Puts the digits back in every all-digit token, except a single digit
-         * standing between single characters, which is how "5 h 1 t" is typed.
+         * among spelled-out letters, which is how "5 h 1 t" is typed: in a run of
+         * three or more one-character tokens, or beside a one-character token
+         * that is no word ("sh 1 t"). Beside a one-letter word it is a number:
+         * "put a 5 tick delay".
          */
         private void restoreNumbers(char[] out, boolean[] starts, boolean[] ends) {
             int begin = 0;
@@ -255,12 +293,29 @@ final class TextNormalizer {
                 while (!ends[end]) {
                     end++;
                 }
-                if (allDigits(begin, end) && !inSpacedRun(begin, end, starts, ends)) {
+                if (allDigits(begin, end) && !spelledOut(begin, end, starts, ends)) {
                     for (int i = begin; i <= end; i++) {
                         out[i] = digits[i];
                     }
                 }
                 begin = end + 1;
+            }
+        }
+
+        /**
+         * Keeps {@code joinBlocked} only on an English contraction's ending: after
+         * any other apostrophe ("f'uck", French "l'enculé") a word may begin or run on.
+         */
+        private void keepContractionEndingsOnly(char[] out, boolean[] ends) {
+            for (int begin = 0; begin < count; begin++) {
+                if (!joinBlocked[begin]) {
+                    continue;
+                }
+                int end = begin;
+                while (!ends[end]) {
+                    end++;
+                }
+                joinBlocked[begin] = CONTRACTION_ENDINGS.contains(new String(out, begin, end + 1 - begin));
             }
         }
 
@@ -273,13 +328,20 @@ final class TextNormalizer {
             return true;
         }
 
-        private boolean inSpacedRun(int begin, int end, boolean[] starts, boolean[] ends) {
+        private boolean spelledOut(int begin, int end, boolean[] starts, boolean[] ends) {
             if (begin != end) {
                 return false;
             }
-            boolean singleBefore = begin > 0 && starts[begin - 1];
-            boolean singleAfter = end + 1 < count && ends[end + 1];
-            return singleBefore || singleAfter;
+            int run = 1;
+            for (int i = begin - 1; i >= 0 && starts[i] && ends[i]; i--) {
+                run++;
+            }
+            for (int i = end + 1; i < count && starts[i] && ends[i]; i++) {
+                run++;
+            }
+            boolean letterBefore = begin > 0 && starts[begin - 1] && !ONE_LETTER_WORDS.contains(chars[begin - 1]);
+            boolean letterAfter = end + 1 < count && ends[end + 1] && !ONE_LETTER_WORDS.contains(chars[end + 1]);
+            return run >= 3 || letterBefore || letterAfter;
         }
     }
 }

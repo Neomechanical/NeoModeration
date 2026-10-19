@@ -19,8 +19,21 @@ final class OfflineRuleCompiler {
     /**
      * A banned word ready to match. {@code spaced} when the rule itself was
      * written with a space ("ass hole"), which reads it across every space.
+     * {@code ownList} when it is on the server's own list rather than only in a
+     * language pack: only English and the server's language can show it was two
+     * everyday words, never a language a player picks for their game.
      */
-    record CompiledWord(String original, char[] runChars, int[] runLengths, String collapsed, boolean spaced) {
+    record CompiledWord(String original, char[] runChars, int[] runLengths, String collapsed, boolean spaced,
+                        boolean ownList) {
+    }
+
+    /**
+     * The everyday words a match may be read as instead, one set per language:
+     * English first, then the server's and the speaker's languages, each once.
+     * {@code speakerOnly} has a bit for each language here only because the
+     * speaker plays in it.
+     */
+    record Scope(List<Set<String>> languages, int speakerOnly) {
     }
 
     record CompiledUrl(String original, String normalized) {
@@ -39,7 +52,7 @@ final class OfflineRuleCompiler {
             List<CompiledUrl> urls,
             List<String> allowedUrls,
             Map<String, List<String[]>> speakerPhrases,
-            Map<String, List<Set<String>>> everydayScopes
+            Map<String, Scope> everydayScopes
     ) {
         /** The phrases a speaker of {@code language} may use besides everyone's; empty for {@code null}. */
         List<String[]> speakerPhrases(String language) {
@@ -55,18 +68,23 @@ final class OfflineRuleCompiler {
          * {@code speaker}: English, the server's locale and the speaker's game
          * language, each once.
          */
-        List<Set<String>> everydayScope(String speaker) {
+        Scope everydayScope(String speaker) {
             return everydayScopes.computeIfAbsent(BundledWordPacks.language(speaker), language -> {
                 Set<String> codes = new LinkedHashSet<>(List.of(
-                        BundledWordPacks.ENGLISH, BundledWordPacks.language(source.locale()), language));
-                List<Set<String>> scope = new ArrayList<>();
+                        BundledWordPacks.ENGLISH, BundledWordPacks.language(source.locale())));
+                boolean speakerAdds = codes.add(language);
+                List<Set<String>> sets = new ArrayList<>();
+                int speakerOnly = 0;
                 for (String code : codes) {
                     Set<String> words = BundledWordPacks.everydayWords(code);
                     if (!words.isEmpty()) {
-                        scope.add(words);
+                        if (speakerAdds && code.equals(language)) {
+                            speakerOnly |= 1 << sets.size();
+                        }
+                        sets.add(words);
                     }
                 }
-                return List.copyOf(scope);
+                return new Scope(List.copyOf(sets), speakerOnly);
             });
         }
     }
@@ -99,7 +117,7 @@ final class OfflineRuleCompiler {
     ) {
         int[] match;
         while ((match = findMatch(text, word, masked, from)) != null) {
-            if (word.spaced() || !everyday.innocent(match[0], match[1])) {
+            if (word.spaced() || !everyday.innocent(match[0], match[1], !word.ownList())) {
                 return match;
             }
             from = match[0] + 1;
@@ -111,8 +129,8 @@ final class OfflineRuleCompiler {
      * Finds the first match of {@code word} at or after normalised index
      * {@code from}, or {@code null}. A match must start where a token starts and
      * finish where one finishes; between those points separators are ignored,
-     * except that a match never starts at or runs into the end of a contraction
-     * ("let's hit" is not "s hit").
+     * apostrophes included ("f'uck"), but a match never starts at an English
+     * contraction's ending ("let's hit" is not "s hit").
      */
     static int[] findMatch(
             TextNormalizer.Normalized text,
@@ -136,14 +154,13 @@ final class OfflineRuleCompiler {
             int firstRunEnd = start + 1;
             boolean matched = true;
             for (int run = 0; run < runChars.length; run++) {
-                if (position >= length || chars[position] != runChars[run]
-                        || (position > start && joinBlocked[position])) {
+                if (position >= length || chars[position] != runChars[run]) {
                     matched = false;
                     break;
                 }
                 int runLength = 0;
                 while (position + runLength < length && chars[position + runLength] == runChars[run]) {
-                    if (masked[position + runLength] || (runLength > 0 && joinBlocked[position + runLength])) {
+                    if (masked[position + runLength]) {
                         break;
                     }
                     // The last letter ends the match at the first word end it can:
@@ -246,9 +263,14 @@ final class OfflineRuleCompiler {
 
     private static CompiledRules compile(OfflineModerationSettings settings) {
         List<String> bannedWords = settings.effectiveWords();
+        Set<String> ownList = new java.util.HashSet<>();
+        for (String word : settings.bannedWords()) {
+            ownList.add(lower(word).trim());
+        }
         List<CompiledWord> words = new ArrayList<>(bannedWords.size());
         for (String bannedWord : bannedWords) {
-            CompiledWord compiled = compileWord(bannedWord, settings.normalizeLeetspeak());
+            CompiledWord compiled = compileWord(bannedWord, settings.normalizeLeetspeak(),
+                    ownList.contains(lower(bannedWord).trim()));
             if (compiled != null) {
                 words.add(compiled);
             }
@@ -290,7 +312,7 @@ final class OfflineRuleCompiler {
         return List.copyOf(tokenized);
     }
 
-    private static CompiledWord compileWord(String bannedWord, boolean normalizeLeetspeak) {
+    private static CompiledWord compileWord(String bannedWord, boolean normalizeLeetspeak, boolean ownList) {
         TextNormalizer.Normalized normalized = TextNormalizer.normalize(bannedWord, normalizeLeetspeak);
         char[] letters = normalized.chars();
         if (letters.length == 0) {
@@ -316,7 +338,7 @@ final class OfflineRuleCompiler {
             lengths[i] = runLengths.get(i);
         }
         boolean spaced = crossesSpace(normalized, 0, letters.length);
-        return new CompiledWord(bannedWord, chars, lengths, normalized.collapsed(), spaced);
+        return new CompiledWord(bannedWord, chars, lengths, normalized.collapsed(), spaced, ownList);
     }
 
     private static String[] tokenizeRule(String rule, boolean normalizeLeetspeak) {

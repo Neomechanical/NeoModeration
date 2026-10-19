@@ -64,10 +64,11 @@ moderation:
     # Review it for your server and change it in-game with /nmod word and
     # /nmod allow. A word only matches from the start of a word to the end of
     # one, so "assignment" and "Scunthorpe" stay clean. A word split into
-    # pieces is still caught ("f uck", "ni gger", "k y s"), but everyday words of
-    # English, the server's language or the player's own stay clean when
-    # together they spell a listed word ("put a torch here"). A word written
-    # with a space, such as "ass hole", is caught however it is spaced.
+    # pieces is still caught ("f uck", "f'uck", "k y s"), but everyday words of
+    # English or the server's language stay clean when together they spell a
+    # listed word ("put a torch here"), and for the language packs' words so do
+    # the player's own language's. A word written with a space, such as
+    # "ass hole", is caught however it is spaced.
     # Inflections are listed explicitly. "badword" is kept so the documented
     # check /nmod test badword works.
     bannedWords:
@@ -76,6 +77,8 @@ moderation:
       - "fucks"
       - "fucked"
       - "fucking"
+      - "fuckin"
+      - "fuk"
       - "fucker"
       - "fuckers"
       - "fck"
@@ -92,6 +95,7 @@ moderation:
       - "bullshit"
       - "bitch"
       - "bitches"
+      - "biatch"
       - "cunt"
       - "cunts"
       - "asshole"
@@ -107,6 +111,8 @@ moderation:
       - "niggers"
       - "nigga"
       - "niggas"
+      - "niqqer"
+      - "niqqa"
       - "faggot"
       - "faggots"
       - "fag"

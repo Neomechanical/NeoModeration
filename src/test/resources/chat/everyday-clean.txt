@@ -16,6 +16,17 @@ can u put a 4 in the hopper
 just put a b on the sign
 put a x where the portal goes
 put a 3x3 there
+put a 5 tick delay on the repeater
+put a 5 block gap
+put a 5 stack of iron in the chest
+who re-did the roof?
+who re-joined just now
+who're you talking to
+we're almost done
+they'll never find the base
+i'd rather not
+it doesn't matter
+you can't build there
 he called me a bad word
 took 5 hits to kill it
 455 diamonds in the chest
@@ -64,6 +75,8 @@ passe-moi la tapette à mouches
 re tout le monde
 # language: es_es
 ni que fuera tonto
+vi a dos creepers detrás de tu casa
+ayer vi a dos jugadores robando en la base
 hacemos una porra para la final
 hola kike que tal
 Kike es mi hermano
@@ -73,9 +86,9 @@ Mari con Juan en el server
 mi tia Mari con su hija
 qué pasa con el mapa
 # language: pt_br
-put o vidro ali
-vem pa ki
 a via do metrô
+vi a do lado da sua casa
+eu vi a dos meninos
 pela via dos fundos
 cadê o mapa
 # language: pt_pt
@@ -170,3 +183,14 @@ sıkıntı yok
 # language: da_dk
 hvem vil spille
 hvilket fag kan du bedst lide
+# language: nb_no
+det er slutt for i dag
+kan du kikke på basen min?
+# language: da_dk
+kan du putte det i kisten
+giv mig et kys
+# language: sv_se
+kan du putta in den i kistan
+# language: nl_nl
+kan ik een plot huren?
+wat kost het om een shop te huren

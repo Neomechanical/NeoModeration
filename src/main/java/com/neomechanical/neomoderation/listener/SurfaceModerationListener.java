@@ -55,7 +55,7 @@ public final class SurfaceModerationListener implements Listener {
             "r", "reply", "er", "ereply", "me", "teammsg", "tm", "partychat");
     /** Mail commands, which send a message only with these first arguments; reading mail is fine. */
     private static final Set<String> MAIL_COMMANDS = Set.of("mail", "email");
-    private static final Set<String> MAIL_SENDS = Set.of("send", "sendall", "sendtemp");
+    private static final Set<String> MAIL_SENDS = Set.of("send", "sendall", "sendtemp", "sendtempall");
 
     private final NeoModerationPlugin plugin;
     private final DetectionHandler handler;
@@ -152,7 +152,7 @@ public final class SurfaceModerationListener implements Listener {
         if (plugin.muteService().isMuted(player.getUniqueId()) && (scanned || sendsMessage(command, parts))) {
             event.setCancelled(true);
             plugin.messages().send(player, "mute.blocked", Map.of("duration",
-                    DurationParser.format(plugin.muteService().remainingSeconds(player.getUniqueId()))));
+                    DurationParser.remaining(plugin.muteService().remainingSeconds(player.getUniqueId()))));
             return;
         }
         if (!scanned) {
