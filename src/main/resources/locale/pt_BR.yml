@@ -325,6 +325,8 @@ alert:
   paused-all: "{prefix} {#muted}Alertas demais de uma vez, então eles ficam pausados até acalmar, no máximo cinco minutos. Tudo continua sendo registrado."
   missed-player: "{prefix} {#muted}Os alertas sobre {#text}{player}{#muted} voltaram. Perdidos durante a pausa: {#text}{count}"
   missed-all: "{prefix} {#muted}Os alertas voltaram. Perdidos durante a pausa: {#text}{count}{#muted}, jogadores: {#text}{players}"
+  still-paused-player: "{prefix} {#muted}Os alertas sobre {#text}{player}{#muted} continuam pausados. Perdidos nos últimos cinco minutos: {#text}{count}"
+  still-paused-all: "{prefix} {#muted}Os alertas continuam pausados: são muitos. Perdidos nos últimos cinco minutos: {#text}{count}{#muted}, jogadores: {#text}{players}"
 
 surface:
   title: "{prefix} {#muted}Onde as regras locais valem. Clique numa opção para mudar."
@@ -482,7 +484,7 @@ doctor:
     events-credits: "sem créditos"
     events-request: "recusado; confira moderation.api.endpoint"
     events-transient: "a nuvem não respondeu"
-    events-busy: "{count} desde o início: o chat veio mais rápido do que a nuvem conseguia verificar"
+    events-busy: "{count} desde o início, porque o chat veio mais rápido do que a nuvem conseguia verificar"
     account-ok: "{ms} ms, espaço de trabalho {workspace}, plano {plan}"
     account-auth: "a chave foi recusada ({ms} ms). Troque em {url} e depois rode /nmod setup <chave>"
     account-credits: "sem créditos ({ms} ms). Adicione mais em {url}"

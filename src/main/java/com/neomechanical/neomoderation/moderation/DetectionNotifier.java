@@ -82,13 +82,21 @@ public final class DetectionNotifier {
         boolean mayOpen = staff.hasPermission(Permissions.MODERATE);
         List<MenuRenderer.Line> lines = new ArrayList<>(2);
         AlertThrottle.Missed missed = shown.missed();
+        // A pause that reached its five minutes while alerts still pour in starts again: one line says so.
+        boolean stillPaused = missed != null && (missed.player() != null
+                ? shown.kind() == AlertThrottle.Kind.PAUSE_PLAYER
+                : shown.kind() == AlertThrottle.Kind.PAUSE_ALL);
         if (missed != null && missed.player() != null) {
-            String line = messages.format(staff, "alert.missed-player",
+            String line = messages.format(staff, stillPaused ? "alert.still-paused-player" : "alert.missed-player",
                     Map.of("player", missed.player(), "count", String.valueOf(missed.alerts())));
             lines.add(casesLine(messages, staff, line, missed.player(), mayOpen));
         } else if (missed != null) {
-            lines.add(MenuRenderer.text(messages.format(staff, "alert.missed-all", Map.of(
+            lines.add(MenuRenderer.text(messages.format(staff,
+                    stillPaused ? "alert.still-paused-all" : "alert.missed-all", Map.of(
                     "count", String.valueOf(missed.alerts()), "players", String.valueOf(missed.players())))));
+        }
+        if (stillPaused) {
+            return lines;
         }
         switch (shown.kind()) {
             case SHOW -> lines.add(casesLine(messages, staff, line(messages, staff, detection, preview, null),

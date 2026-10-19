@@ -33,6 +33,8 @@ alert.missed-player	444bd83d34198a83
 alert.monitor	2389b278c5fb0638
 alert.paused-all	264df2c8aab5880c,80aaf5f48b031822,844732ca81fa8dfc
 alert.paused-player	14d35e01a52ef270,6c65d456701df0cb
+alert.still-paused-all	71ff75854bf1c826
+alert.still-paused-player	4ff6b1bcb71bee81
 alert.then	b897f0f47c286ba7
 alert.verdict.blocked	c6892be1994a1384
 alert.verdict.censored	b74d9ba21cb977c4
@@ -158,7 +160,7 @@ doctor.detail.discord-rate-limited	8447283f084a2f7a
 doctor.detail.discord-unreachable	dbe2f35d0c54e2bd
 doctor.detail.endpoint-bad	29cc0e7b0d5e942f
 doctor.detail.events-auth	b01d97edd015206d
-doctor.detail.events-busy	8d0a0c13225ae2bf,94f336ee844fbbf2,c0815fd9fe5a45bd,cb61c9bb0a058b95
+doctor.detail.events-busy	28c6b203e45353af,8d0a0c13225ae2bf,94f336ee844fbbf2,c0815fd9fe5a45bd,cb61c9bb0a058b95
 doctor.detail.events-credits	d466a1967c1cb92e
 doctor.detail.events-none	2f4b59bd76f236c1
 doctor.detail.events-ok	cc7b05470c8a1679

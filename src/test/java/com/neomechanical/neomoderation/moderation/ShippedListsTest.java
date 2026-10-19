@@ -131,7 +131,6 @@ class ShippedListsTest {
             "fr: mer de = merde",
             "fr: mer des = merdes",
             "fr: pu te = pute",
-            "fr: pu tes = putes",
             "fr: en foire = enfoire",
             "de: jo der = joder",
             "de: jo oder = joder",
@@ -140,6 +139,8 @@ class ShippedListsTest {
             "da: jo dette = jodete",
             "pt: via do = viado",
             "pt: via dos = viados",
+            "pt: via a do = viado",
+            "pt: via a dos = viados",
             "pt: vi a do = viado",
             "pt: vi a dos = viados",
             "sv: hur en = huren"

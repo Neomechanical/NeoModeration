@@ -1,6 +1,5 @@
 package com.neomechanical.neomoderation.moderation;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -31,6 +30,15 @@ final class EverydayWords {
     private static final Set<String> ELISIONS = Set.of("l", "d", "j", "t", "s", "m", "n", "c", "qu");
     /** Fewer letters than this are no evidence of a language ("e", "y"). */
     private static final int EVIDENCE_LETTERS = 2;
+    /** Chat noises, which follow "re-" in nothing anyone writes as two words. */
+    private static final Set<String> INTERJECTIONS = Set.of(
+            "lol", "lmao", "omg", "xd", "idk", "brb", "afk", "irl", "ngl", "tbh", "wtf", "bruh", "kek");
+
+    /** English words that frame an insult at someone: one of them means the message is English. */
+    private static final Set<String> INSULT_FRAMES = Set.of(
+            "you", "ur", "your", "youre", "yours", "what", "dirty", "stupid", "ugly", "dumb", "filthy", "nasty",
+            "trash", "loser", "die", "kill", "shut", "back", "home", "fat", "hate", "are", "is", "the", "this",
+            "he", "she", "his", "her", "him", "they", "them");
 
     private final TextNormalizer.Normalized text;
     private final OfflineRuleCompiler.Scope scope;
@@ -38,6 +46,8 @@ final class EverydayWords {
     private int[] languagesOf;
     /** Per token, whether it follows an apostrophe inside a word that is no English contraction. */
     private boolean[] apostropheBefore;
+    /** Per token, whether it is a French elision before an apostrophe ("t" in "t'es"). */
+    private boolean[] elision;
 
     EverydayWords(TextNormalizer.Normalized text, OfflineRuleCompiler.Scope scope) {
         this.text = text;
@@ -71,41 +81,32 @@ final class EverydayWords {
 
     /**
      * Whether the text is written in the language whose everyday words are
-     * {@code words}, leaving out {@code judged}, the words this decides about.
-     * Counting different plainly written words of two letters or more: none
-     * may be English only ("lol", "dirty" and "gg" are English), at least one
-     * must be a word of the language that English does not use, and the
-     * language's words must outnumber words of no list. "ce retard me tue"
-     * reads as French; "you retard le" and "dirty kike de" do not.
+     * {@code words}, leaving out {@code judged}, the words this decides about:
+     * it has at least one plainly written word of the language that English
+     * does not use, two letters or longer, and none of the English words an
+     * insult is framed with ("you", "dirty", "shut") unless the language uses
+     * them too. Other words, a game's "spawn" and "lag" or a number, prove
+     * nothing either way. "slut på järn" and "Kike, ven al spawn" read as
+     * Swedish and Spanish; "you retard le" and "dirty kike de" do not.
      */
     static boolean writtenIn(TextNormalizer.Normalized text, Set<String> words, Set<String> judged) {
         if (words.isEmpty()) {
             return false;
         }
         Set<String> english = BundledWordPacks.everydayWords(BundledWordPacks.ENGLISH);
-        Set<String> theirs = new HashSet<>();
-        Set<String> theirsOnly = new HashSet<>();
-        Set<String> unknown = new HashSet<>();
+        boolean theirs = false;
         for (int[] token : OfflineRuleCompiler.tokensOf(text)) {
             String plain = plain(text, token);
             if (plain == null || plain.length() < EVIDENCE_LETTERS || judged.contains(plain)) {
                 continue;
             }
             boolean ours = words.contains(plain);
-            boolean englishWord = english.contains(plain);
-            if (englishWord && !ours) {
+            if (!ours && INSULT_FRAMES.contains(plain)) {
                 return false;
             }
-            if (ours) {
-                theirs.add(plain);
-                if (!englishWord) {
-                    theirsOnly.add(plain);
-                }
-            } else {
-                unknown.add(plain);
-            }
+            theirs |= ours && !english.contains(plain);
         }
-        return !theirsOnly.isEmpty() && theirs.size() > unknown.size();
+        return theirs;
     }
 
     /** Numbers the tokens and marks, per token, a bit for each language it is an everyday word of. */
@@ -118,6 +119,7 @@ final class EverydayWords {
         tokenAt = new int[text.length()];
         languagesOf = new int[tokens.size()];
         apostropheBefore = new boolean[tokens.size()];
+        elision = new boolean[tokens.size()];
         for (int t = 0; t < tokens.size(); t++) {
             int[] token = tokens.get(t);
             for (int i = token[0]; i < token[1]; i++) {
@@ -126,13 +128,14 @@ final class EverydayWords {
             String before = t > 0 ? plain(text, tokens.get(t - 1)) : null;
             apostropheBefore[t] = text.apostrophe()[token[0]] && !text.joinBlocked()[token[0]]
                     && !(before != null && ELISIONS.contains(before));
-            if (text.joinBlocked()[token[0]] || text.prefix()[token[0]]) {
-                languagesOf[t] = ENGLISH;  // the end of an English contraction ("who're"), or "re-"
+            if (text.joinBlocked()[token[0]] || (text.prefix()[token[0]] && prefixesAWord(tokens, t))) {
+                languagesOf[t] = ENGLISH;  // the end of an English contraction ("who're"), or "re-did"
                 continue;
             }
             String plain = plain(text, token);
             if (plain != null && ELISIONS.contains(plain) && t + 1 < tokens.size()
                     && text.apostrophe()[tokens.get(t + 1)[0]]) {
+                elision[t] = scope.elides() != 0;
                 languagesOf[t] = scope.elides();  // "t'" in "pu, t'es": a French word
                 continue;
             }
@@ -148,6 +151,26 @@ final class EverydayWords {
                 }
             }
         }
+    }
+
+    /** Whether the match from {@code start} to {@code end} runs through a French elision ("t'es"). */
+    boolean throughElision(int start, int end) {
+        index();
+        for (int token = tokenAt[start]; token < tokenAt[end - 1]; token++) {
+            if (elision[token]) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Whether the token after a "re-" is a word of its own ("re-did", "re-joined"), not "re-x" or "re-lol". */
+    private boolean prefixesAWord(List<int[]> tokens, int t) {
+        if (t + 1 >= tokens.size()) {
+            return false;
+        }
+        String next = plain(text, tokens.get(t + 1));
+        return next != null && next.length() >= 3 && !INTERJECTIONS.contains(next);
     }
 
     /** Whether the token is one character typed as a digit or symbol that repeats the letter before it. */

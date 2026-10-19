@@ -32,7 +32,7 @@ import java.util.Map;
  * read on its own. A token made only of digits is a number, so "5 hits" and
  * "455 diamonds" keep their digits; a lone digit among spelled-out letters such
  * as {@code 5 h 1 t} or {@code sl u 7} still reads as a letter, but not a
- * quantity after a one-letter word ("put a 5 tick delay").</p>
+ * quantity after a one-letter word that follows a word ("put a 5 tick delay").</p>
  */
 final class TextNormalizer {
 
@@ -122,8 +122,13 @@ final class TextNormalizer {
             // outright (rather than treating them as separators) means they do
             // not even split a token.
             if (Character.getType(codePoint) == Character.FORMAT
-                    || Character.isIdentifierIgnorable(codePoint)
-                    || isBlankFiller(codePoint)) {
+                    || Character.isIdentifierIgnorable(codePoint)) {
+                continue;
+            }
+            if (isBlankFiller(codePoint)) {
+                // Drawn as nothing, so it reads as the space it stands for: "putㅤa" is "put a".
+                atTokenStart = true;
+                afterInWordApostrophe = false;
                 continue;
             }
             if (isApostrophe(codePoint)) {
@@ -187,10 +192,12 @@ final class TextNormalizer {
     private static boolean isApostrophe(int codePoint) {
         return codePoint == '\'' || codePoint == '’' || codePoint == '‘'
                 || codePoint == 'ʼ' || codePoint == '`'
-                // Modifier letters that look like an apostrophe or a tick: ʹ ʺ ʻ ʽ ʾ ʿ ˈ ˊ ˋ ꞌ.
-                || (codePoint >= 0x02B9 && codePoint <= 0x02BF)
-                || (codePoint >= 0x02C8 && codePoint <= 0x02CB)
-                || codePoint == 0xA78B || codePoint == 0xA78C;
+                // Modifier letters and tone marks drawn as ticks, accents or dots: ʹ ʻ ˈ ˌ ː ˮ ꞌ ꜀ ...
+                // (the superscript letters before U+02B9 fold to letters).
+                || (codePoint >= 0x02B9 && codePoint <= 0x02FF)
+                || (codePoint >= 0xA700 && codePoint <= 0xA71F)
+                || codePoint == 0xA788 || codePoint == 0xA78B || codePoint == 0xA78C
+                || codePoint == 0x07F4 || codePoint == 0x07F5;
     }
 
     /** Hangul fillers, which draw nothing and so can hide inside a word. */
@@ -308,10 +315,11 @@ final class TextNormalizer {
 
         /**
          * Puts the digits back in every all-digit token, except a single digit
-         * among spelled-out letters, which is how "5 h 1 t" and "sl u 7" are
-         * typed: one beside a one-character token. A digit after a one-letter
-         * word is a quantity, and stays one, when a word follows it or an
-         * English word comes before that letter: "put a 5 tick delay", "put a 5".
+         * among spelled-out letters, which is how "5 h 1 t", "r e 7 ard" and
+         * "sl u 7" are typed: one beside a one-character token. A digit right
+         * after a one-letter word is a quantity, and stays one, when a word of
+         * three letters or more comes before that letter or the message starts
+         * with it: "put a 5 tick delay", "a 5 hit combo".
          */
         private void restoreNumbers(char[] out, boolean[] starts, boolean[] ends) {
             int begin = 0;
@@ -361,24 +369,33 @@ final class TextNormalizer {
             }
             boolean singleBefore = begin > 0 && starts[begin - 1];
             boolean singleAfter = end + 1 < count && ends[end + 1];
-            boolean wordAfter = end + 1 < count && !ends[end + 1];
-            boolean afterLetterWord = singleBefore && digits[begin - 1] == 0
-                    && ONE_LETTER_WORDS.contains(chars[begin - 1]);
-            boolean quantity = afterLetterWord && (wordAfter || englishWordEndingAt(begin - 2));
-            return (singleBefore || singleAfter) && !quantity;
-        }
-
-        /** Whether the token that ends at {@code end} is an English everyday word ("put" in "put a 5"). */
-        private boolean englishWordEndingAt(int end) {
-            if (end < 0) {
+            if (!singleBefore && !singleAfter) {
                 return false;
             }
+            int run = 1;  // one-character tokens around the digit, itself included
+            for (int i = begin - 1; i >= 0 && starts[i] && ends[i]; i--) {
+                run++;
+            }
+            for (int i = end + 1; i < count && starts[i] && ends[i]; i++) {
+                run++;
+            }
+            if (run >= 3) {
+                return true;  // "s h i 7", "r e 7 ard"
+            }
+            // "put a 5", "a 5 hit combo": after a one-letter word that follows a real word, or starts the message.
+            boolean afterLetterWord = singleBefore && digits[begin - 1] == 0
+                    && ONE_LETTER_WORDS.contains(chars[begin - 1]);
+            boolean quantity = afterLetterWord && (begin - 1 == 0 || tokenLengthEndingAt(begin - 2) >= 3);
+            return !quantity;
+        }
+
+        /** The length of the token that ends at {@code end}. */
+        private int tokenLengthEndingAt(int end) {
             int begin = end;
             while (begin > 0 && !tokenStart[begin]) {
                 begin--;
             }
-            return BundledWordPacks.everydayWords(BundledWordPacks.ENGLISH)
-                    .contains(new String(chars, begin, end + 1 - begin));
+            return end + 1 - begin;
         }
     }
 }

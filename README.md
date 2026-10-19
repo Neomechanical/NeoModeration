@@ -47,7 +47,7 @@ The free 14-day trial runs on your own chat, and while it runs its decisions onl
 
 ## Staff tools
 
-- Players with `neomoderation.notify` see each detection in chat. Those who may open cases can click it for that player's history. During a raid, alerts about one player pause after three in 30 seconds, and all alerts after a dozen in 10 seconds or 30 in a minute. A pause lasts until a quiet minute, five minutes at most; then one line says how many were missed. The console and case history still get every one. `moderation.alerts.includeMessage: false` hides the message text.
+- Players with `neomoderation.notify` see each detection in chat. Those who may open cases can click it for that player's history. During a raid, alerts about one player pause after three in 30 seconds, and all alerts after a dozen in 10 seconds or 30 in a minute. A pause ends after a quiet minute or five minutes; then one line says how many were missed. The console and case history still get every one. `moderation.alerts.includeMessage: false` hides the message text.
 - `/nmod discord <webhook URL>` sends the same alerts to a Discord channel, batched so a raid cannot flood it, with mentions turned off. `/nmod discord test` checks it, and `/nmod doctor` says when Discord refuses alerts.
 - `/nmod mute <player> [duration]` and `/nmod unmute <player>` mute a player by hand, with no other plugin. A mute covers public chat, private messages (`/msg`, `/tell`, `/r` and any alias the server has for them, such as EssentialsX's `/m`), `/me`, sending `/mail`, `/teammsg`, mcMMO party chat and the rest of `scannedCommands`. Channel chat other plugins add, such as TownyChat's, is not covered.
 - `/nmod allow word|url add <value>` fixes a false positive at once. Allowed phrases and links always win.
@@ -109,13 +109,13 @@ Messages ship in English (`en_US`), Spanish (`es_ES`), French (`fr_FR`), German 
 ## Compatibility
 
 Supports Spigot, Paper and Purpur on Minecraft 1.18.2 through the current
-Paper releases, 26.2 and 26.3, and Folia. Before each release, every check runs
-on Paper 1.18.2, 1.19.4, 1.20.6, 1.21.11, 26.1.2, 26.2 and 26.3, on Folia
-1.21.11 and on Spigot 1.21.11, with real players in game. A blocked line never
+Paper releases, 26.2 and 26.3, and Folia. Every check runs before each release,
+with real players in game, on Paper 1.18.2, 1.19.4, 1.20.6, 1.21.11, 26.1.2,
+26.2 and 26.3, Folia 1.21.11 and Spigot 1.21.11. A blocked line never
 reaches chat and leaves a case, the kick action runs, capitals arrive in lower
-case and "bad'word" is caught. A French player's "quel retard ce train" passes,
-an operator gets the staff alert, a muted player's `/msg` is refused and an
-operator's menus arrive. On 26.2 and 26.3 the test players join through
+case and "bad'word" is caught. A French player's "quel retard ce train" and a
+Swedish player's "slut på järn" pass, an operator gets the staff alert, a muted
+player's `/msg` is refused and an operator's menus arrive. On 26.2 and 26.3 the test players join through
 ViaBackwards, because the test client speaks up to 26.1.
 
 Paper marks the whole `1.x` line end-of-life as of 2026-06-15 and supports 26.2

@@ -159,4 +159,22 @@ class DetectionNotifierTest {
         assertTrue(TestPlugin.lines(germanStaff).isEmpty());
         verify(discord).submit(eq(WEBHOOK), any(), anyString());
     }
+
+    @Test
+    void aRaidThatOutlastsFiveMinutesSaysAlertsAreStillPaused() {
+        NeoModerationPlugin plugin = plugin(new YamlConfiguration());
+        long[] now = {1_000L};
+        DetectionNotifier notifier = new DetectionNotifier(plugin, discord, () -> now[0]);
+        // A detection every second about different players, for six minutes.
+        for (int i = 0; i < 360; i++) {
+            now[0] += 1_000L;
+            notifier.notifyDetection(new DetectionNotifier.Detection("bot" + i, "chat", "blocked_word:badword",
+                    "badword", new Outcome(Outcome.Verdict.BLOCKED, List.of(), 0)), plugin.settings());
+        }
+
+        List<String> alerts = TestPlugin.lines(germanStaff);
+        assertTrue(alerts.stream().anyMatch(line -> line.startsWith("[NeoMod] Hinweise pausieren weiter, es sind zu viele.")),
+                String.join("\n", alerts));
+        assertTrue(alerts.stream().noneMatch(line -> line.contains("sind zurück")), "the alerts are not back");
+    }
 }

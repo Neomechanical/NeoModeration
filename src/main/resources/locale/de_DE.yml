@@ -325,6 +325,8 @@ alert:
   paused-all: "{prefix} {#muted}Zu viele Hinweise auf einmal, deshalb pausieren sie, bis es ruhiger wird, höchstens fünf Minuten. Alles wird weiter protokolliert."
   missed-player: "{prefix} {#muted}Hinweise zu {#text}{player}{#muted} sind zurück. Während der Pause verpasst: {#text}{count}"
   missed-all: "{prefix} {#muted}Hinweise sind zurück. Während der Pause verpasst: {#text}{count}{#muted}, Spieler: {#text}{players}"
+  still-paused-player: "{prefix} {#muted}Hinweise zu {#text}{player}{#muted} pausieren weiter. In den letzten fünf Minuten verpasst: {#text}{count}"
+  still-paused-all: "{prefix} {#muted}Hinweise pausieren weiter, es sind zu viele. In den letzten fünf Minuten verpasst: {#text}{count}{#muted}, Spieler: {#text}{players}"
 
 surface:
   title: "{prefix} {#muted}Wo die lokalen Regeln gelten. Klicke auf eine Einstellung, um sie zu ändern."
@@ -482,7 +484,7 @@ doctor:
     events-credits: "kein Guthaben mehr"
     events-request: "abgelehnt; prüfe moderation.api.endpoint"
     events-transient: "keine Antwort von der Cloud"
-    events-busy: "{count} seit dem Start: Der Chat kam schneller, als die Cloud prüfen konnte"
+    events-busy: "{count} seit dem Start, weil der Chat schneller kam, als die Cloud prüfen konnte"
     account-ok: "{ms} ms, Workspace {workspace}, Tarif {plan}"
     account-auth: "der Schlüssel wurde abgelehnt ({ms} ms). Ersetze ihn unter {url} und führe dann /nmod setup <Schlüssel> aus"
     account-credits: "kein Guthaben mehr ({ms} ms). Lade unter {url} auf"

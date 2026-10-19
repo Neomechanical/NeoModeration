@@ -134,7 +134,11 @@ final class OfflineRuleCompiler {
     ) {
         int[] match;
         while ((match = findMatch(text, word, masked, from)) != null) {
-            if (word.spaced() || !everyday.innocent(match[0], match[1], !word.ownList())) {
+            // A word written with a space is read across every space, unless a French elision inside
+            // the match shows French words: "j'ai pas pu, t'es où ?" is no "pu tes".
+            boolean readAsWords = (!word.spaced() || everyday.throughElision(match[0], match[1]))
+                    && everyday.innocent(match[0], match[1], !word.ownList());
+            if (!readAsWords) {
                 return match;
             }
             from = match[0] + 1;

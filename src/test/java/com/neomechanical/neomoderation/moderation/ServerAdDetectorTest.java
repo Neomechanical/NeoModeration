@@ -111,6 +111,10 @@ class ServerAdDetectorTest {
                 "come play on skribbl.io",
                 "i play hypixel.net mostly",
                 "go play mcdonalds.com",
+                "entra no google.com.br e pesquisa",
+                "entra no globo.com",
+                "entra a marca.com",
+                "das kommt auf amazon.de an",
                 "we play minecraft.net on weekends",
                 "привет. как дела")) {
             assertEquals(Optional.empty(), advertised(clean), "flagged ordinary chat: " + clean);

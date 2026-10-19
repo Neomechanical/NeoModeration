@@ -20,8 +20,9 @@ public final class SplitMessageWindow {
 
     /** As long as the spam limit's window, so letters typed one per message within it are read together. */
     public static final long DEFAULT_WINDOW_MS = 10_000L;
-    /** While every fragment is a single character, slow enough typing for an eight-letter word. */
+    /** While every fragment is three characters or fewer, slow enough typing for an eight-letter word. */
     public static final long SINGLE_LETTER_WINDOW_MS = 24_000L;
+    private static final int SHORT_FRAGMENT = 3;
     public static final int MAX_FRAGMENT_LENGTH = 12;
     /** Enough for "b", "i", "t", "c", "h" and more, should a server allow more messages than the default. */
     public static final int MAX_WINDOW_MESSAGES = 8;
@@ -87,8 +88,9 @@ public final class SplitMessageWindow {
 
         Deque<Entry> deque = windows.computeIfAbsent(player, k -> new ArrayDeque<>());
         synchronized (deque) {
-            // Letters typed one per message ("r", "e", "t" ...) are kept longer than other fragments.
-            boolean letters = trimmed.length() == 1 && deque.stream().allMatch(entry -> entry.fragment().length() == 1);
+            // Letters typed one or a few per message ("r", "e", "ta", "rd") are kept longer than other fragments.
+            boolean letters = trimmed.length() <= SHORT_FRAGMENT
+                    && deque.stream().allMatch(entry -> entry.fragment().length() <= SHORT_FRAGMENT);
             long cutoff = nowMs - (letters ? SINGLE_LETTER_WINDOW_MS : DEFAULT_WINDOW_MS);
             while (!deque.isEmpty() && deque.peekFirst().timestamp() < cutoff) {
                 deque.pollFirst();

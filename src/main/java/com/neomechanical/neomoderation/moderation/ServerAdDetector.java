@@ -51,11 +51,18 @@ final class ServerAdDetector {
 
     /** Words that, right before an address, make it an invitation, though they also begin sentences. */
     private static final Pattern AD_INTENT_BEFORE = intentBefore(
-            INVITATIONS + "|server|play\\s+(?:on|at)|hop\\s+on|come\\s+(?:to|on|play\\s+on)"
-                    // Spanish, Portuguese, French and German: "entra a", "joga no", "rejoignez", "kommt auf".
-                    + "|entra(?:\\s+(?:a|al|en|no|na))?|entre\\s+(?:no|na)|[uú]nete(?:\\s+a)?|juega\\s+en"
-                    + "|jog(?:a|ue)\\s+(?:no|na)|rejoin(?:s|dre)|rejoign(?:ez|ons)(?:\\s+nous)?|(?:venez|viens)\\s+jouer\\s+sur"
-                    + "|komm(?:t)?\\s+auf|spielt\\s+auf");
+            INVITATIONS + "|server|play\\s+(?:on|at)|hop\\s+on|come\\s+(?:to|on|play\\s+on)");
+
+    /**
+     * Invitations in Spanish, Portuguese, French, German and Turkish ("entra a", "joga no", "rejoignez",
+     * "kommt auf", "gelin"). "Entra" means "go to" for any site, so these count only before a host whose
+     * name reads as a game server, as "play" does.
+     */
+    private static final Pattern FOREIGN_INVITATION_BEFORE = intentBefore(
+            "entr(?:a|e|en|em)(?:\\s+(?:a|al|en|no|na))?|[uú]n(?:e|a)(?:te|nse)(?:\\s+a)?|jueg(?:a|uen)\\s+en"
+                    + "|vengan\\s+a\\s+jugar\\s+a|jog(?:a|ue|uem)\\s+(?:no|na)|(?:vem|venham)\\s+jogar\\s+(?:no|na)"
+                    + "|rejoin(?:s|dre)|rejoign(?:ez|ons)(?:\\s+nous)?|(?:venez|viens)(?:\\s+jouer)?\\s+sur"
+                    + "|komm(?:t)?\\s+auf|spielt\\s+auf|joint|gelin|oyna");
 
     /** "play" telling someone to play ("play ...", "come and play ...", "lets play ..."), not "i play ...". */
     private static final Pattern PLAY_BEFORE = Pattern.compile(
@@ -106,6 +113,11 @@ final class ServerAdDetector {
             "lichess.org", "geoguessr.com", "roblox.com", "poki.com", "crazygames.com", "itch.io",
             // Names that start with "mc" without being a server.
             "mcdonalds.com", "mcafee.com");
+
+    /** The names of {@link #NEVER_SERVER_AD_DOMAINS}, so google.com.br counts as Google too. */
+    private static final Set<String> NEVER_SERVER_AD_NAMES = NEVER_SERVER_AD_DOMAINS.stream()
+            .map(domain -> domain.substring(0, domain.indexOf('.')))
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
 
     /** TLDs that server addresses actually use; keeps config.yml and server.properties clean. */
     private static final Set<String> COMMON_TLDS = Set.of(
@@ -255,7 +267,7 @@ final class ServerAdDetector {
         String port = host.group(3);
         String[] labels = hostname.split("\\.");
         String registrable = labels[labels.length - 2] + "." + labels[labels.length - 1];
-        if (NEVER_SERVER_AD_DOMAINS.contains(registrable)) {
+        if (NEVER_SERVER_AD_DOMAINS.contains(registrable) || NEVER_SERVER_AD_NAMES.contains(siteName(labels))) {
             return false;
         }
         for (String serverHost : SERVER_HOST_DOMAINS) {
@@ -277,9 +289,12 @@ final class ServerAdDetector {
         if (labels.length == 2 && WORD_TLDS.contains(tld) && sentenceContinues(text, host.end())) {
             return INVITATION_BEFORE.matcher(before).find();
         }
-        return AD_INTENT_BEFORE.matcher(before).find()
-                || (SERVER_NAME.matcher(siteName(labels)).find()
-                        && PLAY_BEFORE.matcher(text.substring(0, host.start())).find());
+        if (AD_INTENT_BEFORE.matcher(before).find()) {
+            return true;
+        }
+        return SERVER_NAME.matcher(siteName(labels)).find()
+                && (PLAY_BEFORE.matcher(text.substring(0, host.start())).find()
+                        || FOREIGN_INVITATION_BEFORE.matcher(before).find());
     }
 
     /** The label that names the site: "coolsmp" in coolsmp.net and in coolsmp.co.uk. */

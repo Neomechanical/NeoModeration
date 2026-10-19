@@ -323,6 +323,8 @@ alert:
   paused-all: "{prefix} {#muted}Too many alerts at once, so they pause until it calms down, five minutes at most. Everything is still logged."
   missed-player: "{prefix} {#muted}Alerts about {#text}{player}{#muted} are back. Missed while paused: {#text}{count}"
   missed-all: "{prefix} {#muted}Alerts are back. Missed while paused: {#text}{count}{#muted}, players: {#text}{players}"
+  still-paused-player: "{prefix} {#muted}Alerts about {#text}{player}{#muted} are still paused. Missed in the last five minutes: {#text}{count}"
+  still-paused-all: "{prefix} {#muted}Alerts are still paused: there are too many. Missed in the last five minutes: {#text}{count}{#muted}, players: {#text}{players}"
 
 surface:
   title: "{prefix} {#muted}Where local rules apply. Click a setting to change it."
@@ -480,7 +482,7 @@ doctor:
     events-credits: "out of credits"
     events-request: "refused; check moderation.api.endpoint"
     events-transient: "no answer from the cloud"
-    events-busy: "{count} since startup: chat came faster than the cloud could check it"
+    events-busy: "{count} since startup, because chat came faster than the cloud could check it"
     account-ok: "{ms} ms, workspace {workspace}, plan {plan}"
     account-auth: "the key was rejected ({ms} ms). Replace it at {url}, then run /nmod setup <key>"
     account-credits: "out of credits ({ms} ms). Add some at {url}"

@@ -109,6 +109,7 @@ pt: beleza agora hoje ontem amanha depois antes vamos bora gente ne tipo entao f
 pt: quero pode posso jogando alguem trocar diamantes minerar fica vila pao metro blocos vidro
 pt: fundos vi
 pt: bom boa
+pt: ao anda aquele aquela ganhou ganhei
 # Turkish
 tr: o bu su ve ki mi mu de da ne ya en is at el ev ay bir ben sen biz siz onlar var yok cok ama
 tr: ile gibi icin daha iyi kotu evet hayir tamam abi kanka oyun sunucu ak al bak gel git ver neden
@@ -136,6 +137,7 @@ da: blev kunne ind når være noget ville jo deres efter ned skulle denne end de
 da: have dig hende meget sit vores mod disse hvis din nogle hos blive mange bliver hej ja nej tak
 da: godt spil spille hvilket hvilken hvem hvorfor kom kan
 da: dag
+da: jeg så
 # Norwegian
 no nb nn: og i jeg det at en et den til er som på de med han av ikke der så var meg seg men har om
 no nb nn: vi min ha hadde hun nå over da fra du ut sin dem oss opp man kan hans hvor eller hva

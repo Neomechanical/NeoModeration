@@ -198,3 +198,79 @@ kan du putta in den i kistan
 # language: nl_nl
 kan ik een plot huren?
 wat kost het om een shop te huren
+# Players writing in their own language, written by a reviewer before the word lists were read.
+# language: fr_fr
+désolé pour le retard, j'avais du lag
+y'a du retard sur le serveur
+le spawn a du retard
+retard de 2 secondes sur la redstone
+en retard pour l'event pvp
+je suis en retard, je farm encore
+il a du retard, il est afk
+pardon du retard les gars
+excusez le retard, mon wifi a crash
+Steve est en retard
+le build a pris du retard
+quel idiot, je suis en retard
+désolé du retard, le serveur a lag
+# language: ca_es
+perdó pel retard, tenia lag
+arribo amb retard al servidor
+# language: es_es
+Kike, ven al spawn
+kike tiene la base cerca del nether
+kike me robó el loot
+oye kike, haz tp a mi casa
+kike está afk
+kike es el admin del server
+mi primo kike juega bedwars
+# language: es_mx
+kike ya llegó al end
+# language: sv_se
+slut på diamanter
+det är slut på mat i basen
+slut för idag, jag loggar ut
+jag fick 64 diamanter
+fick du loot från bossen?
+jag fick lag hela tiden
+fick en elytra idag
+nu är det slut på pvp eventet
+vilken idiot, det är slut på mat
+jag fick en idiot i laget
+# language: nb_no
+det er slutt på jern
+kan du kikke på farmen min?
+kan du putte det i kista
+hvilket fag liker du best
+jeg har slutt på mat, noen som har steak?
+# language: da_dk
+hvilket fag har du i morgen
+jeg har fag i morgen tidlig så jeg logger af
+fag og skole er kedeligt
+# language: nl_nl
+ik wil een plot huren in de stad
+kan ik een shop huren bij spawn?
+huren kost 50 coins
+# language: it_it
+Giovanni Verga è il mio scrittore preferito
+ho letto Verga a scuola
+# language: hr_hr
+koliko puta si umro?
+tri puta sam pao u lavu
+dva puta sam ubio endermana
+sto puta sam rekao
+# language: pt_pt
+o puto ganhou o pvp
+o puto está afk
+aquele puto tem uma base enorme
+puto, anda ao spawn
+# language: pt_br
+eu via a do lado todo dia
+entra no google.com.br e pesquisa
+# language: es_es
+entra a marca.com para leer la noticia
+# language: de_de
+das kommt auf amazon.de an
+# language: en_us
+a 5 hit combo
+putㅤa torch here
