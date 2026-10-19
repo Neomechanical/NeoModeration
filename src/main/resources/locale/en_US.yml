@@ -324,7 +324,7 @@ alert:
   missed-player: "{prefix} {#muted}Alerts about {#text}{player}{#muted} are back. Missed while paused: {#text}{count}"
   missed-all: "{prefix} {#muted}Alerts are back. Missed while paused: {#text}{count}{#muted}, players: {#text}{players}"
   still-paused-player: "{prefix} {#muted}Alerts about {#text}{player}{#muted} are still paused. Missed in the last five minutes: {#text}{count}"
-  still-paused-all: "{prefix} {#muted}Alerts are still paused: there are too many. Missed in the last five minutes: {#text}{count}{#muted}, players: {#text}{players}"
+  still-paused-all: "{prefix} {#muted}Alerts are still paused because there are too many. Missed in the last five minutes: {#text}{count}{#muted}, players: {#text}{players}"
 
 surface:
   title: "{prefix} {#muted}Where local rules apply. Click a setting to change it."

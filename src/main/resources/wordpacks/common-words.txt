@@ -82,6 +82,7 @@ es: juego jugar server agua fuego hacemos hacer hago porque cuando donde quien c
 es: gracias claro ven venga bueno buena buenas hoy ayer aca dale mucha muchos muchas otro otra
 es: otros estoy estas estamos tienes tenemos puedo puedes quiero quieres ayuda granja aldea cueva
 es: equipo hambre final vi hermano hermana
+es: porfa
 # French
 fr: a y ce de du en et il je la le ma me ne ni on ou sa se si te tu un va vu ca ai as es eu lu pu
 fr: mer des les une aux est sont pas plus bas re foire fait mal bon bien oui non qui quoi mais
@@ -110,6 +111,7 @@ pt: quero pode posso jogando alguem trocar diamantes minerar fica vila pao metro
 pt: fundos vi
 pt: bom boa
 pt: ao anda aquele aquela ganhou ganhei
+pt: passa servidor demora espada
 # Turkish
 tr: o bu su ve ki mi mu de da ne ya en is at el ev ay bir ben sen biz siz onlar var yok cok ama
 tr: ile gibi icin daha iyi kotu evet hayir tamam abi kanka oyun sunucu ak al bak gel git ver neden
@@ -119,15 +121,18 @@ tr: yarin dun ister oynamak koy sikinti
 it: di da il lo la le un una che non per con mi ti si ci vi ma ho ha io lui lei noi voi e sono sei
 it: siamo come cosa dove quando perche anche molto bene male ciao grazie gioco giocare casa libro
 it: letto
+it: meglio questo questa tutto niente sempre ancora
 # Dutch
 nl: de het een en je jij we ze is in te van dat die niet wat ja nee met voor ik kan kost om op
 nl: maar dan nog ook hoe waar wie mijn jouw zijn haar ons hun heb heeft hebben ben bent waren
 nl: wordt moet moeten wil willen ga gaat gaan kom komt komen doe doen spelen huis goed dank
 nl: bedankt hoi hallo doei jullie zij hij zo nu hier daar alles niks iets iemand plot shop
+nl: he
 # Swedish
 sv: och att det som en pa ar av for med har jag du han hon vi ni de nu inte men eller ja nej tack
 sv: hej var vad hur nar kan ska vill hade kom vem spela mat diamant present den
 sv: in
+sv: is ur hel min tog från ta några
 # Polish
 pl: i w z na nie to jest ze sie co jak tak ale po do od za
 # Danish
@@ -138,6 +143,7 @@ da: have dig hende meget sit vores mod disse hvis din nogle hos blive mange bliv
 da: godt spil spille hvilket hvilken hvem hvorfor kom kan
 da: dag
 da: jeg så
+da: is fat hel
 # Norwegian
 no nb nn: og i jeg det at en et den til er som på de med han av ikke der så var meg seg men har om
 no nb nn: vi min ha hadde hun nå over da fra du ut sin dem oss opp man kan hans hvor eller hva
@@ -145,6 +151,7 @@ no nb nn: skal selv her alle vil bli ble kunne inn når være noen noe ville der
 no nb nn: denne for deg mot dette disse uten hvordan ingen din blir hvem hvis bare enn fordi før
 no nb nn: mange også hei ja nei takk spill spille hvilket
 no nb nn: dag
+no nb nn: is fat hel
 # Croatian, Serbian and Bosnian
 hr sr bs: i u je se na da za su od sa kao što to ne ali ili pa jer kad koji koja koje ovo ono taj
 hr sr bs: ta te ti ja mi vi oni ona on bi biti sam si smo ste bio bila bilo ima nema može treba
@@ -154,3 +161,4 @@ hr sr bs: igrati sad sada evo eto
 ca: el la els les i de que un una per amb no es és com més però molt tot ja jo tu ell ella
 ca: nosaltres vosaltres ells elles aquest aquesta això on quan qui quin quina porta tren hola bon
 ca: dia gràcies si al del pel als dels meu teu seu som són ets era fer anar vaig vas va
+ca: he

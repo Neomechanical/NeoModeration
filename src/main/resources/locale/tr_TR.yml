@@ -326,7 +326,7 @@ alert:
   missed-player: "{prefix} {#text}{player}{#muted} hakkındaki bildirimler yeniden gösteriliyor. Duraklatma sırasında kaçırılan: {#text}{count}"
   missed-all: "{prefix} {#muted}Bildirimler yeniden gösteriliyor. Duraklatma sırasında kaçırılan: {#text}{count}{#muted}, oyuncu sayısı: {#text}{players}"
   still-paused-player: "{prefix} {#text}{player}{#muted} hakkındaki bildirimler hâlâ duraklatılmış durumda. Son beş dakikada kaçırılan: {#text}{count}"
-  still-paused-all: "{prefix} {#muted}Bildirimler hâlâ duraklatılmış durumda, çok fazla bildirim var. Son beş dakikada kaçırılan: {#text}{count}{#muted}, oyuncu sayısı: {#text}{players}"
+  still-paused-all: "{prefix} {#muted}Çok fazla bildirim olduğu için bildirimler hâlâ duraklatılmış durumda. Son beş dakikada kaçırılan: {#text}{count}{#muted}, oyuncu sayısı: {#text}{players}"
 
 surface:
   title: "{prefix} {#muted}Yerel kuralların geçerli olduğu yerler. Değiştirmek için bir ayara tıklayın."

@@ -375,4 +375,28 @@ class ShippedListsTest {
         assertTrue(OfflineModerationEngine.evaluate("you puta", settings).flagged(),
                 "allowing the phrase \"put a\" never allows \"puta\"");
     }
+
+    @Test
+    void everyShippedWordWrittenInTinyTextIsCaught() throws Exception {
+        String plain = "abcdefghijklmnoprstuvwxyz";
+        String tiny = "ᵃᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖʳˢᵗᵘᵛʷˣʸᶻ";
+        OfflineModerationSettings settings = shipped(List.of("all"));
+        List<String> missed = new ArrayList<>();
+        int checked = 0;
+        for (String word : unspacedShippedWords()) {
+            String letters = new String(TextNormalizer.normalize(word, false).chars());
+            if (letters.indexOf('q') >= 0) {
+                continue;  // there is no superscript q
+            }
+            StringBuilder written = new StringBuilder();
+            letters.codePoints().forEach(letter -> written.appendCodePoint(tiny.codePointAt(
+                    tiny.offsetByCodePoints(0, plain.indexOf(letter)))));
+            checked++;
+            if (!OfflineModerationEngine.evaluate("you " + written, settings, "en_us").flagged()) {
+                missed.add(written + " (" + word + ")");
+            }
+        }
+        assertTrue(checked > 150, "checked only " + checked);
+        assertTrue(missed.isEmpty(), () -> "Words in tiny text got through:\n" + String.join("\n", missed));
+    }
 }

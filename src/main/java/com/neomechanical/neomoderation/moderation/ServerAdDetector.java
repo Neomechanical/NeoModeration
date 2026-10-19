@@ -59,7 +59,7 @@ final class ServerAdDetector {
      * name reads as a game server, as "play" does.
      */
     private static final Pattern FOREIGN_INVITATION_BEFORE = intentBefore(
-            "entr(?:a|e|en|em)(?:\\s+(?:a|al|en|no|na))?|[uú]n(?:e|a)(?:te|nse)(?:\\s+a)?|jueg(?:a|uen)\\s+en"
+            "entr(?:a|en|em)(?:\\s+(?:a|al|en|no|na))?|entre\\s+(?:no|na)|[uú]n(?:e|a)(?:te|nse)(?:\\s+a)?|jueg(?:a|uen)\\s+en"
                     + "|vengan\\s+a\\s+jugar\\s+a|jog(?:a|ue|uem)\\s+(?:no|na)|(?:vem|venham)\\s+jogar\\s+(?:no|na)"
                     + "|rejoin(?:s|dre)|rejoign(?:ez|ons)(?:\\s+nous)?|(?:venez|viens)(?:\\s+jouer)?\\s+sur"
                     + "|komm(?:t)?\\s+auf|spielt\\s+auf|joint|gelin|oyna");
@@ -112,7 +112,11 @@ final class ServerAdDetector {
             "skribbl.io", "krunker.io", "agar.io", "slither.io", "diep.io", "gartic.io", "chess.com",
             "lichess.org", "geoguessr.com", "roblox.com", "poki.com", "crazygames.com", "itch.io",
             // Names that start with "mc" without being a server.
-            "mcdonalds.com", "mcafee.com");
+            "mcdonalds.com", "mcafee.com",
+            // Minecraft resource, skin and vote sites players link each other to.
+            "mcpedl.com", "minecraftskins.com", "minecraft-heads.com", "mcstacker.net", "mcversions.net",
+            "minecraft-mp.com", "minecraftservers.org", "minecraft-server-list.com", "topg.org", "minecraft.wiki",
+            "craftingtable.com");
 
     /** The names of {@link #NEVER_SERVER_AD_DOMAINS}, so google.com.br counts as Google too. */
     private static final Set<String> NEVER_SERVER_AD_NAMES = NEVER_SERVER_AD_DOMAINS.stream()
@@ -267,7 +271,7 @@ final class ServerAdDetector {
         String port = host.group(3);
         String[] labels = hostname.split("\\.");
         String registrable = labels[labels.length - 2] + "." + labels[labels.length - 1];
-        if (NEVER_SERVER_AD_DOMAINS.contains(registrable) || NEVER_SERVER_AD_NAMES.contains(siteName(labels))) {
+        if (NEVER_SERVER_AD_DOMAINS.contains(registrable)) {
             return false;
         }
         for (String serverHost : SERVER_HOST_DOMAINS) {
@@ -280,6 +284,10 @@ final class ServerAdDetector {
         }
         if (port != null || (labels.length >= 3 && SERVER_LABELS.contains(labels[0]))) {
             return true;
+        }
+        // A safe site's own country address (google.com.br, amazon.de) is as safe as the site.
+        if (tld.length() == 2 && NEVER_SERVER_AD_NAMES.contains(siteName(labels))) {
+            return false;
         }
         // Without a server signal, only an invitation makes an ordinary domain an ad.
         if (isWebPage(text, host.end())) {

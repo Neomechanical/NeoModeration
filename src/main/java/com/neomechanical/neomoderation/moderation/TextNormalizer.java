@@ -192,12 +192,22 @@ final class TextNormalizer {
     private static boolean isApostrophe(int codePoint) {
         return codePoint == '\'' || codePoint == '’' || codePoint == '‘'
                 || codePoint == 'ʼ' || codePoint == '`'
-                // Modifier letters and tone marks drawn as ticks, accents or dots: ʹ ʻ ˈ ˌ ː ˮ ꞌ ꜀ ...
-                // (the superscript letters before U+02B9 fold to letters).
-                || (codePoint >= 0x02B9 && codePoint <= 0x02FF)
-                || (codePoint >= 0xA700 && codePoint <= 0xA71F)
-                || codePoint == 0xA788 || codePoint == 0xA78B || codePoint == 0xA78C
-                || codePoint == 0x07F4 || codePoint == 0x07F5;
+                // Marks typed or drawn as an apostrophe: ´ ′ ‵ ＇ ׳ ՚ ՙ ⸯ ॱ.
+                || codePoint == 0x00B4 || codePoint == 0x2032 || codePoint == 0x2035 || codePoint == 0xFF07
+                || codePoint == 0x05F3 || codePoint == 0x055A || codePoint == 0x0559 || codePoint == 0x2E2F
+                || codePoint == 0x0971
+                // Modifier letters and tone marks drawn as ticks, accents or dots (ʹ ʻ ˈ ˌ ː ˮ ꞌ ꜀),
+                // but never one that folds to a letter: ˡ ˢ ˣ are the l, s and x of "tiny text".
+                || ((codePoint >= 0x02B9 && codePoint <= 0x02FF || codePoint >= 0xA700 && codePoint <= 0xA71F
+                        || codePoint == 0xA788 || codePoint == 0xA78B || codePoint == 0xA78C
+                        || codePoint == 0x07F4 || codePoint == 0x07F5) && !foldsToLetter(codePoint));
+    }
+
+    /** Whether a character has a compatibility form that is a letter, as ˢ is "s" (ʻ has none). */
+    private static boolean foldsToLetter(int codePoint) {
+        String original = new String(Character.toChars(codePoint));
+        String folded = Normalizer.normalize(original, Normalizer.Form.NFKD);
+        return !folded.equals(original) && folded.codePoints().anyMatch(Character::isLetter);
     }
 
     /** Hangul fillers, which draw nothing and so can hide inside a word. */
@@ -298,6 +308,7 @@ final class TextNormalizer {
             for (int i = 0; i < count; i++) {
                 finalEnd[i] = (i == count - 1) || finalStart[i + 1];
             }
+            joinTrailingDigits(finalStart, finalEnd);
             restoreNumbers(finalChars, finalStart, finalEnd);
             boolean[] apostrophe = Arrays.copyOf(joinBlocked, count);
             keepContractionEndingsOnly(finalChars, finalEnd);
@@ -367,35 +378,74 @@ final class TextNormalizer {
             if (begin != end) {
                 return false;
             }
-            boolean singleBefore = begin > 0 && starts[begin - 1];
-            boolean singleAfter = end + 1 < count && ends[end + 1];
-            if (!singleBefore && !singleAfter) {
+            int before = 0;  // one-character tokens right before the digit
+            for (int i = begin - 1; i >= 0 && single(i, starts, ends); i--) {
+                before++;
+            }
+            int after = 0;
+            for (int i = end + 1; i < count && single(i, starts, ends); i++) {
+                after++;
+            }
+            if (before == 0 && after == 0) {
                 return false;
             }
-            int run = 1;  // one-character tokens around the digit, itself included
-            for (int i = begin - 1; i >= 0 && starts[i] && ends[i]; i--) {
-                run++;
-            }
-            for (int i = end + 1; i < count && starts[i] && ends[i]; i++) {
-                run++;
-            }
-            if (run >= 3) {
-                return true;  // "s h i 7", "r e 7 ard"
-            }
-            // "put a 5", "a 5 hit combo": after a one-letter word that follows a real word, or starts the message.
-            boolean afterLetterWord = singleBefore && digits[begin - 1] == 0
+            // "put a 5 tick", "it's a 5 hit combo": a quantity after a one-letter word that follows a word,
+            // unless spelled letters follow it ("is a 5 h i t").
+            boolean afterLetterWord = before == 1 && digits[begin - 1] == 0
                     && ONE_LETTER_WORDS.contains(chars[begin - 1]);
-            boolean quantity = afterLetterWord && (begin - 1 == 0 || tokenLengthEndingAt(begin - 2) >= 3);
+            boolean quantity = afterLetterWord && after < 2 && (begin - 1 == 0 || wordEndsAt(begin - 2, starts));
             return !quantity;
         }
 
-        /** The length of the token that ends at {@code end}. */
-        private int tokenLengthEndingAt(int end) {
+        /**
+         * Makes a lone digit after a piece that is no English word part of that
+         * piece: "shi 7" reads "shit", while "took 5 hits" keeps a number, and in
+         * "lvl 5 hit" the digit joins "lvl" and never starts a word. A joined
+         * piece is never an everyday word, so it only matters inside a banned one.
+         */
+        private void joinTrailingDigits(boolean[] starts, boolean[] ends) {
+            for (int d = 1; d < count; d++) {
+                if (!starts[d] || !ends[d] || digits[d] == 0 || starts[d - 1]) {
+                    continue;  // a lone digit after a token of two characters or more
+                }
+                if (d + 1 < count && starts[d + 1] && ends[d + 1]) {
+                    continue;  // a spelled-out run continues: "sh 1 t"
+                }
+                int begin = d - 1;
+                while (begin > 0 && !starts[begin]) {
+                    begin--;
+                }
+                boolean letters = true;
+                for (int i = begin; i < d; i++) {
+                    letters &= digits[i] == 0 && Character.isLetter(chars[i]);
+                }
+                if (letters && !BundledWordPacks.everydayWords(BundledWordPacks.ENGLISH)
+                        .contains(new String(chars, begin, d - begin))) {
+                    starts[d] = false;
+                    tokenStart[d] = false;
+                    ends[d - 1] = false;
+                }
+            }
+        }
+
+        /** A one-character token that is no contraction's ending (the "s" of "it's"). */
+        private boolean single(int at, boolean[] starts, boolean[] ends) {
+            return starts[at] && ends[at] && !contractionEnding(at, at);
+        }
+
+        private boolean contractionEnding(int begin, int end) {
+            return joinBlocked[begin] && CONTRACTION_ENDINGS.contains(new String(chars, begin, end + 1 - begin));
+        }
+
+        /** Whether the token that ends at {@code end} is a word: English, three letters or more, or "'s". */
+        private boolean wordEndsAt(int end, boolean[] starts) {
             int begin = end;
-            while (begin > 0 && !tokenStart[begin]) {
+            while (begin > 0 && !starts[begin]) {
                 begin--;
             }
-            return end + 1 - begin;
+            String token = new String(chars, begin, end + 1 - begin);
+            return contractionEnding(begin, end) || token.length() >= 3
+                    || BundledWordPacks.everydayWords(BundledWordPacks.ENGLISH).contains(token);
         }
     }
 }

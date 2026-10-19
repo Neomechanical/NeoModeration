@@ -173,7 +173,7 @@ class DetectionNotifierTest {
         }
 
         List<String> alerts = TestPlugin.lines(germanStaff);
-        assertTrue(alerts.stream().anyMatch(line -> line.startsWith("[NeoMod] Hinweise pausieren weiter, es sind zu viele.")),
+        assertTrue(alerts.stream().anyMatch(line -> line.startsWith("[NeoMod] Hinweise pausieren weiter, weil es zu viele sind.")),
                 String.join("\n", alerts));
         assertTrue(alerts.stream().noneMatch(line -> line.contains("sind zurück")), "the alerts are not back");
     }

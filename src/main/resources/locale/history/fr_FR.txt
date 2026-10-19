@@ -33,7 +33,7 @@ alert.missed-player	4112ef07af854274
 alert.monitor	4e2b308c499c6b23
 alert.paused-all	366fd4aff1116c2e,ecbe765715b8055d,fb6f7f8590251816
 alert.paused-player	04ffc3051da24341,4d0a8d7d6a03c7ac
-alert.still-paused-all	4512602e4f988279
+alert.still-paused-all	4512602e4f988279,714629d8b7baf175
 alert.still-paused-player	dc3720f8ff0689ac
 alert.then	f15aa991b812f13a
 alert.verdict.blocked	d2785ef0fcf535a9

@@ -326,7 +326,7 @@ alert:
   missed-player: "{prefix} {#muted}Hinweise zu {#text}{player}{#muted} sind zurück. Während der Pause verpasst: {#text}{count}"
   missed-all: "{prefix} {#muted}Hinweise sind zurück. Während der Pause verpasst: {#text}{count}{#muted}, Spieler: {#text}{players}"
   still-paused-player: "{prefix} {#muted}Hinweise zu {#text}{player}{#muted} pausieren weiter. In den letzten fünf Minuten verpasst: {#text}{count}"
-  still-paused-all: "{prefix} {#muted}Hinweise pausieren weiter, es sind zu viele. In den letzten fünf Minuten verpasst: {#text}{count}{#muted}, Spieler: {#text}{players}"
+  still-paused-all: "{prefix} {#muted}Hinweise pausieren weiter, weil es zu viele sind. In den letzten fünf Minuten verpasst: {#text}{count}{#muted}, Spieler: {#text}{players}"
 
 surface:
   title: "{prefix} {#muted}Wo die lokalen Regeln gelten. Klicke auf eine Einstellung, um sie zu ändern."

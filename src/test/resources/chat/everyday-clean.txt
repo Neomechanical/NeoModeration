@@ -274,3 +274,47 @@ das kommt auf amazon.de an
 # language: en_us
 a 5 hit combo
 putㅤa torch here
+# A quantity after a one-letter word, and contractions before it.
+# language: en_us
+it's a 5 hit combo
+that's a 5 hit combo
+what's a 5 hit combo
+do a 5 hit combo
+is a 5 hit combo good?
+it is a 5 hit combo
+in a 5 hit combo you win
+so a 5 hit combo?
+there's 5 hits left
+it's 5 hits to kill him
+that's 5 hits in a row
+he's 5 hits from dying
+lvl 5 hit
+# Natives' lines with words English frames an insult with, and thin lists.
+# language: ca_es
+perdó pel retard, he tingut lag
+he arribat amb retard a l'event
+# language: da_dk
+jeg har ikke mere is, det er slut
+jeg kan ikke få fat i mere jern, det er slut
+# language: nb_no
+slutt på is til isveien
+# language: sv_se
+ta några ur kistan, jag har slut på järn
+hämta ur kistan, jag har slut på mat
+min netherite tog slut
+fick 3 elytras från end city
+# language: nl_nl
+hé, wil je mijn farm huren?
+# language: es_es
+kike tp porfa
+entren a minecraft-mp.com y voten por el server
+estoy entre hypixel.net y mush.com.br
+entra en mcpedl.com para descargar el addon
+# language: it_it
+verga noiosissimo, meglio minecraft
+# language: pt_pt
+a bicha no servidor demora 5 min
+puto, passa-me a espada
+# language: pt_br
+entrem no minecraftservers.org pra votar
+entra no minecraftskins.com e pega a skin

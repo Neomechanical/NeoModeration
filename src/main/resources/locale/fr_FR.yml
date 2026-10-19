@@ -326,7 +326,7 @@ alert:
   missed-player: "{prefix} {#muted}Les alertes sur {#text}{player}{#muted} reprennent. Manquées pendant la pause : {#text}{count}"
   missed-all: "{prefix} {#muted}Les alertes reprennent. Manquées pendant la pause : {#text}{count}{#muted}, joueurs : {#text}{players}"
   still-paused-player: "{prefix} {#muted}Les alertes sur {#text}{player}{#muted} restent en pause. Manquées ces cinq dernières minutes : {#text}{count}"
-  still-paused-all: "{prefix} {#muted}Les alertes restent en pause : il y en a trop. Manquées ces cinq dernières minutes : {#text}{count}{#muted}, joueurs : {#text}{players}"
+  still-paused-all: "{prefix} {#muted}Les alertes restent en pause parce qu'il y en a trop. Manquées ces cinq dernières minutes : {#text}{count}{#muted}, joueurs : {#text}{players}"
 
 surface:
   title: "{prefix} {#muted}Où s'appliquent les règles locales. Cliquez sur un réglage pour le changer."

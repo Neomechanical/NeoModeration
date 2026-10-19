@@ -1,11 +1,12 @@
 # Everyday words in one language that another language's list bans, or that
 # read as a banned word with a letter doubled ("slutt"). They pass for everyone
 # on a server whose locale is the language named, and for a player whose game
-# language is, when the message is written in that language: no word only
-# English uses, at least one everyday word of the language (common-words.txt)
-# that English does not use, and more of its words than words of no list. "ce
-# retard me tue" passes for a French player; "shut up retard le" and "dirty
-# kike de" do not. "<language>: <word> <word> ..."; several
+# language is, when the message is written in that language: no English word
+# an insult is framed with ("you", "dirty", "get out"), at least one everyday
+# word of the language (common-words.txt) that English does not use, and more
+# of its words than English ones, leaving out chat and game words such as "lol"
+# and "spawn". "ce retard me tue" passes for a French player; "shut up retard
+# le" and "dirty kike de" do not. "<language>: <word> <word> ..."; several
 # languages may share a line, and a language such as "pt_pt" names one
 # country's form, "sv" every Swedish one.
 #

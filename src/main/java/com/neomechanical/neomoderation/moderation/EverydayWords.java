@@ -1,5 +1,6 @@
 package com.neomechanical.neomoderation.moderation;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -16,9 +17,10 @@ import java.util.Set;
  * with digits or symbols ("g0 ok") and pieces joined by an apostrophe inside a
  * word ("go'ok", which nobody writes for two words) are still read as one word.
  * A lone digit read as the letter just before it only stretches that letter, so
- * it changes nothing. An English contraction's ending ("who're") and a "re"
- * before a hyphen ("who re-did") are English words, and a French elision ("pu,
- * t'es") separates words as a space does.</p>
+ * it changes nothing. An English contraction's ending ("who're") is an English
+ * word, and so is a "re" before a hyphen and a word of three letters or more
+ * ("who re-did", not "who re-x"); a French elision ("pu, t'es") separates words
+ * as a space does.</p>
  */
 final class EverydayWords {
 
@@ -34,11 +36,25 @@ final class EverydayWords {
     private static final Set<String> INTERJECTIONS = Set.of(
             "lol", "lmao", "omg", "xd", "idk", "brb", "afk", "irl", "ngl", "tbh", "wtf", "bruh", "kek");
 
-    /** English words that frame an insult at someone: one of them means the message is English. */
-    private static final Set<String> INSULT_FRAMES = Set.of(
-            "you", "ur", "your", "youre", "yours", "what", "dirty", "stupid", "ugly", "dumb", "filthy", "nasty",
-            "trash", "loser", "die", "kill", "shut", "back", "home", "fat", "hate", "are", "is", "the", "this",
-            "he", "she", "his", "her", "him", "they", "them");
+    /**
+     * English words that frame an insult at someone, letter runs collapsed: one of
+     * them, however stretched, means the message is English.
+     */
+    private static final Set<String> INSULT_FRAMES = java.util.stream.Stream.of(
+            "you", "u", "ur", "yu", "ure", "your", "youre", "yours", "what", "dirty", "stupid", "ugly", "dumb",
+            "filthy", "nasty", "smelly", "gross", "pathetic", "cheap", "trash", "loser", "die", "kill", "shut",
+            "back", "home", "fat", "hate", "are", "is", "the", "this", "he", "she", "his", "her", "him", "they",
+            "them", "get", "out", "away", "lost", "such", "big", "lil", "little", "imagine", "being", "nobody",
+            "likes", "hell", "cry")
+            .map(EverydayWords::collapse)
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    /** Chat and game words every language's players use, which say nothing about a message's language. */
+    private static final Set<String> SHARED_WORDS = Set.of(
+            "lol", "lmao", "omg", "gg", "wp", "bruh", "idk", "btw", "pls", "plz", "thx", "ty", "np", "brb", "afk",
+            "irl", "rn", "ngl", "tbh", "ok", "okay", "okey", "op", "lag", "spawn", "base", "farm", "shop", "loot",
+            "pvp", "mob", "noob", "xp", "tp", "end", "nether", "server", "event", "build", "wifi", "crash",
+            "redstone", "admin", "mod", "ban", "kick", "mute", "chat", "level", "diamond", "diamonds", "iron",
+            "gold", "boss", "steak", "block", "chest", "sword", "skin", "map", "game", "team", "raid", "idiot");
 
     private final TextNormalizer.Normalized text;
     private final OfflineRuleCompiler.Scope scope;
@@ -81,32 +97,54 @@ final class EverydayWords {
 
     /**
      * Whether the text is written in the language whose everyday words are
-     * {@code words}, leaving out {@code judged}, the words this decides about:
-     * it has at least one plainly written word of the language that English
-     * does not use, two letters or longer, and none of the English words an
-     * insult is framed with ("you", "dirty", "shut") unless the language uses
-     * them too. Other words, a game's "spawn" and "lag" or a number, prove
-     * nothing either way. "slut på järn" and "Kike, ven al spawn" read as
-     * Swedish and Spanish; "you retard le" and "dirty kike de" do not.
+     * {@code words}, leaving out {@code judged}, the words this decides about.
+     * None of its words may be an English word an insult is framed with ("you",
+     * "u", "dirty", "get out", also stretched: "youu") that the language does not
+     * use itself. Then its words of that language, two letters or more, must
+     * include one English does not use and outnumber its English-only words;
+     * chat and game words every language borrows ("lol", "afk", "spawn") count
+     * for neither. "slut på järn" and "Kike, ven al spawn" read as Swedish and
+     * Spanish; "dirty kike de" and "big slut på" do not.
      */
     static boolean writtenIn(TextNormalizer.Normalized text, Set<String> words, Set<String> judged) {
         if (words.isEmpty()) {
             return false;
         }
         Set<String> english = BundledWordPacks.everydayWords(BundledWordPacks.ENGLISH);
-        boolean theirs = false;
+        Set<String> theirs = new HashSet<>();
+        boolean theirsOnly = false;
+        Set<String> englishOnly = new HashSet<>();
         for (int[] token : OfflineRuleCompiler.tokensOf(text)) {
             String plain = plain(text, token);
-            if (plain == null || plain.length() < EVIDENCE_LETTERS || judged.contains(plain)) {
+            if (plain == null || judged.contains(plain)) {
                 continue;
             }
             boolean ours = words.contains(plain);
-            if (!ours && INSULT_FRAMES.contains(plain)) {
+            if (!ours && INSULT_FRAMES.contains(collapse(plain))) {
                 return false;
             }
-            theirs |= ours && !english.contains(plain);
+            if (plain.length() < EVIDENCE_LETTERS) {
+                continue;
+            }
+            if (ours) {
+                theirs.add(plain);
+                theirsOnly |= !english.contains(plain);
+            } else if (english.contains(plain) && !SHARED_WORDS.contains(plain)) {
+                englishOnly.add(plain);
+            }
         }
-        return theirs;
+        return theirsOnly && theirs.size() > englishOnly.size();
+    }
+
+    /** A word with each run of a letter reduced to one: "youu" is "you", "dirtyy" is "dirty". */
+    private static String collapse(String word) {
+        StringBuilder collapsed = new StringBuilder(word.length());
+        for (int i = 0; i < word.length(); i++) {
+            if (i == 0 || word.charAt(i) != word.charAt(i - 1)) {
+                collapsed.append(word.charAt(i));
+            }
+        }
+        return collapsed.toString();
     }
 
     /** Numbers the tokens and marks, per token, a bit for each language it is an everyday word of. */

@@ -325,7 +325,7 @@ alert:
   missed-player: "{prefix} {#muted}Vuelven las alertas sobre {#text}{player}{#muted}. Perdidas durante la pausa: {#text}{count}"
   missed-all: "{prefix} {#muted}Vuelven las alertas. Perdidas durante la pausa: {#text}{count}{#muted}, jugadores: {#text}{players}"
   still-paused-player: "{prefix} {#muted}Las alertas sobre {#text}{player}{#muted} siguen en pausa. Perdidas en los últimos cinco minutos: {#text}{count}"
-  still-paused-all: "{prefix} {#muted}Las alertas siguen en pausa: hay demasiadas. Perdidas en los últimos cinco minutos: {#text}{count}{#muted}, jugadores: {#text}{players}"
+  still-paused-all: "{prefix} {#muted}Las alertas siguen en pausa porque hay demasiadas. Perdidas en los últimos cinco minutos: {#text}{count}{#muted}, jugadores: {#text}{players}"
 
 surface:
   title: "{prefix} {#muted}Dónde se aplican las reglas locales. Haz clic en una opción para cambiarla."
