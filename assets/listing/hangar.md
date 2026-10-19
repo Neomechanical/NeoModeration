@@ -8,7 +8,7 @@ NeoModeration by Neomechanical filters Minecraft chat. It blocks swearing, slurs
 - Blocks a starter list of IP-grabber and scam links, including ones written with `(dot)` or `[.]`.
 - Blocks spam: message floods, the same message again and again and long runs of one character. Messages in capitals go out in lower case.
 - Tells the player why a message was stopped, in their own game language.
-- Alerts staff with the `neomoderation.notify` permission (operators by default), showing the player, the message, the reason and the action taken. Staff who may open cases can click an alert for that player's history. During a raid, alerts pause instead of flooding staff chat.
+- Alerts staff with the `neomoderation.notify` permission (operators by default), showing the player, the message, the reason and the action taken. Staff who may open cases can click an alert for that player's history. During a raid, alerts pause, then one line says how many staff missed.
 - Lets moderators with `neomoderation.moderate` use cases, mutes and tests while settings stay with admins.
 - Logs each detection as a case on your server. `/nmod cases` lists them; open one to resolve or dismiss it, allow the word or mute the player. The log leaves out the message text unless you turn it on.
 

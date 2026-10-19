@@ -51,15 +51,24 @@ final class ServerAdDetector {
 
     /** Words that, right before an address, make it an invitation, though they also begin sentences. */
     private static final Pattern AD_INTENT_BEFORE = intentBefore(
-            INVITATIONS + "|server|play\\s+(?:on|at)|hop\\s+on|come\\s+(?:to|on|play\\s+on)");
+            INVITATIONS + "|server|play\\s+(?:on|at)|hop\\s+on|come\\s+(?:to|on|play\\s+on)"
+                    // Spanish, Portuguese, French and German: "entra a", "joga no", "rejoignez", "kommt auf".
+                    + "|entra(?:\\s+(?:a|al|en|no|na))?|entre\\s+(?:no|na)|[uú]nete(?:\\s+a)?|juega\\s+en"
+                    + "|jog(?:a|ue)\\s+(?:no|na)|rejoin(?:s|dre)|rejoign(?:ez|ons)(?:\\s+nous)?|(?:venez|viens)\\s+jouer\\s+sur"
+                    + "|komm(?:t)?\\s+auf|spielt\\s+auf");
 
-    /** "play" telling someone to play ("play ...", "come play ...", "lets play ..."), not "i play ...". */
+    /** "play" telling someone to play ("play ...", "come and play ...", "lets play ..."), not "i play ...". */
     private static final Pattern PLAY_BEFORE = Pattern.compile(
-            "(?:^|(?:^|[^a-z])(?:come|lets|let's|go|pls|please)\\s+)play\\s*(?::|-|>)?\\s*$");
+            "(?:^|[.!?:]\\s*|(?:^|[^a-z])(?:come(?:\\s+and)?|lets|let's|let’s|go|pls|please|should|everyone"
+                    + "|everybody|guys|yall|y'all|yo)\\s+)play\\s*(?:@|:|-|>|at|on)?\\s*$");
 
-    /** Parts of a host's name that mark a game server or network. */
+    /** Parts of a host's name that mark a game server or network ("mc" only at an end: not "mcdonalds"). */
     private static final Pattern SERVER_NAME = Pattern.compile(
-            "smp|mc|craft|pvp|network|server|survival|skyblock|anarchy|factions|prison|hypixel|cubecraft|mineplex");
+            "^mc|mc$|smp|craft|pvp|network|server|survival|skyblock|anarchy|factions|prison|hypixel|cubecraft"
+                    + "|mineplex|minemen|manacube|jartex|2b2t");
+
+    /** Second-level labels under which a country code's domains are sold: coolsmp.co.uk, coolsmp.com.br. */
+    private static final Set<String> SECOND_LEVELS = Set.of("co", "com", "net", "org", "ac", "gov", "edu");
 
     /** First labels that mark a game-server address (play.example.net). */
     private static final Set<String> SERVER_LABELS = Set.of(
@@ -94,7 +103,9 @@ final class ServerAdDetector {
             "fandom.com", "neomechanical.com", "kick.com", "buycraft.net", "tebex.io",
             // Browser games players invite each other to between rounds.
             "skribbl.io", "krunker.io", "agar.io", "slither.io", "diep.io", "gartic.io", "chess.com",
-            "lichess.org", "geoguessr.com", "roblox.com", "poki.com", "crazygames.com", "itch.io");
+            "lichess.org", "geoguessr.com", "roblox.com", "poki.com", "crazygames.com", "itch.io",
+            // Names that start with "mc" without being a server.
+            "mcdonalds.com", "mcafee.com");
 
     /** TLDs that server addresses actually use; keeps config.yml and server.properties clean. */
     private static final Set<String> COMMON_TLDS = Set.of(
@@ -267,8 +278,15 @@ final class ServerAdDetector {
             return INVITATION_BEFORE.matcher(before).find();
         }
         return AD_INTENT_BEFORE.matcher(before).find()
-                || (SERVER_NAME.matcher(labels[labels.length - 2]).find()
+                || (SERVER_NAME.matcher(siteName(labels)).find()
                         && PLAY_BEFORE.matcher(text.substring(0, host.start())).find());
+    }
+
+    /** The label that names the site: "coolsmp" in coolsmp.net and in coolsmp.co.uk. */
+    private static String siteName(String[] labels) {
+        boolean countrySecondLevel = labels.length >= 3 && labels[labels.length - 1].length() == 2
+                && SECOND_LEVELS.contains(labels[labels.length - 2]);
+        return labels[labels.length - (countrySecondLevel ? 3 : 2)];
     }
 
     private static String mask(String text, List<String> allowedUrls) {

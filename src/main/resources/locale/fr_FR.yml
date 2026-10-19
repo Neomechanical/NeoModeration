@@ -322,7 +322,7 @@ alert:
   hidden: "message masqué"
   hover: "{#muted}Cliquez pour voir les cas de {player}"
   paused-player: "{prefix} {#muted}Les alertes sur {#text}{player}{#muted} sont en pause tant que cela continue. Tout reste enregistré."
-  paused-all: "{prefix} {#muted}Trop d'alertes à la fois, elles sont en pause jusqu'au retour au calme. Tout reste enregistré."
+  paused-all: "{prefix} {#muted}Trop d'alertes à la fois, elles sont en pause jusqu'au retour au calme, cinq minutes au plus. Tout reste enregistré."
   missed-player: "{prefix} {#muted}Les alertes sur {#text}{player}{#muted} reprennent. Manquées pendant la pause : {#text}{count}"
   missed-all: "{prefix} {#muted}Les alertes reprennent. Manquées pendant la pause : {#text}{count}{#muted}, joueurs : {#text}{players}"
 
@@ -430,6 +430,7 @@ doctor:
     endpoint: "Adresse"
     circuit: "Connexion au cloud"
     events: "Dernière vérification cloud"
+    busy: "Vérifications cloud manquées"
     account: "Compte"
     credits: "Crédits"
   detail:
@@ -481,7 +482,7 @@ doctor:
     events-credits: "plus de crédits"
     events-request: "refusée ; vérifiez moderation.api.endpoint"
     events-transient: "pas de réponse du cloud"
-    events-busy: "messages depuis le démarrage qui n'ont eu que les règles locales, car le chat allait plus vite que le cloud ne pouvait les vérifier : {count}"
+    events-busy: "{count} depuis le démarrage : le chat allait plus vite que le cloud ne pouvait le vérifier"
     account-ok: "{ms} ms, espace de travail {workspace}, offre {plan}"
     account-auth: "la clé a été refusée ({ms} ms). Remplacez-la sur {url}, puis lancez /nmod setup <clé>"
     account-credits: "plus de crédits ({ms} ms). Ajoutez-en sur {url}"

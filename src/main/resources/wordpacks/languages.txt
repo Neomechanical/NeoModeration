@@ -1,10 +1,11 @@
 # Everyday words in one language that another language's list bans, or that
 # read as a banned word with a letter doubled ("slutt"). They pass for everyone
 # on a server whose locale is the language named, and for a player whose game
-# language is, when the message is written in that language: at least two other
-# everyday words of it (common-words.txt) that English does not use, and more of
-# them than English ones. "quel retard ce train" passes for a French player;
-# "shut up retard le" does not. "<language>: <word> <word> ..."; several
+# language is, when the message is written in that language: no word only
+# English uses, at least one everyday word of the language (common-words.txt)
+# that English does not use, and more of its words than words of no list. "ce
+# retard me tue" passes for a French player; "shut up retard le" and "dirty
+# kike de" do not. "<language>: <word> <word> ..."; several
 # languages may share a line, and a language such as "pt_pt" names one
 # country's form, "sv" every Swedish one.
 #
@@ -15,10 +16,9 @@ ca: retard retards
 es: kike porra
 # Portuguese in Portugal: "os putos", the kids; "a bicha", the queue
 pt_pt: puto putos bicha bichas
-# Swedish and Danish: "slut", the end; Swedish "fick", got; "putta", put;
-# "kyss" and Danish "kys", a kiss
-sv: slut fick putta kyss
-da: slut kys
+# Swedish and Danish: "slut", the end; Swedish "fick", got; "putta", put
+sv: slut fick putta
+da: slut
 # Danish and Norwegian: "fag", a school subject; "putte", put; Norwegian
 # "slutt", the end, and "kikke", to look
 da no nb nn: fag putte

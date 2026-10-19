@@ -31,10 +31,14 @@ final class OfflineRuleCompiler {
      * The everyday words a match may be read as instead, one set per language:
      * English first, then the server's and the speaker's languages, each once.
      * {@code speakerOnly} has a bit for each language here only because the
-     * speaker plays in it.
+     * speaker plays in it, and {@code elides} one for each that writes l', d',
+     * j', t' (French, Catalan, Italian).
      */
-    record Scope(List<Set<String>> languages, int speakerOnly) {
+    record Scope(List<Set<String>> languages, int speakerOnly, int elides) {
     }
+
+    /** Languages whose words lose a vowel before an apostrophe: "j'ai", "l'eau", "t'es". */
+    private static final Set<String> ELIDING_LANGUAGES = Set.of("fr", "ca", "it");
 
     record CompiledUrl(String original, String normalized) {
     }
@@ -54,6 +58,15 @@ final class OfflineRuleCompiler {
             Map<String, List<String[]>> speakerPhrases,
             Map<String, Scope> everydayScopes
     ) {
+        /** Every word of {@link #speakerPhrases}, normalised. */
+        Set<String> speakerWords(String language) {
+            Set<String> words = new java.util.HashSet<>();
+            for (String[] phrase : speakerPhrases(language)) {
+                words.addAll(List.of(phrase));
+            }
+            return words;
+        }
+
         /** The phrases a speaker of {@code language} may use besides everyone's; empty for {@code null}. */
         List<String[]> speakerPhrases(String language) {
             if (language == null || language.isBlank()) {
@@ -75,16 +88,20 @@ final class OfflineRuleCompiler {
                 boolean speakerAdds = codes.add(language);
                 List<Set<String>> sets = new ArrayList<>();
                 int speakerOnly = 0;
+                int elides = 0;
                 for (String code : codes) {
                     Set<String> words = BundledWordPacks.everydayWords(code);
                     if (!words.isEmpty()) {
                         if (speakerAdds && code.equals(language)) {
                             speakerOnly |= 1 << sets.size();
                         }
+                        if (ELIDING_LANGUAGES.contains(code)) {
+                            elides |= 1 << sets.size();
+                        }
                         sets.add(words);
                     }
                 }
-                return new Scope(List.copyOf(sets), speakerOnly);
+                return new Scope(List.copyOf(sets), speakerOnly, elides);
             });
         }
     }
@@ -275,7 +292,7 @@ final class OfflineRuleCompiler {
                 words.add(compiled);
             }
         }
-        List<String[]> allowedPhrases = tokenizeAll(settings.effectiveAllowedWords(), settings.normalizeLeetspeak());
+        List<String[]> allowedPhrases = tokenizeAll(allowedWithJoinedForms(settings, words), settings.normalizeLeetspeak());
         List<CompiledUrl> urls = new ArrayList<>(settings.bannedUrls().size());
         for (String bannedUrl : settings.bannedUrls()) {
             String normalized = lower(bannedUrl).trim();
@@ -299,6 +316,28 @@ final class OfflineRuleCompiler {
                 new ConcurrentHashMap<>(),
                 new ConcurrentHashMap<>()
         );
+    }
+
+    /**
+     * The allowed phrases, plus the joined form of each that names a banned word
+     * written with a space: allowing "pu tain" from a case lets "putain" through
+     * too, as the admin meant. Other phrases are never joined, so allowing "put a"
+     * leaves "puta" banned.
+     */
+    private static List<String> allowedWithJoinedForms(OfflineModerationSettings settings, List<CompiledWord> words) {
+        Set<String> spacedWords = new java.util.HashSet<>();
+        for (CompiledWord word : words) {
+            if (word.spaced()) {
+                spacedWords.add(lower(word.original()).trim());
+            }
+        }
+        List<String> allowed = new ArrayList<>(settings.effectiveAllowedWords());
+        for (String phrase : settings.effectiveAllowedWords()) {
+            if (spacedWords.contains(lower(phrase).trim())) {
+                allowed.add(phrase.replaceAll("\\s+", ""));
+            }
+        }
+        return allowed;
     }
 
     private static List<String[]> tokenizeAll(List<String> phrases, boolean normalizeLeetspeak) {

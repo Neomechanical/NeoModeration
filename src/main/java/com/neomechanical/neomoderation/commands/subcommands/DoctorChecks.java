@@ -113,7 +113,7 @@ final class DoctorChecks {
                 : Check.of(Level.WARN, "circuit", "circuit-open"));
         checks.add(events(last));
         if (busySkipped > 0) {
-            checks.add(new Check(Level.WARN, "events", "events-busy", Map.of("count", String.valueOf(busySkipped))));
+            checks.add(new Check(Level.WARN, "busy", "events-busy", Map.of("count", String.valueOf(busySkipped))));
         }
         return checks;
     }

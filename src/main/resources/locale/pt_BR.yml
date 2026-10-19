@@ -322,7 +322,7 @@ alert:
   hidden: "mensagem escondida"
   hover: "{#muted}Clique para ver os casos de {player}"
   paused-player: "{prefix} {#muted}Os alertas sobre {#text}{player}{#muted} ficam pausados enquanto isso continuar. Tudo continua sendo registrado."
-  paused-all: "{prefix} {#muted}Alertas demais de uma vez, então eles ficam pausados até acalmar. Tudo continua sendo registrado."
+  paused-all: "{prefix} {#muted}Alertas demais de uma vez, então eles ficam pausados até acalmar, no máximo cinco minutos. Tudo continua sendo registrado."
   missed-player: "{prefix} {#muted}Os alertas sobre {#text}{player}{#muted} voltaram. Perdidos durante a pausa: {#text}{count}"
   missed-all: "{prefix} {#muted}Os alertas voltaram. Perdidos durante a pausa: {#text}{count}{#muted}, jogadores: {#text}{players}"
 
@@ -430,6 +430,7 @@ doctor:
     endpoint: "Endereço"
     circuit: "Conexão com a nuvem"
     events: "Última verificação na nuvem"
+    busy: "Verificações na nuvem puladas"
     account: "Conta"
     credits: "Créditos"
   detail:
@@ -481,7 +482,7 @@ doctor:
     events-credits: "sem créditos"
     events-request: "recusado; confira moderation.api.endpoint"
     events-transient: "a nuvem não respondeu"
-    events-busy: "mensagens desde o início que passaram só pelas regras locais, porque o chat veio mais rápido do que a nuvem conseguia verificar: {count}"
+    events-busy: "{count} desde o início: o chat veio mais rápido do que a nuvem conseguia verificar"
     account-ok: "{ms} ms, espaço de trabalho {workspace}, plano {plan}"
     account-auth: "a chave foi recusada ({ms} ms). Troque em {url} e depois rode /nmod setup <chave>"
     account-credits: "sem créditos ({ms} ms). Adicione mais em {url}"

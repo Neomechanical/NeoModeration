@@ -322,7 +322,7 @@ alert:
   hidden: "mesaj gizli"
   hover: "{#muted}{player} adlı oyuncunun vakalarını görmek için tıklayın"
   paused-player: "{prefix} {#text}{player}{#muted} hakkındaki bildirimler bu devam ettiği sürece duraklatılır. Her şey kaydedilmeye devam ediyor."
-  paused-all: "{prefix} {#muted}Aynı anda çok fazla bildirim geldi, bu yüzden ortalık sakinleşene kadar duraklatılır. Her şey kaydedilmeye devam ediyor."
+  paused-all: "{prefix} {#muted}Aynı anda çok fazla bildirim geldi, bu yüzden ortalık sakinleşene kadar, en fazla beş dakika duraklatılır. Her şey kaydedilmeye devam ediyor."
   missed-player: "{prefix} {#text}{player}{#muted} hakkındaki bildirimler yeniden gösteriliyor. Duraklatma sırasında kaçırılan: {#text}{count}"
   missed-all: "{prefix} {#muted}Bildirimler yeniden gösteriliyor. Duraklatma sırasında kaçırılan: {#text}{count}{#muted}, oyuncu sayısı: {#text}{players}"
 
@@ -430,6 +430,7 @@ doctor:
     endpoint: "Adres"
     circuit: "Bulut bağlantısı"
     events: "Son bulut denetimi"
+    busy: "Atlanan bulut denetimleri"
     account: "Hesap"
     credits: "Krediler"
   detail:
@@ -481,7 +482,7 @@ doctor:
     events-credits: "kredi bitti"
     events-request: "reddedildi; moderation.api.endpoint değerini denetleyin"
     events-transient: "buluttan yanıt yok"
-    events-busy: "sohbet, bulutun denetleyebileceğinden hızlı geldiği için başlangıçtan beri yalnızca yerel kurallardan geçen mesajlar: {count}"
+    events-busy: "başlangıçtan beri {count}: sohbet, bulutun denetleyebileceğinden hızlı geldi"
     account-ok: "{ms} ms, çalışma alanı {workspace}, plan {plan}"
     account-auth: "anahtar reddedildi ({ms} ms). {url} adresinden değiştirip /nmod setup <anahtar> çalıştırın"
     account-credits: "kredi bitti ({ms} ms). {url} adresinden ekleyin"

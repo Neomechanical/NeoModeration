@@ -17,8 +17,9 @@ import java.util.Set;
  * with digits or symbols ("g0 ok") and pieces joined by an apostrophe inside a
  * word ("go'ok", which nobody writes for two words) are still read as one word.
  * A lone digit read as the letter just before it only stretches that letter, so
- * it changes nothing, and an English contraction's ending ("who're") is an
- * English word.</p>
+ * it changes nothing. An English contraction's ending ("who're") and a "re"
+ * before a hyphen ("who re-did") are English words, and a French elision ("pu,
+ * t'es") separates words as a space does.</p>
  */
 final class EverydayWords {
 
@@ -26,6 +27,8 @@ final class EverydayWords {
     private static final int STRETCH = -1;
     /** The bit of English, which {@link OfflineRuleCompiler.Scope} always lists first. */
     private static final int ENGLISH = 1;
+    /** French elided words, which an apostrophe joins to the next word: l', d', j', t', s', m', n', c', qu'. */
+    private static final Set<String> ELISIONS = Set.of("l", "d", "j", "t", "s", "m", "n", "c", "qu");
     /** Fewer letters than this are no evidence of a language ("e", "y"). */
     private static final int EVIDENCE_LETTERS = 2;
 
@@ -68,32 +71,41 @@ final class EverydayWords {
 
     /**
      * Whether the text is written in the language whose everyday words are
-     * {@code words}: it has more different plainly written words of it, two
-     * letters or longer, that English does not use, than words only English
-     * uses ("lol" and "gg" count as English). "ce retard me tue" reads as
-     * French; "you retard y" and "shut up retard le" do not.
+     * {@code words}, leaving out {@code judged}, the words this decides about.
+     * Counting different plainly written words of two letters or more: none
+     * may be English only ("lol", "dirty" and "gg" are English), at least one
+     * must be a word of the language that English does not use, and the
+     * language's words must outnumber words of no list. "ce retard me tue"
+     * reads as French; "you retard le" and "dirty kike de" do not.
      */
-    static boolean writtenIn(TextNormalizer.Normalized text, Set<String> words) {
+    static boolean writtenIn(TextNormalizer.Normalized text, Set<String> words, Set<String> judged) {
         if (words.isEmpty()) {
             return false;
         }
         Set<String> english = BundledWordPacks.everydayWords(BundledWordPacks.ENGLISH);
         Set<String> theirs = new HashSet<>();
-        Set<String> englishOnly = new HashSet<>();
+        Set<String> theirsOnly = new HashSet<>();
+        Set<String> unknown = new HashSet<>();
         for (int[] token : OfflineRuleCompiler.tokensOf(text)) {
             String plain = plain(text, token);
-            if (plain == null || plain.length() < EVIDENCE_LETTERS) {
+            if (plain == null || plain.length() < EVIDENCE_LETTERS || judged.contains(plain)) {
                 continue;
             }
             boolean ours = words.contains(plain);
             boolean englishWord = english.contains(plain);
-            if (ours && !englishWord) {
+            if (englishWord && !ours) {
+                return false;
+            }
+            if (ours) {
                 theirs.add(plain);
-            } else if (englishWord && !ours) {
-                englishOnly.add(plain);
+                if (!englishWord) {
+                    theirsOnly.add(plain);
+                }
+            } else {
+                unknown.add(plain);
             }
         }
-        return !theirs.isEmpty() && theirs.size() > englishOnly.size();
+        return !theirsOnly.isEmpty() && theirs.size() > unknown.size();
     }
 
     /** Numbers the tokens and marks, per token, a bit for each language it is an everyday word of. */
@@ -111,12 +123,19 @@ final class EverydayWords {
             for (int i = token[0]; i < token[1]; i++) {
                 tokenAt[i] = t;
             }
-            apostropheBefore[t] = text.apostrophe()[token[0]] && !text.joinBlocked()[token[0]];
-            if (text.joinBlocked()[token[0]]) {
-                languagesOf[t] = ENGLISH;  // the end of an English contraction: who're, let's
+            String before = t > 0 ? plain(text, tokens.get(t - 1)) : null;
+            apostropheBefore[t] = text.apostrophe()[token[0]] && !text.joinBlocked()[token[0]]
+                    && !(before != null && ELISIONS.contains(before));
+            if (text.joinBlocked()[token[0]] || text.prefix()[token[0]]) {
+                languagesOf[t] = ENGLISH;  // the end of an English contraction ("who're"), or "re-"
                 continue;
             }
             String plain = plain(text, token);
+            if (plain != null && ELISIONS.contains(plain) && t + 1 < tokens.size()
+                    && text.apostrophe()[tokens.get(t + 1)[0]]) {
+                languagesOf[t] = scope.elides();  // "t'" in "pu, t'es": a French word
+                continue;
+            }
             if (plain == null) {
                 if (stretches(token)) {
                     languagesOf[t] = STRETCH;

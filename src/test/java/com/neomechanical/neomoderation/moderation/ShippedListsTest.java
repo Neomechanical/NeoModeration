@@ -124,15 +124,14 @@ class ShippedListsTest {
             "en: gg go ok = gook",
             "en: put a = puta",
             "en: put as = putas",
-            "en: put a as = putas",
             "en: put to = puto",
             "es: mari con = maricon",
             "es: ni que = nique",
             "es: vi a dos = viados",
             "fr: mer de = merde",
             "fr: mer des = merdes",
-            "fr: mer de es = merdes",
             "fr: pu te = pute",
+            "fr: pu tes = putes",
             "fr: en foire = enfoire",
             "de: jo der = joder",
             "de: jo oder = joder",
@@ -141,9 +140,6 @@ class ShippedListsTest {
             "da: jo dette = jodete",
             "pt: via do = viado",
             "pt: via dos = viados",
-            "pt: via do os = viados",
-            "pt: via a do = viado",
-            "pt: via a dos = viados",
             "pt: vi a do = viado",
             "pt: vi a dos = viados",
             "sv: hur en = huren"
@@ -249,6 +245,11 @@ class ShippedListsTest {
                     }
                     String line = "well " + String.join(" ", pieces) + " then";
                     String speaker = language + "_" + language;
+                    OfflineModerationResult result = OfflineModerationEngine.evaluate(line, settings, speaker);
+                    if (result.flagged() && result.reason().substring(result.reason().indexOf(':') + 1).contains(" ")) {
+                        found.remove(spelling);  // caught on purpose by a word written with its space ("put a as")
+                        return;
+                    }
                     boolean english = Arrays.stream(pieces).allMatch(BundledWordPacks.everydayWords("en")::contains);
                     if (!english && ownList.contains(word)) {
                         // A word on the server's own list takes no excuse from a player's game language.
@@ -358,5 +359,19 @@ class ShippedListsTest {
         assertTrue(OfflineModerationEngine.evaluate("go ok", settings).flagged());
         assertTrue(OfflineModerationEngine.evaluate("gook", settings).flagged());
         assertTrue(OfflineModerationEngine.evaluate("g o o k", settings).flagged());
+    }
+
+    @Test
+    void allowingAWordWrittenWithASpaceAllowsItTypedWhole() throws Exception {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("moderation.offline.bannedWords", List.of("pu tain", "puta"));
+        config.set("moderation.offline.allowedWords", List.of("pu tain", "put a"));
+        config.set("moderation.offline.languagePacks", List.of());
+        OfflineModerationSettings settings = OfflineModerationSettings.from(new BukkitConfigView(config));
+
+        assertFalse(OfflineModerationEngine.evaluate("putain de creeper", settings).flagged(),
+                "the case's [Allow \"pu tain\"] lets \"putain\" through");
+        assertTrue(OfflineModerationEngine.evaluate("you puta", settings).flagged(),
+                "allowing the phrase \"put a\" never allows \"puta\"");
     }
 }

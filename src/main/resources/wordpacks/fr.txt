@@ -3,14 +3,17 @@
 # such as "bordel" are left out on purpose. A phrase is written with its spaces,
 # such as "va te faire foutre", and also matches "vatefairefoutre". A word
 # written with a space is read across every space, even where its pieces are
-# everyday words, so "pu tain" also catches "put a in".
+# everyday words, so "pu tain" also catches "put a in". "mer de es" and
+# "pu te es" catch stretched spellings nobody writes for everyday words.
 merde
 merdes
 merdeux
 pu tain
 pu tains
 pute
-pu tes
+putes
+pu te es
+mer de es
 salope
 salopes
 salop
@@ -37,3 +40,4 @@ ntm
 fdp
 fils de pute
 va te faire foutre
+va t faire foutre

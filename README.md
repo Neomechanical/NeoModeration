@@ -35,7 +35,7 @@ The free 14-day trial runs on your own chat, and while it runs its decisions onl
 
 ## What runs without a key
 
-- Starter lists of swear words and slurs in English, plus the Spanish, French, German, Portuguese or Turkish list that matches `locale` in `config.yml`. `moderation.offline.languagePacks` takes `[auto, es]`, `[all]` or `[]`. A word only matches from the start of a word to the end of one, so "assignment" and "Scunthorpe" stay clean. Matching sees through spacing and punctuation ("f uck", "f'uck", "k y s"), accents, look-alike letters, leetspeak and words split across rapid short messages. Everyday words that together spell a listed word stay clean, as in "put a torch here": words of English or the server's language for any list, and of the player's own language for the language packs' words. Write a word with a space, such as "ass hole", to catch it however it is spaced. A word one language uses every day and another bans, such as French "retard" (late) or the Spanish name Kike, passes on a server whose `locale` is that language, and for a player whose game language it is when the message is written in that language.
+- Starter lists of swear words and slurs in English, plus the Spanish, French, German, Portuguese or Turkish list that matches `locale` in `config.yml`. `moderation.offline.languagePacks` takes `[auto, es]`, `[all]` or `[]`. A word only matches from the start of a word to the end of one, so "assignment" and "Scunthorpe" stay clean. Matching sees through spacing and punctuation ("f uck", "f'uck", "k y s"), accents, look-alike letters, leetspeak and words split across rapid short messages. Everyday words that together spell a listed word stay clean, as in "put a torch here". That counts English and the server's language for every list, and the player's own language for the language packs. Write a word with a space, such as "ass hole", to catch it however it is spaced. A word one language uses every day and another bans, such as French "retard" (late) or the Spanish name Kike, passes on a server whose `locale` is that language. It also passes for a player whose game language it is, when the message is written in that language.
 - Ads for other servers are blocked on a new install: public IP addresses, addresses with a port, `play.` and `mc.` style addresses, free hosts such as `aternos.me`, and "join myserver.net". Ordinary links are not affected. Let your own address through with `/nmod allow url add <address>`. An upgraded server keeps this off until you set `moderation.offline.blockServerAds: true`.
 - IP grabbers and fake giveaway links from a starter list are blocked, including ones written with `(dot)` or `[.]`.
 - Anti-spam blocks message floods, the same message again, character floods and command floods, and lets messages in capitals through in lower case. Spam is only blocked; your actions stay for abuse. Tune it under `moderation.spam`.
@@ -47,7 +47,7 @@ The free 14-day trial runs on your own chat, and while it runs its decisions onl
 
 ## Staff tools
 
-- Players with `neomoderation.notify` see each detection in chat. Those who may open cases can click it for that player's history. During a raid, alerts about one player pause after three in 30 seconds, and all alerts after a dozen in 10 seconds, until a minute passes with hardly any; then one line says how many were missed. The console and case history still get every one. `moderation.alerts.includeMessage: false` hides the message text.
+- Players with `neomoderation.notify` see each detection in chat. Those who may open cases can click it for that player's history. During a raid, alerts about one player pause after three in 30 seconds, and all alerts after a dozen in 10 seconds or 30 in a minute. A pause lasts until a quiet minute, five minutes at most; then one line says how many were missed. The console and case history still get every one. `moderation.alerts.includeMessage: false` hides the message text.
 - `/nmod discord <webhook URL>` sends the same alerts to a Discord channel, batched so a raid cannot flood it, with mentions turned off. `/nmod discord test` checks it, and `/nmod doctor` says when Discord refuses alerts.
 - `/nmod mute <player> [duration]` and `/nmod unmute <player>` mute a player by hand, with no other plugin. A mute covers public chat, private messages (`/msg`, `/tell`, `/r` and any alias the server has for them, such as EssentialsX's `/m`), `/me`, sending `/mail`, `/teammsg`, mcMMO party chat and the rest of `scannedCommands`. Channel chat other plugins add, such as TownyChat's, is not covered.
 - `/nmod allow word|url add <value>` fixes a false positive at once. Allowed phrases and links always win.
@@ -111,10 +111,10 @@ Messages ship in English (`en_US`), Spanish (`es_ES`), French (`fr_FR`), German 
 Supports Spigot, Paper and Purpur on Minecraft 1.18.2 through the current
 Paper releases, 26.2 and 26.3, and Folia. Before each release, every check runs
 on Paper 1.18.2, 1.19.4, 1.20.6, 1.21.11, 26.1.2, 26.2 and 26.3, on Folia
-1.21.11 and on Spigot 1.21.11, with real players in game: a blocked line never
+1.21.11 and on Spigot 1.21.11, with real players in game. A blocked line never
 reaches chat and leaves a case, the kick action runs, capitals arrive in lower
-case, "bad'word" is caught, a French player's "quel retard ce train" passes, an
-operator gets the staff alert, a muted player's `/msg` is refused and an
+case and "bad'word" is caught. A French player's "quel retard ce train" passes,
+an operator gets the staff alert, a muted player's `/msg` is refused and an
 operator's menus arrive. On 26.2 and 26.3 the test players join through
 ViaBackwards, because the test client speaks up to 26.1.
 

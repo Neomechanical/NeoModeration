@@ -321,7 +321,7 @@ alert:
   hidden: "mensaje oculto"
   hover: "{#muted}Haz clic para ver los casos de {player}"
   paused-player: "{prefix} {#muted}Las alertas sobre {#text}{player}{#muted} se pausan mientras esto siga. Todo se sigue registrando."
-  paused-all: "{prefix} {#muted}Demasiadas alertas a la vez, así que se pausan hasta que se calme. Todo se sigue registrando."
+  paused-all: "{prefix} {#muted}Demasiadas alertas a la vez, así que se pausan hasta que se calme, cinco minutos como máximo. Todo se sigue registrando."
   missed-player: "{prefix} {#muted}Vuelven las alertas sobre {#text}{player}{#muted}. Perdidas durante la pausa: {#text}{count}"
   missed-all: "{prefix} {#muted}Vuelven las alertas. Perdidas durante la pausa: {#text}{count}{#muted}, jugadores: {#text}{players}"
 
@@ -429,6 +429,7 @@ doctor:
     endpoint: "Dirección"
     circuit: "Conexión con la nube"
     events: "Última comprobación en la nube"
+    busy: "Revisiones de la nube omitidas"
     account: "Cuenta"
     credits: "Créditos"
   detail:
@@ -480,7 +481,7 @@ doctor:
     events-credits: "sin créditos"
     events-request: "rechazada; revisa moderation.api.endpoint"
     events-transient: "la nube no respondió"
-    events-busy: "mensajes desde el inicio que solo pasaron por las reglas locales, porque el chat iba más rápido de lo que la nube podía revisar: {count}"
+    events-busy: "{count} desde el inicio: el chat iba más rápido de lo que la nube podía revisar"
     account-ok: "{ms} ms, espacio de trabajo {workspace}, plan {plan}"
     account-auth: "la clave fue rechazada ({ms} ms). Cámbiala en {url} y luego ejecuta /nmod setup <clave>"
     account-credits: "sin créditos ({ms} ms). Añade más en {url}"

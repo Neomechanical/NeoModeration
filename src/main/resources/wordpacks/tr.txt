@@ -6,6 +6,7 @@ amk
 siktir
 siktir git
 orospu
+orospusun
 orospular
 orospu cocugu
 sikerim
@@ -21,10 +22,12 @@ amcuk
 amina koyayim
 amina koyim
 ibne
+ibnesin
 ibneler
 pezevenk
 pezevenkler
 kahpe
+kahpesin
 kahpeler
 gavat
 gotlek

@@ -143,10 +143,10 @@ moderation:
     # Use [] for none. Ordinary words that look like a swear word in another
     # language ("pic", "cono", "Amina") are left out of every pack. The pt
     # pack follows Brazilian Portuguese. A few words are everyday words in one
-    # language and banned in another: French "retard", Spanish "Kike", Swedish
-    # "slut" and "fick", "puto" and "bicha" in Portugal. They pass for everyone
-    # when "locale" is that language, and for a player whose game language it
-    # is when the message is written in that language.
+    # language and banned in another, such as French "retard", Spanish "Kike"
+    # and Swedish "slut" (the jar's wordpacks/languages.txt lists them all).
+    # They pass for everyone when "locale" is that language, and for a player
+    # whose game language it is when the message is written in that language.
     languagePacks: [auto]
     bannedUrls:
       - "grabify.link"

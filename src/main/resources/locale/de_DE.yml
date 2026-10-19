@@ -322,7 +322,7 @@ alert:
   hidden: "Nachricht verborgen"
   hover: "{#muted}Klicke für die Fälle von {player}"
   paused-player: "{prefix} {#muted}Hinweise zu {#text}{player}{#muted} pausieren, solange das anhält. Alles wird weiter protokolliert."
-  paused-all: "{prefix} {#muted}Zu viele Hinweise auf einmal, deshalb pausieren sie, bis es ruhiger wird. Alles wird weiter protokolliert."
+  paused-all: "{prefix} {#muted}Zu viele Hinweise auf einmal, deshalb pausieren sie, bis es ruhiger wird, höchstens fünf Minuten. Alles wird weiter protokolliert."
   missed-player: "{prefix} {#muted}Hinweise zu {#text}{player}{#muted} sind zurück. Während der Pause verpasst: {#text}{count}"
   missed-all: "{prefix} {#muted}Hinweise sind zurück. Während der Pause verpasst: {#text}{count}{#muted}, Spieler: {#text}{players}"
 
@@ -430,6 +430,7 @@ doctor:
     endpoint: "Endpunkt"
     circuit: "Cloud-Verbindung"
     events: "Letzte Cloud-Prüfung"
+    busy: "Ausgelassene Cloud-Prüfungen"
     account: "Konto"
     credits: "Guthaben"
   detail:
@@ -481,7 +482,7 @@ doctor:
     events-credits: "kein Guthaben mehr"
     events-request: "abgelehnt; prüfe moderation.api.endpoint"
     events-transient: "keine Antwort von der Cloud"
-    events-busy: "Nachrichten seit dem Start, die nur von den lokalen Regeln geprüft wurden, weil der Chat schneller kam, als die Cloud prüfen konnte: {count}"
+    events-busy: "{count} seit dem Start: Der Chat kam schneller, als die Cloud prüfen konnte"
     account-ok: "{ms} ms, Workspace {workspace}, Tarif {plan}"
     account-auth: "der Schlüssel wurde abgelehnt ({ms} ms). Ersetze ihn unter {url} und führe dann /nmod setup <Schlüssel> aus"
     account-credits: "kein Guthaben mehr ({ms} ms). Lade unter {url} auf"

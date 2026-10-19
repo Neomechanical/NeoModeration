@@ -98,7 +98,8 @@ public final class OfflineModerationEngine {
      */
     private static List<String[]> allowedFor(CompiledRules rules, TextNormalizer.Normalized text, String speaker) {
         List<String[]> spoken = rules.speakerPhrases(speaker);
-        if (spoken.isEmpty() || !EverydayWords.writtenIn(text, BundledWordPacks.everydayWords(speaker))) {
+        if (spoken.isEmpty() || !EverydayWords.writtenIn(text, BundledWordPacks.everydayWords(speaker),
+                rules.speakerWords(speaker))) {
             return rules.allowedPhrases();
         }
         List<String[]> merged = new ArrayList<>(rules.allowedPhrases().size() + spoken.size());

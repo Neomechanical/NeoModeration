@@ -27,6 +27,7 @@ they'll never find the base
 i'd rather not
 it doesn't matter
 you can't build there
+landed a 5 hit combo
 he called me a bad word
 took 5 hits to kill it
 455 diamonds in the chest
@@ -68,6 +69,9 @@ des retards partout
 retard du serveur
 aucun retard aujourd'hui
 j'ai pu te dire la vérité
+j'ai pas pu, t'es où ?
+désolé j'ai pas pu, t'as raison
+gros retard
 la mer de sable est loin
 la mer des caraïbes
 la ville en foire
@@ -93,6 +97,7 @@ pela via dos fundos
 cadê o mapa
 # language: pt_pt
 os putos estão a jogar
+o puto é bom
 estou na bicha do pão
 # language: de_de
 jo der ist gut
@@ -188,7 +193,6 @@ det er slutt for i dag
 kan du kikke på basen min?
 # language: da_dk
 kan du putte det i kisten
-giv mig et kys
 # language: sv_se
 kan du putta in den i kistan
 # language: nl_nl

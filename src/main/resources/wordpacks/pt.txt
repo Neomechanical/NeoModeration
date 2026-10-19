@@ -1,11 +1,15 @@
 # Portuguese starter list. Severe swearing and slurs only, written without
 # accents (the filter folds "desgraçado" to "desgracado"). Common abbreviations
 # such as "vsf" are included because players type them far more than the words.
+# A word written with a space is read across every space, even where its pieces
+# are everyday words: "via a do" catches stretched spellings of "viado" that
+# nobody writes for everyday words, while "a via do metrô" stays clean.
 merda
 merdas
 porra
 puta
 putas
+put a as
 puto
 putos
 caralho
@@ -24,6 +28,9 @@ vsf
 vtnc
 viado
 viados
+via a do
+via a dos
+via do os
 bicha
 bichas
 buceta

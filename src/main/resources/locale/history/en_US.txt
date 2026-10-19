@@ -31,7 +31,7 @@ alert.line	0a4ef2ad7d71a26f
 alert.missed-all	25d62ab3ea37d3ee
 alert.missed-player	27ed6e9b921e738a
 alert.monitor	0e6b063e96bff794,33827df00331298b,fe5cba77e191e84a
-alert.paused-all	08f8067e977f1aeb,5666ff3768a014b5
+alert.paused-all	08f8067e977f1aeb,5666ff3768a014b5,f7357fac8627e865
 alert.paused-player	3d60d8f9ef9f0499,b3d195ab922064c5
 alert.then	3de0d138518cbeb1
 alert.verdict.blocked	ce1efc5fb4e9abfa
@@ -122,6 +122,7 @@ discord.title-review	07297fa94a997d0f
 discord.usage	a07c97c634b77b4a
 doctor.check.account	7e1b0d5641f2640c
 doctor.check.actions	1a5f3452a2498967
+doctor.check.busy	d86a459800751d95
 doctor.check.cases	33361f2e484b4ebc
 doctor.check.circuit	cd685a77bfc246a8
 doctor.check.cloud	b977b950c1ae31e5
@@ -167,7 +168,7 @@ doctor.detail.discord-rate-limited	1ef4c48fe8fb5950
 doctor.detail.discord-unreachable	98f01eb70f296874
 doctor.detail.endpoint-bad	78589b5736b07941
 doctor.detail.events-auth	7c00230ea7a3c035
-doctor.detail.events-busy	08afb02bcce44bef,4ad31c5c2dcf2a7b,9cd2f1fc2a1a4465
+doctor.detail.events-busy	08afb02bcce44bef,4ad31c5c2dcf2a7b,596320efc82254d7,9cd2f1fc2a1a4465
 doctor.detail.events-credits	dc98366b5995700f
 doctor.detail.events-none	1a45de7a710aeccb
 doctor.detail.events-ok	ba0f95091e1972cc

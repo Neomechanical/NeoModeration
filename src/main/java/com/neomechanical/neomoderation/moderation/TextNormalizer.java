@@ -27,11 +27,12 @@ import java.util.Map;
  *
  * <p>An apostrophe inside a word splits it but hides nothing: "f'uck" is still
  * read as one word. Only an English contraction's ending ('s, 're, 't, 'd, 'm,
- * 've, 'll) never begins a banned word, so "let's hit" is not "s hit". A hyphen
- * after "re" joins it to the word ("re-did"). A token made only of digits is a
- * number, so "5 hits" and "455 diamonds" keep their digits; a lone digit among
- * spelled-out letters such as {@code 5 h 1 t} still reads as a letter, but not
- * one beside a one-letter word ("put a 5 tick delay").</p>
+ * 've, 'll) never begins a banned word, so "let's hit" is not "s hit". A "re"
+ * before a hyphen is marked as a prefix ("who re-did"), and the word after it is
+ * read on its own. A token made only of digits is a number, so "5 hits" and
+ * "455 diamonds" keep their digits; a lone digit among spelled-out letters such
+ * as {@code 5 h 1 t} or {@code sl u 7} still reads as a letter, but not a
+ * quantity after a one-letter word ("put a 5 tick delay").</p>
  */
 final class TextNormalizer {
 
@@ -81,6 +82,8 @@ final class TextNormalizer {
      *                     'll); a match never starts there
      * @param apostrophe   whether each char began a token after any apostrophe inside
      *                     a word, contraction or not ("f'uck", "bad'word")
+     * @param prefix       whether each char began a "re" written before a hyphen
+     *                     ("re-did"), which is an English prefix rather than a word piece
      * @param leet         whether each char was typed as a digit or symbol ("g0" for "go")
      * @param collapsed    {@code chars} with runs of the same character reduced to
      *                     one, used only as a cheap necessary-condition prefilter
@@ -92,6 +95,7 @@ final class TextNormalizer {
             boolean[] tokenEnd,
             boolean[] joinBlocked,
             boolean[] apostrophe,
+            boolean[] prefix,
             boolean[] leet,
             String collapsed
     ) {
@@ -118,7 +122,8 @@ final class TextNormalizer {
             // outright (rather than treating them as separators) means they do
             // not even split a token.
             if (Character.getType(codePoint) == Character.FORMAT
-                    || Character.isIdentifierIgnorable(codePoint)) {
+                    || Character.isIdentifierIgnorable(codePoint)
+                    || isBlankFiller(codePoint)) {
                 continue;
             }
             if (isApostrophe(codePoint)) {
@@ -130,7 +135,7 @@ final class TextNormalizer {
             }
             if (isHyphen(codePoint) && i < value.length() && Character.isLetter(value.codePointAt(i))
                     && out.endsWithWord("re")) {
-                continue;  // "re-did" is one word, not "re" and "did"
+                out.markPrefix(2);  // "re-did": a prefix, and "did" is read on its own
             }
 
             String decomposed = Normalizer.normalize(
@@ -181,7 +186,16 @@ final class TextNormalizer {
 
     private static boolean isApostrophe(int codePoint) {
         return codePoint == '\'' || codePoint == '’' || codePoint == '‘'
-                || codePoint == 'ʼ' || codePoint == '`';
+                || codePoint == 'ʼ' || codePoint == '`'
+                // Modifier letters that look like an apostrophe or a tick: ʹ ʺ ʻ ʽ ʾ ʿ ˈ ˊ ˋ ꞌ.
+                || (codePoint >= 0x02B9 && codePoint <= 0x02BF)
+                || (codePoint >= 0x02C8 && codePoint <= 0x02CB)
+                || codePoint == 0xA78B || codePoint == 0xA78C;
+    }
+
+    /** Hangul fillers, which draw nothing and so can hide inside a word. */
+    private static boolean isBlankFiller(int codePoint) {
+        return codePoint == 0x115F || codePoint == 0x1160 || codePoint == 0x3164 || codePoint == 0xFFA0;
     }
 
     private static boolean isBetweenWordCharacters(String value, int index) {
@@ -215,6 +229,7 @@ final class TextNormalizer {
         private int[] rawIndex;
         private boolean[] tokenStart;
         private boolean[] joinBlocked;
+        private boolean[] prefix;
         private boolean[] leet;
         private char[] digits;
         private int count;
@@ -225,6 +240,7 @@ final class TextNormalizer {
             rawIndex = new int[capacity];
             tokenStart = new boolean[capacity];
             joinBlocked = new boolean[capacity];
+            prefix = new boolean[capacity];
             leet = new boolean[capacity];
             digits = new char[capacity];
         }
@@ -236,6 +252,7 @@ final class TextNormalizer {
                 rawIndex = Arrays.copyOf(rawIndex, capacity);
                 tokenStart = Arrays.copyOf(tokenStart, capacity);
                 joinBlocked = Arrays.copyOf(joinBlocked, capacity);
+                prefix = Arrays.copyOf(prefix, capacity);
                 leet = Arrays.copyOf(leet, capacity);
                 digits = Arrays.copyOf(digits, capacity);
             }
@@ -246,6 +263,11 @@ final class TextNormalizer {
             leet[count] = typedAsSymbol;
             digits[count] = digit;
             count++;
+        }
+
+        /** Marks the token being built, {@code length} characters long, as a prefix. */
+        void markPrefix(int length) {
+            prefix[count - length] = true;
         }
 
         /** Whether the token being built so far is exactly {@code word}. */
@@ -280,15 +302,16 @@ final class TextNormalizer {
                 }
             }
             return new Normalized(finalChars, Arrays.copyOf(rawIndex, count), finalStart, finalEnd,
-                    Arrays.copyOf(joinBlocked, count), apostrophe, Arrays.copyOf(leet, count), collapsed.toString());
+                    Arrays.copyOf(joinBlocked, count), apostrophe, Arrays.copyOf(prefix, count),
+                    Arrays.copyOf(leet, count), collapsed.toString());
         }
 
         /**
          * Puts the digits back in every all-digit token, except a single digit
-         * among spelled-out letters, which is how "5 h 1 t" is typed: in a run of
-         * three or more one-character tokens, or beside a one-character token
-         * that is no word ("sh 1 t"). Beside a one-letter word it is a number:
-         * "put a 5 tick delay".
+         * among spelled-out letters, which is how "5 h 1 t" and "sl u 7" are
+         * typed: one beside a one-character token. A digit after a one-letter
+         * word is a quantity, and stays one, when a word follows it or an
+         * English word comes before that letter: "put a 5 tick delay", "put a 5".
          */
         private void restoreNumbers(char[] out, boolean[] starts, boolean[] ends) {
             int begin = 0;
@@ -336,16 +359,26 @@ final class TextNormalizer {
             if (begin != end) {
                 return false;
             }
-            int run = 1;
-            for (int i = begin - 1; i >= 0 && starts[i] && ends[i]; i--) {
-                run++;
+            boolean singleBefore = begin > 0 && starts[begin - 1];
+            boolean singleAfter = end + 1 < count && ends[end + 1];
+            boolean wordAfter = end + 1 < count && !ends[end + 1];
+            boolean afterLetterWord = singleBefore && digits[begin - 1] == 0
+                    && ONE_LETTER_WORDS.contains(chars[begin - 1]);
+            boolean quantity = afterLetterWord && (wordAfter || englishWordEndingAt(begin - 2));
+            return (singleBefore || singleAfter) && !quantity;
+        }
+
+        /** Whether the token that ends at {@code end} is an English everyday word ("put" in "put a 5"). */
+        private boolean englishWordEndingAt(int end) {
+            if (end < 0) {
+                return false;
             }
-            for (int i = end + 1; i < count && starts[i] && ends[i]; i++) {
-                run++;
+            int begin = end;
+            while (begin > 0 && !tokenStart[begin]) {
+                begin--;
             }
-            boolean letterBefore = begin > 0 && starts[begin - 1] && !ONE_LETTER_WORDS.contains(chars[begin - 1]);
-            boolean letterAfter = end + 1 < count && ends[end + 1] && !ONE_LETTER_WORDS.contains(chars[end + 1]);
-            return run >= 3 || letterBefore || letterAfter;
+            return BundledWordPacks.everydayWords(BundledWordPacks.ENGLISH)
+                    .contains(new String(chars, begin, end + 1 - begin));
         }
     }
 }

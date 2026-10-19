@@ -320,7 +320,7 @@ alert:
   hidden: "message hidden"
   hover: "{#muted}Click to see {player}'s cases"
   paused-player: "{prefix} {#muted}Alerts about {#text}{player}{#muted} pause while this keeps up. Everything is still logged."
-  paused-all: "{prefix} {#muted}Too many alerts at once, so they pause until it calms down. Everything is still logged."
+  paused-all: "{prefix} {#muted}Too many alerts at once, so they pause until it calms down, five minutes at most. Everything is still logged."
   missed-player: "{prefix} {#muted}Alerts about {#text}{player}{#muted} are back. Missed while paused: {#text}{count}"
   missed-all: "{prefix} {#muted}Alerts are back. Missed while paused: {#text}{count}{#muted}, players: {#text}{players}"
 
@@ -428,6 +428,7 @@ doctor:
     endpoint: "Endpoint"
     circuit: "Cloud connection"
     events: "Last cloud check"
+    busy: "Skipped cloud checks"
     account: "Account"
     credits: "Credits"
   detail:
@@ -479,7 +480,7 @@ doctor:
     events-credits: "out of credits"
     events-request: "refused; check moderation.api.endpoint"
     events-transient: "no answer from the cloud"
-    events-busy: "messages since startup that had only the local rules, because chat came faster than the cloud could check them: {count}"
+    events-busy: "{count} since startup: chat came faster than the cloud could check it"
     account-ok: "{ms} ms, workspace {workspace}, plan {plan}"
     account-auth: "the key was rejected ({ms} ms). Replace it at {url}, then run /nmod setup <key>"
     account-credits: "out of credits ({ms} ms). Add some at {url}"

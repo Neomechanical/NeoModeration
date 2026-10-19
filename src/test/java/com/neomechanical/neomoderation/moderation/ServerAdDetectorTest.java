@@ -59,6 +59,15 @@ class ServerAdDetectorTest {
                 "play hypixel.net now",
                 "come play coolsmp.net",
                 "lets play coolsmp.net tonight",
+                "play coolsmp.co.uk",
+                "come and play coolsmp.net",
+                "let’s play coolsmp.net",
+                "new server! play coolsmp.net",
+                "play 2b2t.org",
+                "entra a coolsmp.net",
+                "joga no coolsmp.com.br",
+                "rejoignez coolsmp.fr",
+                "kommt auf coolsmp.de",
                 "join coolsmp.us now",
                 "join epicmc.it guys",
                 "ip is coolsmp.at for real",
@@ -101,6 +110,8 @@ class ServerAdDetectorTest {
                 "play roblox.com instead",
                 "come play on skribbl.io",
                 "i play hypixel.net mostly",
+                "go play mcdonalds.com",
+                "we play minecraft.net on weekends",
                 "привет. как дела")) {
             assertEquals(Optional.empty(), advertised(clean), "flagged ordinary chat: " + clean);
         }

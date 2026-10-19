@@ -135,14 +135,15 @@ class SplitMessageWindowTest {
     }
 
     @Test
-    void aSixLetterWordTypedOneLetterPerSecondIsCaught() {
+    void aSixLetterWordTypedSlowerThanTheSpamLimitIsCaught() {
         OfflineModerationSettings words = new OfflineModerationSettings(
                 true, false, true, List.of("retard"), List.of(), List.of(), List.of());
         long t = 1_000L;
         Optional<String> last = Optional.empty();
+        // One letter every 2.5 seconds stays under five messages in ten seconds.
         for (String letter : List.of("r", "e", "t", "a", "r", "d")) {
             last = window.recordAndCheck(player, letter, words, null, t);
-            t += 1_000L;
+            t += 2_500L;
         }
         assertEquals(Optional.of("split_blocked_word:retard"), last);
     }
