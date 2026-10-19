@@ -50,10 +50,23 @@ class MenuRendererTest {
 
     @Test
     void hexColorsSurviveTranslation() {
-        MenuRenderer.Line line = MenuRenderer.text("&x&0&0&F&F&A&ANeoModeration");
+        MenuRenderer.Line line = MenuRenderer.text("&x&9&c&a&8&f&fNeoModeration");
         // Component form: the 1.8 compile API predates hex parsing, so only the
         // plain text survives here; modern runtimes parse the hex (verified live).
         assertEquals("NeoModeration", BaseComponent.toPlainText(line.player()));
-        assertEquals("§x§0§0§F§F§A§ANeoModeration", line.console());
+        assertEquals("§x§9§c§a§8§f§fNeoModeration", line.console());
+    }
+
+    @Test
+    void clickableLineBuildsComponentAndPlainConsole() {
+        MenuRenderer.Line line = MenuRenderer.clickableLine(
+                "&bfamily &8- &7strict",
+                "/nmod preset family",
+                "&b/nmod preset family",
+                MenuRenderer.ClickAction.RUN);
+        TextComponent root = (TextComponent) line.player()[0];
+        assertEquals(ClickEvent.Action.RUN_COMMAND, root.getClickEvent().getAction());
+        assertEquals("/nmod preset family", root.getClickEvent().getValue());
+        assertEquals("§bfamily §8- §7strict", line.console());
     }
 }

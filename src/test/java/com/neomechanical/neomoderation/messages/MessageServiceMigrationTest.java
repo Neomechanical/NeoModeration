@@ -137,4 +137,41 @@ class MessageServiceMigrationTest {
         assertEquals("API key saved; run /nmod doctor.", service.format("setup.done", Map.of()));
         assertTrue(warnings.stream().anyMatch(message -> message.contains("Could not persist locale en_US")));
     }
+
+    @Test
+    void resolvesLowercaseShortAndHyphenatedLocaleCodes() {
+        assertEquals("en_US", MessageService.resolveLocaleCode(null));
+        assertEquals("en_US", MessageService.resolveLocaleCode("en"));
+        assertEquals("es_ES", MessageService.resolveLocaleCode("es-MX"));
+        assertEquals("fr_FR", MessageService.resolveLocaleCode("fr_fr"));
+        assertEquals("de_DE", MessageService.resolveLocaleCode("de"));
+        assertEquals("pt_BR", MessageService.resolveLocaleCode("pt-br"));
+        assertEquals("tr_TR", MessageService.resolveLocaleCode("tr_TR"));
+        assertEquals("custom_locale", MessageService.resolveLocaleCode("custom_locale"));
+    }
+
+    @Test
+    void upgradesRetiredHexAndJoinTokensToDesignSystemBrandTokens() {
+        YamlConfiguration onDisk = new YamlConfiguration();
+        onDisk.set("prefix", "&8[&x&0&0&F&F&A&ANeoMod&8]");
+        onDisk.set("help.dashboard",
+                "&x&0&0&F&F&A&A&lNeoModeration &8v{version} &7● &f{mode} &8| &7Cloud: &f{cloud} &8| &7Detections: &b{total}");
+        onDisk.set("help.page", "&8Page {page}/2 · &7try &b/nmod help {next}");
+        onDisk.set("usage.fetching", "{prefix} &7Fetching usage from NeoMechanical...");
+
+        YamlConfiguration bundled = new YamlConfiguration();
+        bundled.set("prefix", "&8[&x&9&c&a&8&f&fNeoMod&8]");
+        bundled.set("help.dashboard",
+                "&x&9&c&a&8&f&f&lNeoModeration &8v{version} | &f{mode} &8| &7Cloud: &f{cloud} &8| &7Detections: &b{total}");
+        bundled.set("help.page", "&8Page {page}/2 | &7try &b/nmod help {next}");
+        bundled.set("usage.fetching", "{prefix} &7Fetching usage from Neomechanical...");
+
+        assertTrue(MessageService.mergeBundledLocale("en_US", onDisk, bundled));
+        assertEquals("&8[&x&9&c&a&8&f&fNeoMod&8]", onDisk.getString("prefix"));
+        assertEquals(
+                "&x&9&c&a&8&f&f&lNeoModeration &8v{version} | &f{mode} &8| &7Cloud: &f{cloud} &8| &7Detections: &b{total}",
+                onDisk.getString("help.dashboard"));
+        assertEquals("&8Page {page}/2 | &7try &b/nmod help {next}", onDisk.getString("help.page"));
+        assertEquals("{prefix} &7Fetching usage from Neomechanical...", onDisk.getString("usage.fetching"));
+    }
 }

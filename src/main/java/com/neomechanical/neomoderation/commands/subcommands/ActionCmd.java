@@ -76,7 +76,7 @@ public class ActionCmd implements SubCommand {
         for (ModerationAction action : actions) {
             plugin.messages().send(sender, "action.list-item", Map.of(
                     "index", String.valueOf(index++),
-                    "value", describeAction(action)
+                    "value", action.describe()
             ));
         }
     }
@@ -119,7 +119,7 @@ public class ActionCmd implements SubCommand {
         actions.add(actionMap);
         saveActions(actions);
         plugin.messages().send(sender, "action.added", Map.of(
-                "value", describeAction(ModerationAction.tryFrom(actionMap).orElseThrow())
+                "value", ModerationAction.tryFrom(actionMap).orElseThrow().describe()
         ));
     }
 
@@ -189,16 +189,6 @@ public class ActionCmd implements SubCommand {
         plugin.getConfig().set(ACTIONS_PATH, actions);
         plugin.saveConfig();
         plugin.reloadModerationConfig();
-    }
-
-    private String describeAction(ModerationAction action) {
-        return switch (action.type()) {
-            case CLEAR_CHAT -> "clear";
-            case MUTE -> "mute " + DurationParser.format(action.durationSeconds());
-            case KICK -> "kick";
-            case BAN -> "ban";
-            default -> action.type().name().toLowerCase(Locale.ROOT);
-        };
     }
 
     @Override

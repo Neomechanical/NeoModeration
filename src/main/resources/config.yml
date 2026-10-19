@@ -6,7 +6,7 @@
 #  Run "/nmod status" any time to see what is currently active.
 # ===========================================================================
 
-# Language file to use from the /locale folder (en_US, es_ES, or your own).
+# Language file to use from the /locale folder (en_US, es_ES, fr_FR, de_DE, pt_BR, tr_TR, or your own).
 locale: "en_US"
 
 # Check GitHub once at startup for a newer NeoModeration and log one line if
@@ -43,8 +43,8 @@ moderation:
     blockAnyUrl: false
     # Treat "b4dw0rd" style spellings as their plain-text equivalent.
     normalizeLeetspeak: true
-    # A starter English policy so a new install blocks real abuse immediately —
-    # you should still review and extend it for your server's own standards.
+    # A starter English policy so a new install blocks real abuse immediately.
+    # You should still review and extend it for your server's own standards.
     # Manage the list in-game with /nmod ban and /nmod allow.
     # Matching is whole-word, so "assignment" and "Scunthorpe" stay clean;
     # inflections are listed explicitly rather than matched as prefixes.
@@ -113,7 +113,7 @@ moderation:
     allowedWords: []
     allowedUrls: []
 
-  # ---- Cloud moderation (requires a NeoMechanical API key) -----------------
+  # ---- Cloud moderation (requires a Neomechanical API key) -----------------
   # Run "/nmod trial" in-game or from console to activate a free 14-day cloud
   # evaluation with zero browser steps. Or sign up at
   # https://neomechanical.com/signup?src=neomoderation, create a key with
@@ -198,7 +198,7 @@ moderation:
         reason: "Repeated inappropriate chat"
 
   # ---- Extra surfaces (local rules only; the cloud is never blocking here) --
-  # Each can be: off | monitor | censor | block
+  # Each can be: off | monitor | censor | block (or change in-game with /nmod surface)
   surfaces:
     sign: "off"
     book: "off"

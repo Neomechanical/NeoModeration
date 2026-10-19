@@ -182,15 +182,40 @@ public final class MapArtListener implements Listener {
     /** Main thread only. Monitor mode alerts staff instead of messaging/confiscating. */
     private void handleFlaggedMap(Player player, ItemStack mapItem, int mapId, String messageKey) {
         ModerationSettings settings = plugin.settings();
-        if (DetectionHandler.Source.CLOUD.modeIn(settings) == ModerationMode.MONITOR) {
-            plugin.monitorStats().record("map_art:" + mapId);
-            plugin.notifier().notifyDetection(player, "map_art", "map_art:" + mapId,
-                    "(map " + mapId + ")", settings, "confiscate", true);
-            plugin.getLogger().info("MONITOR: map " + mapId + " held by " + player.getName()
-                    + " would be flagged; no action taken.");
+        String reason = "map_art:" + mapId;
+        String preview = "(map " + mapId + ")";
+        String actionText = config().confiscate() ? "confiscate" : "warn";
+        boolean monitor = DetectionHandler.Source.CLOUD.modeIn(settings) == ModerationMode.MONITOR;
+        if (monitor) {
+            plugin.monitorStats().record(reason);
+            if (plugin.notifier() != null) {
+                plugin.notifier().notifyDetection(player, "map_art", reason, preview, settings, actionText, true);
+            }
+            if (plugin.getLogger() != null) {
+                plugin.getLogger().info("MONITOR: map " + mapId + " held by " + player.getName()
+                        + " would be flagged; no action taken.");
+            }
+            recordMapCase(player, reason, preview, settings, actionText, true);
             return;
         }
         confiscateIfEnabled(player, mapItem, messageKey);
+        if (plugin.notifier() != null) {
+            plugin.notifier().notifyDetection(player, "map_art", reason, preview, settings, actionText, false);
+        }
+        recordMapCase(player, reason, preview, settings, actionText, false);
+    }
+
+    private void recordMapCase(Player player, String reason, String preview,
+                               ModerationSettings settings, String actionText, boolean monitor) {
+        if (!settings.cases().enabled() || plugin.caseLog() == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        String uuid = player.getUniqueId().toString();
+        String name = player.getName();
+        String storedPreview = settings.cases().storeContent() ? preview : "";
+        String mode = monitor ? "monitor" : "enforce";
+        plugin.runAsync(() -> plugin.caseLog().record(now, uuid, name, "map_art", reason, actionText, mode, storedPreview));
     }
 
     private void confiscateIfEnabled(Player player, ItemStack mapItem, String messageKey) {

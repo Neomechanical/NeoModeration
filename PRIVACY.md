@@ -26,16 +26,16 @@ message (or scanned map image) is sent over HTTPS to the configured endpoint
 | `metadata.platformPolicy.thresholds` | Your per-category thresholds |
 | `context` | `scopeType: minecraft_server`, tag `chat` |
 
-Messages already flagged by your local rules are **not** sent to the cloud —
+Messages already flagged by your local rules are **not** sent to the cloud;
 local rules run first.
 
 ## Retention and training
 
 Every request explicitly sets:
 
-- `persistence: "no_store"` — the platform does not retain the content.
-- `learning: { enabled: false, mode: "off" }` — content is never used for model training.
-- `includeAnalysisDetails: false` — no extended analysis payloads are returned or kept.
+- `persistence: "no_store"`: the platform does not retain the content.
+- `learning: { enabled: false, mode: "off" }`: content is never used for model training.
+- `includeAnalysisDetails: false`: no extended analysis payloads are returned or kept.
 
 ## Timeouts and failure policy
 
@@ -43,7 +43,7 @@ Chat is never delayed more than **2.5 seconds** waiting for the cloud,
 regardless of configuration. If the cloud is unreachable the configured
 `moderation.chat.failOpen` policy decides whether chat passes (default) or
 blocks, and a circuit breaker pauses cloud calls for 60 seconds after repeated
-errors — local rules keep running throughout.
+errors; local rules keep running throughout.
 
 ## Staff alerts
 

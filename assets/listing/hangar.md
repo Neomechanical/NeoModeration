@@ -23,7 +23,7 @@ To have local rules alert staff without blocking, run `/nmod mode monitor`.
 
 - Star out matched words and links and let the rest of the message through (`moderation.chat.censorLocalDetections` in `config.yml`).
 - Block every link and server IP address, including ones written with `(dot)` or `[.]` (`moderation.offline.blockAnyUrl`).
-- Check signs, books, anvil renames and chat commands such as `/msg` and `/me`. Each can monitor, censor or block. Command checks also catch a player who sends those commands too fast.
+- Check signs, books, anvil renames and chat commands such as `/msg` and `/me` with `/nmod surface`. Each can monitor, censor or block. Command checks also catch a player who sends those commands too fast.
 - Add actions after a block with `/nmod action`: clear chat, mute, kick or ban. Mute needs no other plugin.
 - Add a strike for each blocked or starred-out message and act when a player reaches a set count (`moderation.strikes`).
 
@@ -45,7 +45,7 @@ Without an API key, no chat or map content leaves your server. NeoModeration sen
 
 ## Compatibility
 
-NeoModeration runs on Bukkit, Spigot, Paper and Purpur, Minecraft 1.18.2 to 26.2. Release checks run on Paper 1.18.2, 1.19.4, 1.20.6 and 1.21.11. In-game messages are in English or Spanish.
+NeoModeration runs on Bukkit, Spigot, Paper and Purpur, Minecraft 1.18.2 to 26.2. Release checks run on Paper 1.18.2, 1.19.4, 1.20.6 and 1.21.11. In-game messages are in English, Spanish, French, German, Portuguese or Turkish.
 
 ## Links
 

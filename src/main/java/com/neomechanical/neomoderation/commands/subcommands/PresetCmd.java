@@ -66,6 +66,21 @@ public class PresetCmd implements SubCommand {
     public void execute(CommandSender sender, String label, String[] args) {
         if (args.length < 2 || "list".equalsIgnoreCase(args[1])) {
             plugin.messages().send(sender, "preset.list-title");
+            if (sender instanceof org.bukkit.entity.Player) {
+                java.util.List<com.neomechanical.neomoderation.messages.MenuRenderer.Line> lines = new java.util.ArrayList<>();
+                for (Preset preset : PRESETS) {
+                    String formatted = plugin.messages().format("preset.list-item", Map.of(
+                            "name", preset.name(),
+                            "summary", preset.summary()
+                    ));
+                    String cmd = "/" + label + " preset " + preset.name();
+                    lines.add(com.neomechanical.neomoderation.messages.MenuRenderer.clickableLine(
+                            formatted, cmd, "&b" + cmd + "\n&7" + preset.summary(),
+                            com.neomechanical.neomoderation.messages.MenuRenderer.ClickAction.RUN));
+                }
+                plugin.messages().sendMenu(sender, lines);
+                return;
+            }
             for (Preset preset : PRESETS) {
                 plugin.messages().send(sender, "preset.list-item", Map.of(
                         "name", preset.name(),

@@ -23,7 +23,7 @@ To have local rules alert staff without blocking, run [FONT=Courier New]/nmod mo
 [LIST]
 [*]Star out matched words and links and let the rest of the message through ([FONT=Courier New]moderation.chat.censorLocalDetections[/FONT] in [FONT=Courier New]config.yml[/FONT]).
 [*]Block every link and server IP address, including ones written with [FONT=Courier New](dot)[/FONT] or [FONT=Courier New][.][/FONT] ([FONT=Courier New]moderation.offline.blockAnyUrl[/FONT]).
-[*]Check signs, books, anvil renames and chat commands such as [FONT=Courier New]/msg[/FONT] and [FONT=Courier New]/me[/FONT]. Each can monitor, censor or block. Command checks also catch a player who sends those commands too fast.
+[*]Check signs, books, anvil renames and chat commands such as [FONT=Courier New]/msg[/FONT] and [FONT=Courier New]/me[/FONT] with [FONT=Courier New]/nmod surface[/FONT]. Each can monitor, censor or block. Command checks also catch a player who sends those commands too fast.
 [*]Add actions after a block with [FONT=Courier New]/nmod action[/FONT]: clear chat, mute, kick or ban. Mute needs no other plugin.
 [*]Add a strike for each blocked or starred-out message and act when a player reaches a set count ([FONT=Courier New]moderation.strikes[/FONT]).
 [/LIST]
@@ -44,7 +44,7 @@ The Neomechanical Moderation API can read each chat message for its meaning, in 
 Without an API key, no chat or map content leaves your server. NeoModeration sends technical metrics to bStats, which hold no chat, player names or API keys. Turn them off in [FONT=Courier New]plugins/bStats/config.yml[/FONT]. Once at startup, NeoModeration asks GitHub whether a newer version exists. Turn that off with [FONT=Courier New]updateCheck[/FONT] in [FONT=Courier New]config.yml[/FONT].
 
 [B]Compatibility[/B]
-NeoModeration runs on Bukkit, Spigot, Paper and Purpur, Minecraft 1.18.2 to 26.2. Release checks run on Paper 1.18.2, 1.19.4, 1.20.6 and 1.21.11. In-game messages are in English or Spanish.
+NeoModeration runs on Bukkit, Spigot, Paper and Purpur, Minecraft 1.18.2 to 26.2. Release checks run on Paper 1.18.2, 1.19.4, 1.20.6 and 1.21.11. In-game messages are in English, Spanish, French, German, Portuguese or Turkish.
 
 [B]Links[/B]
 [LIST]
