@@ -53,6 +53,11 @@ class AdminWelcomeListenerTest {
         when(apiSettings.apiKey()).thenReturn("");
 
         doAnswer(invocation -> {
+            Runnable task = invocation.getArgument(0);
+            task.run();
+            return null;
+        }).when(plugin).runAsync(any(Runnable.class));
+        doAnswer(invocation -> {
             Runnable task = invocation.getArgument(1);
             task.run();
             return null;

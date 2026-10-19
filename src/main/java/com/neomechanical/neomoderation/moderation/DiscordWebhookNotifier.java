@@ -58,28 +58,9 @@ public final class DiscordWebhookNotifier {
                 + ",\"description\":\"" + description + "\"}]}";
     }
 
+    /** JSON-escaped, with backticks swapped for quotes so a value cannot close its Discord code span. */
     static String escapeJson(String value) {
-        if (value == null) {
-            return "";
-        }
-        StringBuilder out = new StringBuilder(value.length());
-        for (int i = 0; i < value.length(); i++) {
-            char c = value.charAt(i);
-            switch (c) {
-                case '\\' -> out.append("\\\\");
-                case '"' -> out.append("\\\"");
-                case '\n' -> out.append("\\n");
-                case '\r' -> out.append("\\r");
-                case '\t' -> out.append("\\t");
-                case '`' -> out.append('\'');
-                default -> {
-                    if (c >= 0x20) {
-                        out.append(c);
-                    }
-                }
-            }
-        }
-        return out.toString();
+        return JsonStrings.escape(value == null ? null : value.replace('`', '\''));
     }
 
     public void post(String webhookUrl, String payload) {

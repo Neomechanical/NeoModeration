@@ -168,10 +168,11 @@ public final class MapArtListener implements Listener {
         String preview = "(map " + mapId + ")";
         String actionText = config().confiscate() ? "confiscate" : "warn";
         boolean monitor = DetectionHandler.Source.CLOUD.modeIn(settings) == ModerationMode.MONITOR;
+        // Counted in both modes, as DetectionHandler does, so status and bStats see every detection.
+        if (plugin.monitorStats() != null) {
+            plugin.monitorStats().record(reason);
+        }
         if (monitor) {
-            if (plugin.monitorStats() != null) {
-                plugin.monitorStats().record(reason);
-            }
             if (plugin.notifier() != null) {
                 plugin.notifier().notifyDetection(player, "map_art", reason, preview, settings, actionText, true);
             }

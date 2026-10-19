@@ -54,7 +54,7 @@ public final class TrialClient {
             String platformInfo
     ) throws TrialException {
         String endpoint = trialUrl(apiSettings.endpoint());
-        String body = "{\"installId\":\"" + escapeJson(installId) + "\",\"platform\":\"" + escapeJson(platformInfo) + "\"}";
+        String body = "{\"installId\":\"" + JsonStrings.escape(installId) + "\",\"platform\":\"" + JsonStrings.escape(platformInfo) + "\"}";
         long timestamp = Instant.now().getEpochSecond();
         String hmac = computeHmac(installId, timestamp);
 
@@ -206,11 +206,6 @@ public final class TrialClient {
         } catch (ArithmeticException | NumberFormatException ignored) {
         }
         throw new TrialException(TrialError.INVALID_RESPONSE, "Invalid daysRemaining in trial response");
-    }
-
-    private static String escapeJson(String s) {
-        if (s == null) return "";
-        return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     public enum TrialError {

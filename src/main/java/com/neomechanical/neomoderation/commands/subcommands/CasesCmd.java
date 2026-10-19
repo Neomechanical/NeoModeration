@@ -162,7 +162,7 @@ public class CasesCmd implements SubCommand {
                     com.neomechanical.neomoderation.messages.MenuRenderer.ClickAction.RUN));
             String matchedWord = extractBlockedWord(row.reason());
             if (matchedWord != null) {
-                String allowCmd = "/" + label + " allow word " + matchedWord;
+                String allowCmd = "/" + label + " allow word add " + matchedWord;
                 actions.add(com.neomechanical.neomoderation.messages.MenuRenderer.clickableLine(
                         "  &b[Allow word \"" + matchedWord + "\"] &8(" + allowCmd + ")",
                         allowCmd, "&b" + allowCmd,

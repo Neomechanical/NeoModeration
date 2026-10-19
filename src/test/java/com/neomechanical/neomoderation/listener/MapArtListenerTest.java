@@ -146,7 +146,8 @@ class MapArtListenerTest {
                         org.mockito.ArgumentMatchers.eq("confiscate"),
                         org.mockito.ArgumentMatchers.eq("enforce"),
                         org.mockito.ArgumentMatchers.eq(""));
-                assertEquals(0, stats.total());
+                assertEquals(2, stats.total());
+                assertEquals(2L, stats.byReason().get("map_art"));
             } else {
                 assertEquals(2, stats.total());
                 assertEquals(2L, stats.byReason().get("map_art"));
