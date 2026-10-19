@@ -25,11 +25,11 @@ public class HelpCmd implements SubCommand {
      * toggles (on/off) stay out: a stray click must never disable protection.
      */
     private static final List<String> RUN_COMMANDS =
-            List.of("status", "mode", "cloudmode", "doctor", "cases", "usage", "privacy", "reload");
+            List.of("trial", "status", "mode", "cloudmode", "preset", "surface", "doctor", "cases", "usage", "privacy", "reload");
 
     static {
         PAGE_ONE.put("start", List.of("trial", "setup", "status", "mode", "preset"));
-        PAGE_ONE.put("rules", List.of("word", "url", "allow", "action"));
+        PAGE_ONE.put("rules", List.of("word", "url", "allow", "action", "surface"));
         PAGE_ONE.put("tools", List.of("test", "doctor"));
         PAGE_TWO.put("tools", List.of("cases", "usage", "privacy"));
         PAGE_TWO.put("admin", List.of("key", "cloudmode", "reload", "on", "off"));

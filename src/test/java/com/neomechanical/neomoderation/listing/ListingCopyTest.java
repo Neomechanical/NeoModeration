@@ -127,6 +127,8 @@ class ListingCopyTest {
         List<String> violations = new ArrayList<>();
         List<Path> files = new ArrayList<>(PAGES.keySet());
         files.add(SUMMARY);
+        files.add(Path.of("README.md"));
+        files.add(Path.of("PRIVACY.md"));
         for (Path file : files) {
             String text = Files.readString(file);
             WRITING_RULES.forEach((rule, pattern) -> {

@@ -1,5 +1,8 @@
 package com.neomechanical.neomoderation.moderation;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -7,8 +10,6 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Tells an operator, once per start, that a newer release exists.
@@ -30,7 +31,6 @@ public final class UpdateChecker {
     public static final String RELEASES_PAGE =
             "https://github.com/KyTDK/NeoModeration/releases/latest";
 
-    private static final Pattern TAG_NAME = Pattern.compile("\"tag_name\"\\s*:\\s*\"([^\"]+)\"");
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
     private UpdateChecker() {
@@ -54,11 +54,12 @@ public final class UpdateChecker {
             if (response.statusCode() != 200) {
                 return Optional.empty();
             }
-            Matcher matcher = TAG_NAME.matcher(response.body());
-            if (!matcher.find()) {
+            JsonObject payload = CloudResponseJson.parseObject(response.body());
+            JsonElement tagElement = payload == null ? null : payload.get("tag_name");
+            if (tagElement == null || !tagElement.isJsonPrimitive()) {
                 return Optional.empty();
             }
-            String latest = stripLeadingV(matcher.group(1));
+            String latest = stripLeadingV(tagElement.getAsString());
             return isNewer(latest, currentVersion) ? Optional.of(latest) : Optional.empty();
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();

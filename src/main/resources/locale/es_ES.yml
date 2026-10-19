@@ -1,12 +1,12 @@
 # Prefijo compartido del chat. Todos los mensajes lo usan como {prefix}.
-prefix: "&8[&x&0&0&F&F&A&ANeoMod&8]"
+prefix: "&8[&x&9&c&a&8&f&fNeoMod&8]"
 error:
   no-permission: "{prefix} &cNo tienes permiso para usar NeoModeration."
   no-api-key: "{prefix} &cNo hay clave API. &7Ejecuta &e/nmod trial &7para una prueba gratuita de 14 días, o regístrate en &f{url} &7y ejecuta &e/nmod setup <apiKey>"
   api-key-too-long: "{prefix} &cLa clave API es demasiado larga (máx {max})."
   rule-too-long: "{prefix} &cEl valor es demasiado largo (máx {max})."
 help:
-  title: "&8&m----------&r &x&0&0&F&F&A&A&lNeoModeration &8&m----------"
+  title: "&8&m----------&r &x&9&c&a&8&f&f&lNeoModeration &8&m----------"
   section:
     start: "&f&lPrimeros pasos"
     rules: "&f&lReglas y acciones"
@@ -14,9 +14,9 @@ help:
     admin: "&f&lAdministración"
   entry: " &b{usage} &8- &7{desc}"
   footer: "&8&m--------------------------------------"
-  dashboard: "&x&0&0&F&F&A&A&lNeoModeration &8v{version} &7● &f{mode} &8| &7Nube: &f{cloud} &8| &7Detecciones: &b{total}"
-  page: "&8Página {page}/2 · &7prueba &b/nmod help {next}"
-  hint: "&8Haz clic en un comando para ejecutarlo · deja el puntero encima para ver ayuda"
+  dashboard: "&x&9&c&a&8&f&f&lNeoModeration &8v{version} | &f{mode} &8| &7Nube: &f{cloud} &8| &7Detecciones: &b{total}"
+  page: "&8Página {page}/2 | &7prueba &b/nmod help {next}"
+  hint: "&8Haz clic en un comando para ejecutarlo; deja el puntero encima para ver ayuda"
   usage:
     trial: "/nmod trial"
     setup: "/nmod setup <clave>"
@@ -27,6 +27,7 @@ help:
     url: "/nmod url"
     allow: "/nmod allow"
     action: "/nmod action"
+    surface: "/nmod surface"
     test: "/nmod test badword"
     doctor: "/nmod doctor"
     cases: "/nmod cases"
@@ -46,6 +47,7 @@ help:
     url: "enlaces bloqueados"
     allow: "excepciones que siempre ganan"
     action: "castigos al detectar"
+    surface: "carteles, libros, yunques, comandos"
     test: "vista previa segura; nunca actúa"
     doctor: "diagnosticar la configuración"
     cases: "historial de detecciones"
@@ -63,7 +65,7 @@ trial:
   pending: "{prefix} &eYa hay una solicitud de prueba en curso. Espera el resultado."
   configuration-changed: "{prefix} &eLa configuración cambió durante la activación. Se conservó la configuración actual; ejecuta /nmod trial status."
   already-configured: "{prefix} &cEste servidor ya tiene una clave API configurada. &7Ejecuta &e/nmod trial status &7o &e/nmod doctor &7para verificarla."
-  requesting: "{prefix} &7Conectando con NeoMechanical para activar tu prueba de 14 días..."
+  requesting: "{prefix} &7Conectando con Neomechanical para activar tu prueba de 14 días..."
   activated: "{prefix} &aPrueba de 14 días activada (caduca &f{expires}&a). La nube empieza en modo monitor. Reclama tu espacio en &f{url}&a o ejecuta &e/nmod doctor &apara verificar."
   already-claimed: "{prefix} &cEsta instalación ya usó su prueba de 14 días. Obtén una clave API en &f{url}"
   rate-limited: "{prefix} &cLímite de solicitudes de prueba alcanzado. Inténtalo más tarde o regístrate en &fhttps://neomechanical.com/signup?src=neomoderation"
@@ -72,7 +74,7 @@ trial:
   status-checking: "{prefix} &7Comprobando el estado de la prueba..."
   status-active: "{prefix} &aPrueba activa &8(&f{days} &7día(s) restantes, caduca &f{expires}&8)&7. Amplía en &f{url}"
   status-expired: "{prefix} &cTu prueba de 14 días caducó el &f{expires}&c. &7Amplía en &f{url} &7y ejecuta &e/nmod setup <key>&7."
-  status-standard: "{prefix} &aUsando una clave estándar de NeoMechanical. &7Ejecuta &e/nmod usage &7para ver créditos y límites."
+  status-standard: "{prefix} &aUsando una clave estándar de Neomechanical. &7Ejecuta &e/nmod usage &7para ver créditos y límites."
 toggle:
   on: "{prefix} &7Moderación &aACTIVADA&7."
   off: "{prefix} &7Moderación &cDESACTIVADA&7."
@@ -119,8 +121,8 @@ action:
   bad-duration: "{prefix} &cDuración inválida: &f{value}&c. &7Prueba 30s, 5m o 1h (máx 30d)."
   reset: "{prefix} &aAcciones adicionales eliminadas: los mensajes se bloquean sin sanción automática. &7La escalada de strikes se configura por separado."
 usage:
-  fetching: "{prefix} &7Consultando uso en NeoMechanical..."
-  title: "&8&m----------&r &x&0&0&F&F&A&A&lUso de NeoMechanical &8&m----------"
+  fetching: "{prefix} &7Consultando uso en Neomechanical..."
+  title: "&8&m----------&r &x&9&c&a&8&f&f&lUso de Neomechanical &8&m----------"
   workspace: "&7Espacio: &f{value}"
   plan: "&7Plan: &f{value} &8(&f{rpm}&7/min límite&8)"
   credits: "&7Créditos restantes: &a{value}"
@@ -141,6 +143,12 @@ alert:
   enforce: "{prefix} &c&lDETECTADO &7{player} &8[&7{surface}&8] &f{message} &8(&7{reason}&8) &7-> &c{actions}"
 surface:
   blocked: "{prefix} &cEse texto contiene contenido bloqueado."
+  title: "&8&m----------&r &x&9&c&a&8&f&f&lSuperficies Extra &8&m----------"
+  row: "&b{surface}&8: &f{mode}"
+  commands: "&7Comandos revisados: &f{commands}"
+  hint: "&7Cambia con &e/{label} surface <sign|book|anvil|command|all> <off|monitor|censor|block>"
+  usage: "{prefix} &cUso: &e/{label} surface <sign|book|anvil|command|all> <off|monitor|censor|block>"
+  updated: "{prefix} &aSuperficie &f{surface} &acambiada a &f{mode}&a."
 allow:
   usage: "{prefix} &cUso: &e/{label} allow <word|url> <add|remove|list> [valor]"
 mode:
@@ -181,13 +189,13 @@ test:
   would-enforce: "{prefix} &7Resultado: &cbloqueado&7; acciones: &c{actions}"
   note: "{prefix} &8Esta prueba usó una solicitud de nube. No se ejecutaron acciones."
 doctor:
-  title: "&8&m----------&r &x&0&0&F&F&A&A&lNeoModeration Doctor &8&m----------"
+  title: "&8&m----------&r &x&9&c&a&8&f&f&lNeoModeration Doctor &8&m----------"
   pass: "&a[OK] &7{check}&8: &f{detail}"
   warn: "&e[!!] &7{check}&8: &f{detail}"
   fail: "&c[XX] &7{check}&8: &f{detail}"
   checking-cloud: "{prefix} &7Comprobando la cuenta y el uso (los eventos de moderación se informan por separado)..."
 privacy:
-  title: "&8&m----------&r &x&0&0&F&F&A&A&lPrivacidad NeoModeration &8&m----------"
+  title: "&8&m----------&r &x&9&c&a&8&f&f&lPrivacidad NeoModeration &8&m----------"
   headline: "&7Protección: &f{value}"
   local: "&7Las reglas locales de palabras/URL, cuando están activas, se ejecutan en este servidor y no envían contenido."
   cloud: "&7Las comprobaciones en la nube configuradas envían &f{data} &7a &f{endpoint} &7con el nombre y UUID del jugador."
@@ -198,7 +206,7 @@ privacy:
   mode: "&7Moderación: &f{value}"
   metrics: "&7Las métricas técnicas de bStats no contienen chats y se pueden desactivar en &fplugins/bStats/config.yml&7."
 cases:
-  title: "&8&m----------&r &x&0&0&F&F&A&A&lCasos Recientes &8&m----------"
+  title: "&8&m----------&r &x&9&c&a&8&f&f&lCasos Recientes &8&m----------"
   line: "&8#&b{id} &7{player} &8[&7{surface}&8] &7{reason} &8-> &c{actions} &8({mode}, hace {ago})"
   preview: " &8> &f{value}"
   empty: "{prefix} &7Aún no hay casos registrados."
@@ -207,7 +215,7 @@ cases:
   unavailable: "{prefix} &cEl historial de casos no está disponible (sin controlador SQLite)."
 preset:
   usage: "{prefix} &cUso: &e/{label} preset <family|community|minimal>"
-  list-title: "&8&m----------&r &x&0&0&F&F&A&A&lPreajustes &8&m----------"
+  list-title: "&8&m----------&r &x&9&c&a&8&f&f&lPreajustes &8&m----------"
   list-item: "&b{name} &8- &7{summary}"
   applied: "{prefix} &aPreajuste de nube &f{name}&a aplicado. &7Categorías activas: &b{categories}&7. Acciones sin cambios: &f{actions}&7. Las reglas locales y modos no cambiaron; la nube requiere una clave API."
 

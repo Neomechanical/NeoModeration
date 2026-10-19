@@ -1,11 +1,12 @@
 package com.neomechanical.neomoderation.moderation;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
 
 /**
- * Parsed view of the NeoMechanical workspace usage endpoint. Parsing is regex-based to
- * avoid bundling a JSON library, matching the rest of the plugin's lightweight approach.
+ * Parsed view of the Neomechanical workspace usage endpoint, decoded through
+ * the shared strict JSON parser ({@link CloudResponseJson}).
  */
 public record UsageSummary(
         String workspace,
@@ -25,31 +26,50 @@ public record UsageSummary(
         if (json == null || json.isBlank()) {
             throw new IllegalArgumentException("empty usage response");
         }
+        JsonObject object;
+        try {
+            object = CloudResponseJson.parseObject(json);
+        } catch (JsonSyntaxException | IllegalStateException e) {
+            throw new IllegalArgumentException("invalid usage response", e);
+        }
+        if (object == null) {
+            throw new IllegalArgumentException("empty usage response");
+        }
         return new UsageSummary(
-                string(json, "workspace", "Workspace"),
-                string(json, "tier", "free"),
-                number(json, "requestsPerMinuteLimit"),
-                number(json, "creditsRemaining"),
-                number(json, "requestsToday"),
-                number(json, "requestsLast7Days"),
-                number(json, "nsfwImagesRemaining"),
-                number(json, "nsfwImagesCap"),
-                number(json, "nsfwTextUnitsRemaining"),
-                number(json, "nsfwTextUnitsCap"),
-                number(json, "nsfwVideosRemaining"),
-                number(json, "nsfwVideosCap")
+                string(object, "workspace", "Workspace"),
+                string(object, "tier", "free"),
+                number(object, "requestsPerMinuteLimit"),
+                number(object, "creditsRemaining"),
+                number(object, "requestsToday"),
+                number(object, "requestsLast7Days"),
+                number(object, "nsfwImagesRemaining"),
+                number(object, "nsfwImagesCap"),
+                number(object, "nsfwTextUnitsRemaining"),
+                number(object, "nsfwTextUnitsCap"),
+                number(object, "nsfwVideosRemaining"),
+                number(object, "nsfwVideosCap")
         );
     }
 
-    private static long number(String json, String field) {
-        Matcher matcher = Pattern.compile("\"" + Pattern.quote(field) + "\"\\s*:\\s*(-?\\d+)").matcher(json);
-        return matcher.find() ? Long.parseLong(matcher.group(1)) : 0L;
+    private static long number(JsonObject object, String field) {
+        JsonElement element = object.get(field);
+        if (element == null || !element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber()) {
+            return 0L;
+        }
+        try {
+            return element.getAsLong();
+        } catch (NumberFormatException | UnsupportedOperationException ignored) {
+            return 0L;
+        }
     }
 
-    private static String string(String json, String field, String fallback) {
-        Matcher matcher = Pattern.compile("\"" + Pattern.quote(field) + "\"\\s*:\\s*\"([^\"]*)\"").matcher(json);
-        if (matcher.find() && !matcher.group(1).isBlank()) {
-            return matcher.group(1);
+    private static String string(JsonObject object, String field, String fallback) {
+        JsonElement element = object.get(field);
+        if (element != null && element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
+            String value = element.getAsString();
+            if (!value.isBlank()) {
+                return value;
+            }
         }
         return fallback;
     }

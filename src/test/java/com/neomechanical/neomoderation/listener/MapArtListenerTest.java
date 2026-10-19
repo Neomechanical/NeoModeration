@@ -81,11 +81,15 @@ class MapArtListenerTest {
                      new ChatModerationCoordinator(Logger.getLogger("test"))) {
 
             MonitorStats stats = new MonitorStats();
+            DetectionNotifier notifier = mock(DetectionNotifier.class);
+            com.neomechanical.neomoderation.moderation.CaseLog caseLog =
+                    mock(com.neomechanical.neomoderation.moderation.CaseLog.class);
             NeoModerationPlugin plugin = mock(NeoModerationPlugin.class);
             when(plugin.settings()).thenReturn(settings);
             when(plugin.coordinator()).thenReturn(coordinator);
             when(plugin.monitorStats()).thenReturn(stats);
-            when(plugin.notifier()).thenReturn(mock(DetectionNotifier.class));
+            when(plugin.notifier()).thenReturn(notifier);
+            when(plugin.caseLog()).thenReturn(caseLog);
             when(plugin.messages()).thenReturn(mock(MessageService.class));
             when(plugin.getLogger()).thenReturn(Logger.getLogger("test"));
 
@@ -129,13 +133,34 @@ class MapArtListenerTest {
             }
             verify(client, times(1)).moderateImage(anyString(), anyString(), anyString(), any(), any());
 
+            String playerUuid = player.getUniqueId().toString();
             if (shouldConfiscate) {
                 verify(inventory, times(2)).remove(mapItem);
+                verify(notifier, times(2)).notifyDetection(player, "map_art", "map_art:7",
+                        "(map 7)", settings, "confiscate", false);
+                verify(caseLog, times(2)).record(org.mockito.ArgumentMatchers.anyLong(),
+                        org.mockito.ArgumentMatchers.eq(playerUuid),
+                        org.mockito.ArgumentMatchers.eq("Tester"),
+                        org.mockito.ArgumentMatchers.eq("map_art"),
+                        org.mockito.ArgumentMatchers.eq("map_art:7"),
+                        org.mockito.ArgumentMatchers.eq("confiscate"),
+                        org.mockito.ArgumentMatchers.eq("enforce"),
+                        org.mockito.ArgumentMatchers.eq(""));
                 assertEquals(0, stats.total());
             } else {
                 assertEquals(2, stats.total());
                 assertEquals(2L, stats.byReason().get("map_art"));
                 verify(inventory, never()).remove(mapItem);
+                verify(notifier, times(2)).notifyDetection(player, "map_art", "map_art:7",
+                        "(map 7)", settings, "confiscate", true);
+                verify(caseLog, times(2)).record(org.mockito.ArgumentMatchers.anyLong(),
+                        org.mockito.ArgumentMatchers.eq(playerUuid),
+                        org.mockito.ArgumentMatchers.eq("Tester"),
+                        org.mockito.ArgumentMatchers.eq("map_art"),
+                        org.mockito.ArgumentMatchers.eq("map_art:7"),
+                        org.mockito.ArgumentMatchers.eq("confiscate"),
+                        org.mockito.ArgumentMatchers.eq("monitor"),
+                        org.mockito.ArgumentMatchers.eq(""));
             }
         }
     }
@@ -146,6 +171,7 @@ class MapArtListenerTest {
         NeoModerationPlugin plugin = mock(NeoModerationPlugin.class);
         when(plugin.settings()).thenReturn(settings);
         when(plugin.messages()).thenReturn(mock(MessageService.class));
+        when(plugin.notifier()).thenReturn(mock(DetectionNotifier.class));
         ModerationApiClient client = mock(ModerationApiClient.class);
         when(plugin.apiClient()).thenReturn(client);
         when(client.moderateImage(anyString(), anyString(), anyString(), any(), any()))
@@ -204,7 +230,7 @@ class MapArtListenerTest {
                         SurfaceSettings.SurfaceMode.OFF,
                         SurfaceSettings.SurfaceMode.OFF,
                         List.of()),
-                new CaseSettings(false, false),
+                new CaseSettings(true, false),
                 false
         );
     }

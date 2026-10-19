@@ -1,13 +1,13 @@
 # Shared chat prefix. Every message references it as {prefix}, so you can
 # rebrand or recolor the whole plugin from this one line.
-prefix: "&8[&x&0&0&F&F&A&ANeoMod&8]"
+prefix: "&8[&x&9&c&a&8&f&fNeoMod&8]"
 error:
   no-permission: "{prefix} &cYou do not have permission to use NeoModeration."
   no-api-key: "{prefix} &cNo API key configured. &7Run &e/nmod trial &7for a free 14-day cloud evaluation, or sign up at &f{url} &7and run &e/nmod setup <apiKey>"
   api-key-too-long: "{prefix} &cAPI key is too long (max {max} characters)."
   rule-too-long: "{prefix} &cValue is too long (max {max} characters)."
 help:
-  title: "&8&m----------&r &x&0&0&F&F&A&A&lNeoModeration &8&m----------"
+  title: "&8&m----------&r &x&9&c&a&8&f&f&lNeoModeration &8&m----------"
   section:
     start: "&f&lGetting started"
     rules: "&f&lRules & actions"
@@ -15,9 +15,9 @@ help:
     admin: "&f&lAdmin"
   entry: " &b{usage} &8- &7{desc}"
   footer: "&8&m--------------------------------------"
-  dashboard: "&x&0&0&F&F&A&A&lNeoModeration &8v{version} &7● &f{mode} &8| &7Cloud: &f{cloud} &8| &7Detections: &b{total}"
-  page: "&8Page {page}/2 · &7try &b/nmod help {next}"
-  hint: "&8Click a command to run it · hover any entry for help"
+  dashboard: "&x&9&c&a&8&f&f&lNeoModeration &8v{version} | &f{mode} &8| &7Cloud: &f{cloud} &8| &7Detections: &b{total}"
+  page: "&8Page {page}/2 | &7try &b/nmod help {next}"
+  hint: "&8Click a command to run it; hover any entry for help"
   usage:
     trial: "/nmod trial"
     setup: "/nmod setup <key>"
@@ -28,6 +28,7 @@ help:
     url: "/nmod url"
     allow: "/nmod allow"
     action: "/nmod action"
+    surface: "/nmod surface"
     test: "/nmod test badword"
     doctor: "/nmod doctor"
     cases: "/nmod cases"
@@ -47,6 +48,7 @@ help:
     url: "banned links"
     allow: "exceptions that always win"
     action: "punishments on detect"
+    surface: "signs, books, anvils, commands"
     test: "safe preview, never acts"
     doctor: "diagnose your setup"
     cases: "detection history"
@@ -64,7 +66,7 @@ trial:
   pending: "{prefix} &eA cloud trial request is already running. Wait for its result."
   configuration-changed: "{prefix} &eCloud configuration changed during activation. Your current settings were kept; run /nmod trial status."
   already-configured: "{prefix} &cThis server already has an API key configured. &7Run &e/nmod trial status &7or &e/nmod doctor &7to check it."
-  requesting: "{prefix} &7Connecting to NeoMechanical to activate your 14-day cloud trial..."
+  requesting: "{prefix} &7Connecting to Neomechanical to activate your 14-day cloud trial..."
   activated: "{prefix} &a14-day cloud trial activated (expires &f{expires}&a). Cloud chat and map-art checks start in monitor mode. Claim this workspace at &f{url}&a or run &e/nmod doctor &ato verify."
   already-claimed: "{prefix} &cThis server installation has already used its 14-day trial. Get an API key at &f{url}"
   rate-limited: "{prefix} &cTrial rate limit reached for this network. Try again later or sign up at &fhttps://neomechanical.com/signup?src=neomoderation"
@@ -73,7 +75,7 @@ trial:
   status-checking: "{prefix} &7Checking cloud trial status..."
   status-active: "{prefix} &aCloud trial active &8(&f{days} &7day(s) left, expires &f{expires}&8)&7. Upgrade at &f{url}"
   status-expired: "{prefix} &cYour 14-day cloud trial expired on &f{expires}&c. &7Upgrade at &f{url} &7and run &e/nmod setup <key>&7."
-  status-standard: "{prefix} &aUsing a standard NeoMechanical workspace key. &7Run &e/nmod usage &7for credits and limits."
+  status-standard: "{prefix} &aUsing a standard Neomechanical workspace key. &7Run &e/nmod usage &7for credits and limits."
 toggle:
   on: "{prefix} &7Moderation has been &aENABLED&7."
   off: "{prefix} &7Moderation has been &cDISABLED&7."
@@ -120,8 +122,8 @@ action:
   bad-duration: "{prefix} &cInvalid duration: &f{value}&c. &7Try 30s, 5m, or 1h (max 30d)."
   reset: "{prefix} &aExtra actions cleared: matching messages are blocked without an automatic punishment. &7Strike escalation is configured separately."
 usage:
-  fetching: "{prefix} &7Fetching usage from NeoMechanical..."
-  title: "&8&m----------&r &x&0&0&F&F&A&A&lNeoMechanical Usage &8&m----------"
+  fetching: "{prefix} &7Fetching usage from Neomechanical..."
+  title: "&8&m----------&r &x&9&c&a&8&f&f&lNeomechanical Usage &8&m----------"
   workspace: "&7Workspace: &f{value}"
   plan: "&7Plan: &f{value} &8(&f{rpm}&7/min limit&8)"
   credits: "&7Credits left: &a{value}"
@@ -142,6 +144,12 @@ alert:
   enforce: "{prefix} &c&lFLAGGED &7{player} &8[&7{surface}&8] &f{message} &8(&7{reason}&8) &7-> &c{actions}"
 surface:
   blocked: "{prefix} &cThat text contains blocked content."
+  title: "&8&m----------&r &x&9&c&a&8&f&f&lExtra Surfaces &8&m----------"
+  row: "&b{surface}&8: &f{mode}"
+  commands: "&7Scanned commands: &f{commands}"
+  hint: "&7Change with &e/{label} surface <sign|book|anvil|command|all> <off|monitor|censor|block>"
+  usage: "{prefix} &cUsage: &e/{label} surface <sign|book|anvil|command|all> <off|monitor|censor|block>"
+  updated: "{prefix} &aSurface &f{surface} &aset to &f{mode}&a."
 allow:
   usage: "{prefix} &cUsage: &e/{label} allow <word|url> <add|remove|list> [value]"
 mode:
@@ -182,13 +190,13 @@ test:
   would-enforce: "{prefix} &7Result: &cblocked&7; actions: &c{actions}"
   note: "{prefix} &8This test used one cloud request. No actions were executed."
 doctor:
-  title: "&8&m----------&r &x&0&0&F&F&A&A&lNeoModeration Doctor &8&m----------"
+  title: "&8&m----------&r &x&9&c&a&8&f&f&lNeoModeration Doctor &8&m----------"
   pass: "&a[OK] &7{check}&8: &f{detail}"
   warn: "&e[!!] &7{check}&8: &f{detail}"
   fail: "&c[XX] &7{check}&8: &f{detail}"
   checking-cloud: "{prefix} &7Checking the account and usage API (moderation events are reported separately)..."
 privacy:
-  title: "&8&m----------&r &x&0&0&F&F&A&A&lNeoModeration Privacy &8&m----------"
+  title: "&8&m----------&r &x&9&c&a&8&f&f&lNeoModeration Privacy &8&m----------"
   headline: "&7Protection: &f{value}"
   local: "&7Local word/URL rules, when armed, run on this server. Their checks do not send content away."
   cloud: "&7Configured cloud checks send &f{data} &7to &f{endpoint} &7with the player name and UUID."
@@ -199,7 +207,7 @@ privacy:
   mode: "&7Moderation: &f{value}"
   metrics: "&7bStats technical metrics contain no chat content and can be disabled in &fplugins/bStats/config.yml&7."
 cases:
-  title: "&8&m----------&r &x&0&0&F&F&A&A&lRecent Cases &8&m----------"
+  title: "&8&m----------&r &x&9&c&a&8&f&f&lRecent Cases &8&m----------"
   line: "&8#&b{id} &7{player} &8[&7{surface}&8] &7{reason} &8-> &c{actions} &8({mode}, {ago} ago)"
   preview: " &8> &f{value}"
   empty: "{prefix} &7No cases recorded yet."
@@ -208,7 +216,7 @@ cases:
   unavailable: "{prefix} &cCase history is unavailable on this server (no SQLite driver)."
 preset:
   usage: "{prefix} &cUsage: &e/{label} preset <family|community|minimal>"
-  list-title: "&8&m----------&r &x&0&0&F&F&A&A&lPolicy Presets &8&m----------"
+  list-title: "&8&m----------&r &x&9&c&a&8&f&f&lPolicy Presets &8&m----------"
   list-item: "&b{name} &8- &7{summary}"
   applied: "{prefix} &aApplied cloud preset &f{name}&a. &7Categories on: &b{categories}&7. Actions unchanged: &f{actions}&7. Local rules and modes unchanged; cloud checks require an API key."
 

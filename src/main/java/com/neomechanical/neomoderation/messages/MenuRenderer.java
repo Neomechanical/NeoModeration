@@ -24,10 +24,6 @@ public final class MenuRenderer {
         NONE
     }
 
-    /** One menu entry: the clickable command plus its grey description. */
-    public record Entry(String usage, String command, ClickAction action, String hover) {
-    }
-
     /** Both renderings of one line: components for players, legacy text for console. */
     public record Line(BaseComponent[] player, String console) {
     }
@@ -53,6 +49,24 @@ public final class MenuRenderer {
     public static Line text(String legacy) {
         String translated = translate(legacy);
         return new Line(TextComponent.fromLegacyText(translated), translated);
+    }
+
+    /** Whole-line clickable entry (such as a case row or preset option). */
+    public static Line clickableLine(String legacyText, String command, String hoverText, ClickAction action) {
+        String translated = translate(legacyText);
+        TextComponent root = new TextComponent();
+        for (BaseComponent part : TextComponent.fromLegacyText(translated)) {
+            root.addExtra(part);
+        }
+        if (action != ClickAction.NONE) {
+            ClickEvent.Action click = action == ClickAction.RUN
+                    ? ClickEvent.Action.RUN_COMMAND
+                    : ClickEvent.Action.SUGGEST_COMMAND;
+            root.setClickEvent(new ClickEvent(click, command));
+            root.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                    TextComponent.fromLegacyText(translate(hoverText))));
+        }
+        return new Line(new BaseComponent[]{root}, translated);
     }
 
     /**

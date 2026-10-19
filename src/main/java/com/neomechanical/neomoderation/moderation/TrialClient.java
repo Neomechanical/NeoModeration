@@ -15,7 +15,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonElement;
 
 /**
- * Handles communication with the NeoMechanical 14-day trial activation service.
+ * Handles communication with the Neomechanical 14-day trial activation service.
  *
  * <p>The distributed signature is a public protocol marker, not proof of
  * installation. Trial eligibility and claiming are enforced server-side.

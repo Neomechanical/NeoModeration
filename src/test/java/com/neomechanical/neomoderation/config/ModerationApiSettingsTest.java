@@ -26,4 +26,16 @@ class ModerationApiSettingsTest {
 
         assertEquals("https://moderation.example.test/v1/events", settings.endpoint());
     }
+
+    @Test
+    void resolvesSiblingRoutesFromDefaultLegacyAndCustomEndpoints() {
+        assertEquals("https://api.neomechanical.com/v1/workspace/usage",
+                ModerationApiSettings.resolveSiblingEndpoint(null, "/workspace/usage"));
+        assertEquals("https://api.neomechanical.com/v1/trial/neomoderation",
+                ModerationApiSettings.resolveSiblingEndpoint(
+                        "https://api.neomechanical.com/v1/moderation/chat/", "/trial/neomoderation"));
+        assertEquals("https://moderation.example.test/v1/workspace/usage",
+                ModerationApiSettings.resolveSiblingEndpoint(
+                        "https://moderation.example.test/v1/events", "/workspace/usage"));
+    }
 }

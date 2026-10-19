@@ -65,14 +65,35 @@ public class CasesCmd implements SubCommand {
         String playerFilter = argument;
         plugin.runAsync(() -> {
             List<CaseLog.CaseRecord> rows = plugin.caseLog().recent(playerFilter, PAGE_SIZE);
-            plugin.runSync(() -> renderList(sender, rows));
+            plugin.runSync(() -> renderList(sender, label, rows));
         });
     }
 
-    private void renderList(CommandSender sender, List<CaseLog.CaseRecord> rows) {
+    private void renderList(CommandSender sender, String label, List<CaseLog.CaseRecord> rows) {
         plugin.messages().send(sender, "cases.title");
         if (rows.isEmpty()) {
             plugin.messages().send(sender, "cases.empty");
+            return;
+        }
+        if (sender instanceof org.bukkit.entity.Player) {
+            java.util.List<com.neomechanical.neomoderation.messages.MenuRenderer.Line> lines = new java.util.ArrayList<>();
+            for (CaseLog.CaseRecord row : rows) {
+                Map<String, String> fields = Map.of(
+                        "id", String.valueOf(row.id()),
+                        "player", row.player(),
+                        "surface", row.surface(),
+                        "reason", row.reason(),
+                        "actions", row.action(),
+                        "mode", row.mode(),
+                        "ago", ago(row.timestamp())
+                );
+                String formatted = plugin.messages().format("cases.line", fields);
+                String cmd = "/" + label + " case " + row.id();
+                lines.add(com.neomechanical.neomoderation.messages.MenuRenderer.clickableLine(
+                        formatted, cmd, "&b" + cmd,
+                        com.neomechanical.neomoderation.messages.MenuRenderer.ClickAction.RUN));
+            }
+            plugin.messages().sendMenu(sender, lines);
             return;
         }
         for (CaseLog.CaseRecord row : rows) {

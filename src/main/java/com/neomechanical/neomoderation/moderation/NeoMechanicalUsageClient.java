@@ -9,7 +9,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 
 /**
- * Fetches workspace usage and rate-limit information from NeoMechanical using the
+ * Fetches workspace usage and rate-limit information from Neomechanical using the
  * configured API key. The usage endpoint is derived from the moderation endpoint so a
  * single {@code endpoint} setting keeps them in sync.
  */
@@ -55,10 +55,7 @@ public final class NeoMechanicalUsageClient {
      * path segment (e.g. {@code /v1/events}) with {@code /v1/workspace/usage}.
      */
     static String usageUrl(String endpoint) {
-        String trimmed = endpoint == null ? "" : endpoint.trim();
-        int slash = trimmed.lastIndexOf('/');
-        String base = slash > "https://".length() ? trimmed.substring(0, slash) : trimmed;
-        return base + "/workspace/usage";
+        return ModerationApiSettings.resolveSiblingEndpoint(endpoint, "/workspace/usage");
     }
 
     public static final class UsageException extends Exception {

@@ -18,13 +18,16 @@ public record SurfaceSettings(
         SurfaceMode command,
         List<String> scannedCommands
 ) {
+    public static final List<String> SURFACE_NAMES = List.of("sign", "book", "anvil", "command");
+    public static final List<String> MODE_NAMES = List.of("off", "monitor", "censor", "block");
+
     public enum SurfaceMode {
         OFF,
         MONITOR,
         CENSOR,
         BLOCK;
 
-        static SurfaceMode parse(String raw) {
+        public static SurfaceMode parse(String raw) {
             if (raw == null) {
                 return OFF;
             }
@@ -34,6 +37,13 @@ public record SurfaceSettings(
                 case "block" -> BLOCK;
                 default -> OFF;
             };
+        }
+
+        public static boolean isValid(String raw) {
+            if (raw == null) {
+                return false;
+            }
+            return MODE_NAMES.contains(raw.trim().toLowerCase(Locale.ROOT));
         }
     }
 
@@ -54,6 +64,19 @@ public record SurfaceSettings(
                 SurfaceMode.parse(config.getString("moderation.surfaces.command", "off")),
                 commands
         );
+    }
+
+    public SurfaceMode modeFor(String surface) {
+        if (surface == null) {
+            return SurfaceMode.OFF;
+        }
+        return switch (surface.trim().toLowerCase(Locale.ROOT)) {
+            case "sign" -> sign;
+            case "book" -> book;
+            case "anvil" -> anvil;
+            case "command" -> command;
+            default -> SurfaceMode.OFF;
+        };
     }
 
     public long enabledCount() {
