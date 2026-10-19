@@ -13,10 +13,12 @@ import java.util.Set;
  * no "puta", and for a Spanish speaker "Mari con" is no "maricon". A word on the
  * server's own list can only be read as English or the server's language, never
  * as a language a player picks for their game. Pieces from different languages
- * ("pa ki", "bean er"), pieces that are not words ("f uck") and pieces typed
- * with digits or symbols ("g0 ok") are still read as one word. A lone digit
- * read as the letter just before it only stretches that letter, so it changes
- * nothing, and an English contraction's ending ("who're") is an English word.</p>
+ * ("pa ki", "bean er"), pieces that are not words ("f uck"), pieces typed
+ * with digits or symbols ("g0 ok") and pieces joined by an apostrophe inside a
+ * word ("go'ok", which nobody writes for two words) are still read as one word.
+ * A lone digit read as the letter just before it only stretches that letter, so
+ * it changes nothing, and an English contraction's ending ("who're") is an
+ * English word.</p>
  */
 final class EverydayWords {
 
@@ -31,6 +33,8 @@ final class EverydayWords {
     private final OfflineRuleCompiler.Scope scope;
     private int[] tokenAt;
     private int[] languagesOf;
+    /** Per token, whether it follows an apostrophe inside a word that is no English contraction. */
+    private boolean[] apostropheBefore;
 
     EverydayWords(TextNormalizer.Normalized text, OfflineRuleCompiler.Scope scope) {
         this.text = text;
@@ -50,6 +54,9 @@ final class EverydayWords {
         int shared = speakerCounts ? -1 : ~scope.speakerOnly();
         boolean anyWord = false;
         for (int token = tokenAt[start]; token <= tokenAt[end - 1]; token++) {
+            if (token > tokenAt[start] && apostropheBefore[token]) {
+                return false;
+            }
             shared &= languagesOf[token];
             anyWord |= languagesOf[token] != STRETCH;
             if (shared == 0) {
@@ -98,11 +105,13 @@ final class EverydayWords {
         List<Set<String>> languages = scope.languages();
         tokenAt = new int[text.length()];
         languagesOf = new int[tokens.size()];
+        apostropheBefore = new boolean[tokens.size()];
         for (int t = 0; t < tokens.size(); t++) {
             int[] token = tokens.get(t);
             for (int i = token[0]; i < token[1]; i++) {
                 tokenAt[i] = t;
             }
+            apostropheBefore[t] = text.apostrophe()[token[0]] && !text.joinBlocked()[token[0]];
             if (text.joinBlocked()[token[0]]) {
                 languagesOf[t] = ENGLISH;  // the end of an English contraction: who're, let's
                 continue;

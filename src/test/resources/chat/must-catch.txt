@@ -44,6 +44,8 @@ you wet backs
 you bulls hit
 you or os pu
 f'uck you
+bad'word
+you go'ok
 fu'ck you
 f’uck you
 f`uck you
@@ -75,6 +77,7 @@ you dirty go 0k
 # language: es_es
 puta madre
 pu'ta madre
+eres una put'a
 eres un put o
 eres un mari con es
 esto es una mi er da

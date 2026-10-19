@@ -79,6 +79,8 @@ final class TextNormalizer {
      * @param joinBlocked  whether each char began an English contraction's ending
      *                     after an apostrophe inside a word ('s, 're, 't, 'd, 'm, 've,
      *                     'll); a match never starts there
+     * @param apostrophe   whether each char began a token after any apostrophe inside
+     *                     a word, contraction or not ("f'uck", "bad'word")
      * @param leet         whether each char was typed as a digit or symbol ("g0" for "go")
      * @param collapsed    {@code chars} with runs of the same character reduced to
      *                     one, used only as a cheap necessary-condition prefilter
@@ -89,6 +91,7 @@ final class TextNormalizer {
             boolean[] tokenStart,
             boolean[] tokenEnd,
             boolean[] joinBlocked,
+            boolean[] apostrophe,
             boolean[] leet,
             String collapsed
     ) {
@@ -267,6 +270,7 @@ final class TextNormalizer {
                 finalEnd[i] = (i == count - 1) || finalStart[i + 1];
             }
             restoreNumbers(finalChars, finalStart, finalEnd);
+            boolean[] apostrophe = Arrays.copyOf(joinBlocked, count);
             keepContractionEndingsOnly(finalChars, finalEnd);
 
             StringBuilder collapsed = new StringBuilder(count);
@@ -276,7 +280,7 @@ final class TextNormalizer {
                 }
             }
             return new Normalized(finalChars, Arrays.copyOf(rawIndex, count), finalStart, finalEnd,
-                    Arrays.copyOf(joinBlocked, count), Arrays.copyOf(leet, count), collapsed.toString());
+                    Arrays.copyOf(joinBlocked, count), apostrophe, Arrays.copyOf(leet, count), collapsed.toString());
         }
 
         /**
