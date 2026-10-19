@@ -132,7 +132,7 @@ nl: he
 sv: och att det som en pa ar av for med har jag du han hon vi ni de nu inte men eller ja nej tack
 sv: hej var vad hur nar kan ska vill hade kom vem spela mat diamant present den
 sv: in
-sv: is ur hel min tog från ta några
+sv: is ur hel min tog från ta några city
 # Polish
 pl: i w z na nie to jest ze sie co jak tak ale po do od za
 # Danish

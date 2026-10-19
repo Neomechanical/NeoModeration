@@ -151,7 +151,8 @@ final class OfflineRuleCompiler {
      * {@code from}, or {@code null}. A match must start where a token starts and
      * finish where one finishes; between those points separators are ignored,
      * apostrophes included ("f'uck"), but a match never starts at an English
-     * contraction's ending ("let's hit" is not "s hit").
+     * contraction's ending ("let's hit" is not "s hit") or at a digit read as the
+     * last letter of the piece before it ("lvl 5 hit").
      */
     static int[] findMatch(
             TextNormalizer.Normalized text,
@@ -168,7 +169,7 @@ final class OfflineRuleCompiler {
         int length = chars.length;
 
         for (int start = from; start < length; start++) {
-            if (!tokenStart[start] || masked[start] || joinBlocked[start]) {
+            if (!tokenStart[start] || masked[start] || joinBlocked[start] || text.noStart()[start]) {
                 continue;
             }
             int position = start;

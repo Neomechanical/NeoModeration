@@ -84,6 +84,8 @@ final class TextNormalizer {
      *                     a word, contraction or not ("f'uck", "bad'word")
      * @param prefix       whether each char began a "re" written before a hyphen
      *                     ("re-did"), which is an English prefix rather than a word piece
+     * @param noStart      whether each char is a lone digit read as the last letter of
+     *                     the piece before it ("shi 7"); a match may end there, never start
      * @param leet         whether each char was typed as a digit or symbol ("g0" for "go")
      * @param collapsed    {@code chars} with runs of the same character reduced to
      *                     one, used only as a cheap necessary-condition prefilter
@@ -96,6 +98,7 @@ final class TextNormalizer {
             boolean[] joinBlocked,
             boolean[] apostrophe,
             boolean[] prefix,
+            boolean[] noStart,
             boolean[] leet,
             String collapsed
     ) {
@@ -308,8 +311,8 @@ final class TextNormalizer {
             for (int i = 0; i < count; i++) {
                 finalEnd[i] = (i == count - 1) || finalStart[i + 1];
             }
-            joinTrailingDigits(finalStart, finalEnd);
-            restoreNumbers(finalChars, finalStart, finalEnd);
+            boolean[] trailing = trailingDigits(finalStart, finalEnd);
+            restoreNumbers(finalChars, finalStart, finalEnd, trailing);
             boolean[] apostrophe = Arrays.copyOf(joinBlocked, count);
             keepContractionEndingsOnly(finalChars, finalEnd);
 
@@ -320,7 +323,7 @@ final class TextNormalizer {
                 }
             }
             return new Normalized(finalChars, Arrays.copyOf(rawIndex, count), finalStart, finalEnd,
-                    Arrays.copyOf(joinBlocked, count), apostrophe, Arrays.copyOf(prefix, count),
+                    Arrays.copyOf(joinBlocked, count), apostrophe, Arrays.copyOf(prefix, count), trailing,
                     Arrays.copyOf(leet, count), collapsed.toString());
         }
 
@@ -332,14 +335,14 @@ final class TextNormalizer {
          * three letters or more comes before that letter or the message starts
          * with it: "put a 5 tick delay", "a 5 hit combo".
          */
-        private void restoreNumbers(char[] out, boolean[] starts, boolean[] ends) {
+        private void restoreNumbers(char[] out, boolean[] starts, boolean[] ends, boolean[] trailing) {
             int begin = 0;
             while (begin < count) {
                 int end = begin;
                 while (!ends[end]) {
                     end++;
                 }
-                if (allDigits(begin, end) && !spelledOut(begin, end, starts, ends)) {
+                if (allDigits(begin, end) && !spelledOut(begin, end, starts, ends) && !trailing[begin]) {
                     for (int i = begin; i <= end; i++) {
                         out[i] = digits[i];
                     }
@@ -398,12 +401,14 @@ final class TextNormalizer {
         }
 
         /**
-         * Makes a lone digit after a piece that is no English word part of that
-         * piece: "shi 7" reads "shit", while "took 5 hits" keeps a number, and in
-         * "lvl 5 hit" the digit joins "lvl" and never starts a word. A joined
-         * piece is never an everyday word, so it only matters inside a banned one.
+         * Marks each lone digit after a piece that is no English word as that
+         * piece's last letter: "shi 7" reads "shi" and "t", so "shit" matches
+         * across them. A match may end at such a digit but never start there, so
+         * "lvl 5 hit" stays clean, and the digit stays its own token, so
+         * "badword 1" still holds "badword". "took 5 hits" keeps a number.
          */
-        private void joinTrailingDigits(boolean[] starts, boolean[] ends) {
+        private boolean[] trailingDigits(boolean[] starts, boolean[] ends) {
+            boolean[] trailing = new boolean[count];
             for (int d = 1; d < count; d++) {
                 if (!starts[d] || !ends[d] || digits[d] == 0 || starts[d - 1]) {
                     continue;  // a lone digit after a token of two characters or more
@@ -419,13 +424,10 @@ final class TextNormalizer {
                 for (int i = begin; i < d; i++) {
                     letters &= digits[i] == 0 && Character.isLetter(chars[i]);
                 }
-                if (letters && !BundledWordPacks.everydayWords(BundledWordPacks.ENGLISH)
-                        .contains(new String(chars, begin, d - begin))) {
-                    starts[d] = false;
-                    tokenStart[d] = false;
-                    ends[d - 1] = false;
-                }
+                trailing[d] = letters && Character.isLetter(chars[d]) && !BundledWordPacks.everydayWords(
+                        BundledWordPacks.ENGLISH).contains(new String(chars, begin, d - begin));
             }
+            return trailing;
         }
 
         /** A one-character token that is no contraction's ending (the "s" of "it's"). */
