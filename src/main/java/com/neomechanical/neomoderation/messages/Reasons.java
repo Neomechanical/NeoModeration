@@ -92,8 +92,10 @@ public final class Reasons {
             detail = detail.isBlank() ? "" : category(messages, reader, detail);
         }
         boolean unlabelled = detail.isBlank() && (parsed.kind() == Kind.CLOUD || parsed.kind() == Kind.MAP);
+        // A word read across a gap says so, so a staff member can see why "put a 5" was blocked.
         String key = "reason." + parsed.kind().key()
                 + (parsed.split() && parsed.kind() == Kind.WORD ? "-split" : "")
+                + (parsed.spaced() && !parsed.split() && parsed.kind() == Kind.WORD ? "-spaced" : "")
                 + (unlabelled ? "-plain" : "");
         return messages.format(reader, key, Map.of("detail", detail));
     }

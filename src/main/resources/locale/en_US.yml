@@ -275,6 +275,7 @@ why:
 reason:
   word: "banned word \"{detail}\""
   word-split: "\"{detail}\" split over several messages"
+  word-spaced: "banned word \"{detail}\", written in pieces"
   link: "blocked link {detail}"
   any-link: "a link"
   server-ad: "ad for {detail}"

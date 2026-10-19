@@ -348,6 +348,7 @@ reason.spam-duplicate	2ab40923d8a13674
 reason.spam-flood	a9f153bff2f49d32
 reason.spam-rate	0e099b02f5d5891d
 reason.word	e57092d97cfa8239
+reason.word-spaced	07e997d6f4a2c816
 reason.word-split	258d5b7e3a326a6a
 reload.done	01236bec0fea32e0,f91f1a4fa94aac1b
 rules.added	3eb211257cfbeced

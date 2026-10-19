@@ -276,6 +276,7 @@ why:
 reason:
   word: "yasaklı kelime \"{detail}\""
   word-split: "birkaç mesaja bölünmüş \"{detail}\""
+  word-spaced: "yasaklı kelime \"{detail}\", parçalara bölünmüş"
   link: "engellenen bağlantı {detail}"
   any-link: "bir bağlantı"
   server-ad: "{detail} reklamı"

@@ -276,6 +276,7 @@ why:
 reason:
   word: "palabra prohibida «{detail}»"
   word-split: "«{detail}» repartida en varios mensajes"
+  word-spaced: "palabra prohibida «{detail}», escrita por partes"
   link: "enlace bloqueado {detail}"
   any-link: "un enlace"
   server-ad: "anuncio de {detail}"
