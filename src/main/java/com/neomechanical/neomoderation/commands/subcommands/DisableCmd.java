@@ -21,16 +21,6 @@ public class DisableCmd implements SubCommand {
     }
 
     @Override
-    public String getDescription() {
-        return "Disable NeoModeration checks.";
-    }
-
-    @Override
-    public String getUsage() {
-        return "/nmod off";
-    }
-
-    @Override
     public List<String> getAliases() {
         return List.of("disable");
     }

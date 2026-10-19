@@ -24,16 +24,6 @@ public class UsageCmd implements SubCommand {
     }
 
     @Override
-    public String getDescription() {
-        return "Check API usage and rate limits.";
-    }
-
-    @Override
-    public String getUsage() {
-        return "/nmod usage";
-    }
-
-    @Override
     public void execute(CommandSender sender, String label, String[] args) {
         if (plugin.settings().api().apiKey().isBlank()) {
             plugin.messages().send(sender, "error.no-api-key", Map.of(
@@ -76,15 +66,10 @@ public class UsageCmd implements SubCommand {
                 "today", String.valueOf(s.requestsToday()),
                 "week", String.valueOf(s.requestsLast7Days())
         ));
-        plugin.messages().send(sender, "usage.nsfw", Map.of(
-                "images", nsfw(s.nsfwImagesRemaining(), s.nsfwImagesCap()),
-                "text", nsfw(s.nsfwTextUnitsRemaining(), s.nsfwTextUnitsCap()),
-                "videos", nsfw(s.nsfwVideosRemaining(), s.nsfwVideosCap())
-        ));
-    }
-
-    private static String nsfw(long remaining, long cap) {
-        return remaining + "/" + cap;
+        if (s.nsfwImagesCap() > 0) {
+            plugin.messages().send(sender, "usage.nsfw", Map.of(
+                    "images", s.nsfwImagesRemaining() + "/" + s.nsfwImagesCap()));
+        }
     }
 
     static String usageErrorKey(ModerationApiResult.Kind kind) {

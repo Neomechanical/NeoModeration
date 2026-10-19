@@ -5,10 +5,11 @@ import com.neomechanical.neomoderation.commands.DurationParser;
 import com.neomechanical.neomoderation.commands.SubCommand;
 import com.neomechanical.neomoderation.config.ModerationAction;
 import com.neomechanical.neomoderation.config.ModerationActionType;
+import com.neomechanical.neomoderation.messages.ActionText;
+import com.neomechanical.neomoderation.messages.MessageService;
 import org.bukkit.command.CommandSender;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -17,7 +18,6 @@ import java.util.Map;
 public class ActionCmd implements SubCommand {
     private final NeoModerationPlugin plugin;
     private static final String ACTIONS_PATH = "moderation.actions";
-    private static final String DEFAULT_REASON = "Inappropriate chat message";
     private static final int DEFAULT_MUTE_SECONDS = 300;
 
     public ActionCmd(NeoModerationPlugin plugin) {
@@ -27,26 +27,6 @@ public class ActionCmd implements SubCommand {
     @Override
     public String getName() {
         return "action";
-    }
-
-    @Override
-    public String getDescription() {
-        return "Manage moderation actions.";
-    }
-
-    @Override
-    public String getUsage() {
-        return "/nmod action <list|add|remove|reset>";
-    }
-
-    @Override
-    public String getPermission() {
-        return "neomoderation.admin";
-    }
-
-    @Override
-    public List<String> getAliases() {
-        return Collections.emptyList();
     }
 
     @Override
@@ -76,7 +56,7 @@ public class ActionCmd implements SubCommand {
         for (ModerationAction action : actions) {
             plugin.messages().send(sender, "action.list-item", Map.of(
                     "index", String.valueOf(index++),
-                    "value", action.describe()
+                    "value", ActionText.name(plugin.messages(), sender, action)
             ));
         }
     }
@@ -115,11 +95,12 @@ public class ActionCmd implements SubCommand {
 
         List<Map<String, Object>> actions = loadActionMaps();
         actions.removeIf(entry -> type.name().equalsIgnoreCase(String.valueOf(entry.get("type"))));
-        Map<String, Object> actionMap = buildActionMap(type, durationSeconds);
+        Map<String, Object> actionMap = buildActionMap(type, durationSeconds,
+                MessageService.plain(plugin.messages().text(sender, "action.default-reason")));
         actions.add(actionMap);
         saveActions(actions);
         plugin.messages().send(sender, "action.added", Map.of(
-                "value", ModerationAction.tryFrom(actionMap).orElseThrow().describe()
+                "value", ActionText.name(plugin.messages(), sender, ModerationAction.from(actionMap))
         ));
     }
 
@@ -137,12 +118,14 @@ public class ActionCmd implements SubCommand {
 
         List<Map<String, Object>> actions = loadActionMaps();
         boolean removed = actions.removeIf(entry -> type.name().equalsIgnoreCase(String.valueOf(entry.get("type"))));
+        String name = ActionText.name(plugin.messages(), sender,
+                new ModerationAction(type, "", "", DEFAULT_MUTE_SECONDS, ""));
         if (!removed) {
-            plugin.messages().send(sender, "action.missing", Map.of("value", kind));
+            plugin.messages().send(sender, "action.missing", Map.of("value", name));
             return;
         }
         saveActions(actions);
-        plugin.messages().send(sender, "action.removed", Map.of("value", kind));
+        plugin.messages().send(sender, "action.removed", Map.of("value", name));
     }
 
     private void resetActions(CommandSender sender) {
@@ -160,14 +143,14 @@ public class ActionCmd implements SubCommand {
         };
     }
 
-    private Map<String, Object> buildActionMap(ModerationActionType type, int durationSeconds) {
+    private Map<String, Object> buildActionMap(ModerationActionType type, int durationSeconds, String reason) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("type", type.name());
         if (type == ModerationActionType.MUTE) {
             map.put("durationSeconds", durationSeconds);
-            map.put("reason", DEFAULT_REASON);
-        } else if (type == ModerationActionType.KICK || type == ModerationActionType.BAN) {
-            map.put("reason", DEFAULT_REASON);
+        }
+        if (type == ModerationActionType.MUTE || type == ModerationActionType.KICK || type == ModerationActionType.BAN) {
+            map.put("reason", reason);
         }
         return map;
     }
@@ -187,24 +170,20 @@ public class ActionCmd implements SubCommand {
 
     private void saveActions(List<Map<String, Object>> actions) {
         plugin.getConfig().set(ACTIONS_PATH, actions);
-        plugin.saveConfig();
-        plugin.reloadModerationConfig();
+        plugin.saveAndReload();
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, String[] args) {
         if (args.length == 2) {
-            String prefix = args[1].toLowerCase(Locale.ROOT);
-            return List.of("list", "add", "remove", "reset").stream().filter(v -> v.startsWith(prefix)).toList();
+            return SubCommand.filterPrefix(args[1], "list", "add", "remove", "reset");
         }
         if (args.length == 3 && ("add".equalsIgnoreCase(args[1]) || "remove".equalsIgnoreCase(args[1]))) {
-            String prefix = args[2].toLowerCase(Locale.ROOT);
-            return List.of("clear", "mute", "kick", "ban").stream().filter(v -> v.startsWith(prefix)).toList();
+            return SubCommand.filterPrefix(args[2], "clear", "mute", "kick", "ban");
         }
         if (args.length == 4 && "add".equalsIgnoreCase(args[1]) && "mute".equalsIgnoreCase(args[2])) {
-            String prefix = args[3].toLowerCase(Locale.ROOT);
-            return List.of("30s", "1m", "5m", "10m", "1h").stream().filter(v -> v.startsWith(prefix)).toList();
+            return SubCommand.filterPrefix(args[3], "30s", "1m", "5m", "10m", "1h");
         }
-        return Collections.emptyList();
+        return List.of();
     }
 }

@@ -2,27 +2,24 @@ package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.commands.SubCommand;
-import com.neomechanical.neomoderation.config.ModerationAction;
-import com.neomechanical.neomoderation.config.ModerationMode;
 import com.neomechanical.neomoderation.config.ModerationSettings;
-import com.neomechanical.neomoderation.moderation.CloudRecovery;
-import com.neomechanical.neomoderation.moderation.ModerationApiResult;
-import com.neomechanical.neomoderation.moderation.ModerationCoverage;
+import com.neomechanical.neomoderation.messages.ActionText;
+import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.moderation.NeoMechanicalUsageClient;
 import com.neomechanical.neomoderation.moderation.UsageSummary;
 import org.bukkit.command.CommandSender;
 
-import java.net.URI;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
- * One-command setup diagnostics: configuration sanity, action wiring, cloud
- * credentials, connectivity, latency, quota, and circuit state.
+ * One-command setup check: configuration, actions, cloud key, connection and
+ * credits. {@link DoctorChecks} decides; this class renders and asks the
+ * account API off the main thread.
  */
 public class DoctorCmd implements SubCommand {
-    private static final long CHAT_WAIT_CAP_MS = 2500L;
-
     private final NeoModerationPlugin plugin;
     private final NeoMechanicalUsageClient usageClient = new NeoMechanicalUsageClient();
 
@@ -36,16 +33,6 @@ public class DoctorCmd implements SubCommand {
     }
 
     @Override
-    public String getDescription() {
-        return "Diagnose configuration, account API, and event health.";
-    }
-
-    @Override
-    public String getUsage() {
-        return "/nmod doctor";
-    }
-
-    @Override
     public List<String> getAliases() {
         return List.of("diagnose");
     }
@@ -53,204 +40,47 @@ public class DoctorCmd implements SubCommand {
     @Override
     public void execute(CommandSender sender, String label, String[] args) {
         ModerationSettings settings = plugin.settings();
-        ModerationCoverage coverage = ModerationCoverage.from(settings);
-        plugin.messages().sendDashboard(sender,
-                plugin.getDescription().getVersion(),
-                settings.mode().name(),
-                ModerationCoverage.cloudDashboardLabel(settings),
-                plugin.monitorStats().total());
-        plugin.messages().send(sender, "doctor.title");
-
-        if (settings.enabled()) {
-            pass(sender, "Moderation", "enabled");
-        } else {
-            fail(sender, "Moderation", "disabled - run /nmod on");
-        }
-
-        if (!coverage.hasLocalChecks()) {
-            warn(sender, "Local mode", settings.mode().name().toLowerCase() + " - no local checks are armed");
-        } else if (settings.mode() == ModerationMode.MONITOR) {
-            warn(sender, "Local mode", "monitor - local detections alert staff without blocking or punishment");
-        } else if (!coverage.localEnforces()) {
-            warn(sender, "Local mode", "enforce selected, but armed surface checks are monitor-only");
-        } else {
-            pass(sender, "Local mode", "enforce - local chat blocks or censors; surfaces follow their configured modes");
-        }
-
-        if (coverage.localRules()) {
-            pass(sender, "Local rules", settings.offline().bannedWords().size() + " words, "
-                    + settings.offline().bannedUrls().size() + " links, "
-                    + (settings.offline().allowedWords().size() + settings.offline().allowedUrls().size())
-                    + " exceptions");
-        } else if (coverage.spam()) {
-            warn(sender, "Local rules", "no word or URL rule armed; anti-spam still active");
-        } else if (coverage.hasCloudChecks()) {
-            warn(sender, "Local rules", "no word or URL rule armed; only cloud checks configured");
-        } else {
-            fail(sender, "Local rules", "no word, URL, anti-spam or cloud checks armed");
-        }
-
-        if (settings.actions().isEmpty()) {
-            pass(sender, "Actions", "block only - no automatic punishment or server-wide chat clear");
-        } else {
-            pass(sender, "Actions", ModerationAction.describe(settings.actions()));
-        }
-
-        if (coverage.spam()) {
-            pass(sender, "Anti-spam", coverage.chatSpam()
-                    ? settings.spam().messagesPer10s() + " msgs/10s, dup x" + settings.spam().duplicateLimit()
-                            + ", caps " + settings.spam().capsPercent() + "%"
-                            + (coverage.commandSpam() ? ", command " + settings.spam().commandsPer10s() + "/10s" : "")
-                    : "command " + settings.spam().commandsPer10s() + "/10s; chat thresholds off");
-        } else if (settings.spam().enabled()) {
-            warn(sender, "Anti-spam", "enabled, but no scanned surface has an active threshold");
-        } else {
-            pass(sender, "Anti-spam", "off");
-        }
-        pass(sender, "Strikes", settings.strikes().enabled()
-                ? settings.strikes().escalation().size() + " rung(s), decay "
-                        + settings.strikes().decayMinutes() + "m"
-                : "off");
-        if (settings.surfaces().enabledCount() == 0 && coverage.localRules()) {
-            pass(sender, "Surfaces", "0 of 4 active (chat only - set moderation.surfaces.sign/book/anvil/command: block in config.yml to scan beyond chat)");
-        } else {
-            pass(sender, "Surfaces", settings.surfaces().enabledCount()
-                    + " of 4 active (local rules only; cloud never blocks sync events)");
-        }
-        if (settings.cases().enabled() && !plugin.caseLog().isAvailable()) {
-            warn(sender, "Case history", "enabled but SQLite driver missing - not logging");
-        } else {
-            pass(sender, "Case history", settings.cases().enabled()
-                    ? "on (" + (settings.cases().storeContent() ? "with previews" : "metadata only") + ")"
-                    : "off");
-        }
-
-        pass(sender, "Fail policy", settings.failOpen()
-                ? "fail-open (chat passes if the cloud is unreachable)"
-                : "fail-closed (chat blocks if the cloud is unreachable)");
-
-        long budget = (long) settings.api().connectTimeoutMs() + settings.api().readTimeoutMs() + 400L;
-        if (budget > CHAT_WAIT_CAP_MS) {
-            warn(sender, "Timeouts", "connect+read exceed the 2.5s chat wait cap; the cap wins");
-        } else {
-            pass(sender, "Timeouts", settings.api().connectTimeoutMs() + "ms connect, "
-                    + settings.api().readTimeoutMs() + "ms read");
-        }
-
-        if (settings.api().apiKey().isBlank()) {
-            warn(sender, "Cloud", "no API key - local rules only. Run /nmod trial, or sign up at "
-                    + CloudRecovery.SIGNUP_URL + " and run /nmod setup <key>");
-            plugin.messages().sendFooter(sender);
+        MessageService messages = plugin.messages();
+        sender.sendMessage(StatusCmd.dashboard(plugin, sender));
+        messages.send(sender, "doctor.title");
+        DoctorChecks.local(settings, plugin.caseLog().isAvailable()).forEach(check -> render(sender, check));
+        List<DoctorChecks.Check> cloud = DoctorChecks.cloudSetup(settings,
+                plugin.coordinator().isRemoteCallAllowed(), plugin.coordinator().lastCloudResultKind());
+        cloud.forEach(check -> render(sender, check));
+        if (!DoctorChecks.readyForAccountCheck(cloud)) {
+            messages.sendFooter(sender);
             return;
         }
-
-        if (!coverage.hasCloudChecks()) {
-            warn(sender, "Cloud mode", "no cloud text or map-art checks armed");
-        } else if (settings.cloudMode() == ModerationMode.MONITOR) {
-            warn(sender, "Cloud mode", "monitor - cloud decisions alert staff without blocking or punishment");
-        } else {
-            pass(sender, "Cloud mode", "enforce - flagged chat blocks where armed; map art follows confiscation setting");
-        }
-
-        if (!isHttpUri(settings.api().endpoint())) {
-            fail(sender, "Endpoint", "not a valid http(s) URL: " + settings.api().endpoint());
-            plugin.messages().sendFooter(sender);
-            return;
-        }
-        pass(sender, "Endpoint", settings.api().endpoint());
-
-        if (plugin.coordinator().isRemoteCallAllowed()) {
-            pass(sender, "Moderation circuit", "closed (event calls allowed; last result is below)");
-        } else {
-            warn(sender, "Moderation circuit", "open - event calls paused after errors; /nmod reload resumes early");
-        }
-        renderModerationEventHealth(sender, plugin.coordinator().lastCloudResultKind());
-
-        plugin.messages().send(sender, "doctor.checking-cloud");
+        messages.send(sender, "doctor.checking-cloud");
         plugin.runAsync(() -> {
             long start = System.nanoTime();
+            List<DoctorChecks.Check> account;
             try {
                 UsageSummary usage = usageClient.fetchUsage(settings.api());
-                long ms = (System.nanoTime() - start) / 1_000_000L;
-                boolean hasCredits = usage.creditsRemaining() > 0;
-                plugin.runSync(() -> {
-                    pass(sender, "Account API",
-                            "OK in " + ms + "ms - workspace " + usage.workspace()
-                                    + ", plan " + usage.tier());
-                    if (hasCredits) {
-                        pass(sender, "Account credits", usage.creditsRemaining() + " remaining");
-                    } else {
-                        fail(sender, "Account credits", "0 remaining - add credits at "
-                                + CloudRecovery.BILLING_URL + ", then run /nmod test hello");
-                    }
-                    plugin.messages().sendFooter(sender);
-                });
+                account = DoctorChecks.account(usage, elapsedMs(start));
             } catch (NeoMechanicalUsageClient.UsageException e) {
-                long ms = (System.nanoTime() - start) / 1_000_000L;
-                plugin.runSync(() -> {
-                    fail(sender, failureCheck(e.kind()), failureDetail(e, ms));
-                    plugin.messages().sendFooter(sender);
-                });
+                account = List.of(DoctorChecks.accountFailure(e, elapsedMs(start)));
             }
+            List<DoctorChecks.Check> result = account;
+            plugin.runSync(() -> {
+                result.forEach(check -> render(sender, check));
+                messages.sendFooter(sender);
+            });
         });
     }
 
-    private void renderModerationEventHealth(CommandSender sender, ModerationApiResult.Kind kind) {
-        if (kind == null) {
-            warn(sender, "Moderation events", "unverified - run /nmod test hello");
-            return;
+    private void render(CommandSender sender, DoctorChecks.Check check) {
+        MessageService messages = plugin.messages();
+        Map<String, String> values = new HashMap<>(check.values());
+        if ("actions-list".equals(check.detail())) {
+            values.put("actions", ActionText.describe(messages, sender, plugin.settings().actions()));
         }
-        switch (kind) {
-            case FLAGGED, CLEAR -> pass(sender, "Moderation events", "last request succeeded");
-            case CLIENT_AUTH -> fail(sender, "Moderation events", "last request rejected the API key");
-            case INSUFFICIENT_CREDITS -> fail(sender, "Moderation events", "last request had no credits");
-            case CLIENT_REQUEST -> fail(sender, "Moderation events", "last request was rejected; check the endpoint");
-            case TRANSIENT_TRANSPORT -> warn(sender, "Moderation events", "last request had no usable verdict (network/server error)");
-            case OVERLOADED -> warn(sender, "Moderation events", "cloud workers were busy; local rules still run");
-        }
+        messages.send(sender, "doctor." + check.level().name().toLowerCase(Locale.ROOT), Map.of(
+                "check", messages.text(sender, "doctor.check." + check.check()),
+                "detail", messages.format(sender, "doctor.detail." + check.detail(), values)));
     }
 
-    static String failureCheck(ModerationApiResult.Kind kind) {
-        return switch (kind) {
-            case CLIENT_AUTH -> "Account authentication";
-            case INSUFFICIENT_CREDITS -> "Account credits";
-            case CLIENT_REQUEST -> "Account request";
-            case TRANSIENT_TRANSPORT, OVERLOADED, FLAGGED, CLEAR -> "Account API";
-        };
-    }
-
-    static String failureDetail(NeoMechanicalUsageClient.UsageException error, long elapsedMs) {
-        String timing = "failed in " + elapsedMs + "ms (" + error.getMessage() + ")";
-        return switch (error.kind()) {
-            case CLIENT_AUTH -> timing + " - API key rejected; replace it at "
-                    + CloudRecovery.API_KEYS_URL + ", then run /nmod setup <key>";
-            case INSUFFICIENT_CREDITS -> timing + " - insufficient credits; add credits at "
-                    + CloudRecovery.BILLING_URL + ", then run /nmod test hello";
-            case CLIENT_REQUEST -> timing
-                    + " - request rejected without rejecting the API key; verify moderation.api.endpoint";
-            case TRANSIENT_TRANSPORT, OVERLOADED, FLAGGED, CLEAR -> timing
-                    + " - temporary network or server error; local rules remain active";
-        };
-    }
-
-    private static boolean isHttpUri(String endpoint) {
-        try {
-            String scheme = URI.create(endpoint).getScheme();
-            return "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
-        } catch (IllegalArgumentException e) {
-            return false;
-        }
-    }
-
-    private void pass(CommandSender sender, String check, String detail) {
-        plugin.messages().send(sender, "doctor.pass", Map.of("check", check, "detail", detail));
-    }
-
-    private void warn(CommandSender sender, String check, String detail) {
-        plugin.messages().send(sender, "doctor.warn", Map.of("check", check, "detail", detail));
-    }
-
-    private void fail(CommandSender sender, String check, String detail) {
-        plugin.messages().send(sender, "doctor.fail", Map.of("check", check, "detail", detail));
+    private static long elapsedMs(long startNanos) {
+        return (System.nanoTime() - startNanos) / 1_000_000L;
     }
 }

@@ -2,72 +2,126 @@ package com.neomechanical.neomoderation.moderation;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.config.ModerationSettings;
+import com.neomechanical.neomoderation.messages.ActionText;
 import com.neomechanical.neomoderation.messages.MenuRenderer;
+import com.neomechanical.neomoderation.messages.MessageService;
+import com.neomechanical.neomoderation.messages.Reasons;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
- * Sends in-game detection alerts to staff holding {@code neomoderation.notify}
- * and delegates optional Discord webhook notifications to {@link DiscordWebhookNotifier}.
- * Console logging stays with the caller so alerts and log lines are never doubled.
+ * Tells people about a detection: one line in the console, an alert to every
+ * online player holding {@code neomoderation.notify} in their own language
+ * (click it for the player's cases), and a post to the Discord webhook if one is
+ * set. Runs on the offender's thread.
  */
 public final class DetectionNotifier {
     public static final String NOTIFY_PERMISSION = "neomoderation.notify";
-    private static final int MAX_MESSAGE_PREVIEW = 60;
+    private static final int MAX_MESSAGE_PREVIEW = 80;
+    private static final int RISK = 0xFF7A70;
+    private static final int REVIEW = 0xF5B54A;
 
     private final NeoModerationPlugin plugin;
-    private final DiscordWebhookNotifier discordNotifier;
+    private final DiscordAlerts discord;
 
-    public DetectionNotifier(NeoModerationPlugin plugin) {
-        this(plugin, new DiscordWebhookNotifier());
-    }
-
-    public DetectionNotifier(NeoModerationPlugin plugin, DiscordWebhookNotifier discordNotifier) {
+    public DetectionNotifier(NeoModerationPlugin plugin, DiscordAlerts discord) {
         this.plugin = plugin;
-        this.discordNotifier = discordNotifier;
+        this.discord = discord;
     }
 
-    /** Must run on the main server thread. */
-    public void notifyDetection(Player offender, String surface, String reason, String message,
-                                ModerationSettings settings, String actionsText, boolean monitorStyle) {
-        if (!settings.alerts().enabled()) {
-            return;
-        }
-        String previewText = settings.alerts().includeMessage() ? preview(message) : "(hidden)";
-        String key = monitorStyle ? "alert.monitor" : "alert.enforce";
-        String line = plugin.messages().format(key, Map.of(
-                "player", offender.getName(),
-                "surface", surface,
-                "reason", reason,
-                "message", previewText,
-                "actions", actionsText
-        ));
-        String caseCmd = "/nmod cases " + offender.getName();
-        MenuRenderer.Line clickable = MenuRenderer.clickableLine(
-                line, caseCmd, "&b" + caseCmd, MenuRenderer.ClickAction.RUN);
-        for (Player online : plugin.getServer().getOnlinePlayers()) {
-            if (online.hasPermission(NOTIFY_PERMISSION)) {
-                Player.Spigot spigot = online.spigot();
-                if (spigot != null) {
-                    spigot.sendMessage(clickable.player());
-                } else {
-                    online.sendMessage(line);
+    /** A detection as alerts describe it. */
+    public record Detection(String player, String surface, String reason, String message, Outcome outcome) {
+    }
+
+    public void notifyDetection(Detection detection, ModerationSettings settings) {
+        MessageService messages = plugin.messages();
+        String preview = settings.alerts().includeMessage() ? preview(detection.message()) : null;
+        CommandSender console = plugin.getServer().getConsoleSender();
+        // The logger already names the plugin, so the console line goes without the chat prefix.
+        plugin.getLogger().info(MessageService.plain(line(messages, console, detection, preview, "")).trim());
+
+        if (settings.alerts().enabled()) {
+            String casesCommand = "/nmod cases " + detection.player();
+            for (Player staff : plugin.getServer().getOnlinePlayers()) {
+                if (staff.hasPermission(NOTIFY_PERMISSION)) {
+                    String hover = messages.format(staff, "alert.hover", Map.of("player", detection.player()));
+                    messages.sendMenu(staff, List.of(MenuRenderer.clickableLine(
+                            line(messages, staff, detection, preview, null), casesCommand, hover,
+                            MenuRenderer.ClickAction.RUN)));
                 }
             }
         }
 
-        String webhookUrl = settings.alerts().discordWebhookUrl();
-        if (DiscordWebhookNotifier.isValidWebhookUrl(webhookUrl)) {
-            String payload = DiscordWebhookNotifier.buildPayload(
-                    offender.getName(), surface, reason, previewText, actionsText, monitorStyle);
-            plugin.runAsync(() -> discordNotifier.post(webhookUrl, payload));
+        String webhook = settings.alerts().discordWebhookUrl();
+        if (DiscordAlerts.isWebhookUrl(webhook)) {
+            discord.submit(webhook, discordAlert(messages, console, detection, preview),
+                    MessageService.plain(messages.format(console, "discord.more", Map.of("count", "{count}"))));
         }
+    }
+
+    /**
+     * The alert line for one reader: "Blocked Steve in chat: hello (banned word "x") then mute for 10m".
+     * {@code prefix} replaces the locale's chat prefix; {@code null} keeps it.
+     */
+    static String line(MessageService messages, CommandSender reader, Detection detection, String preview,
+                       String prefix) {
+        Map<String, String> values = new LinkedHashMap<>();
+        if (prefix != null) {
+            values.put("prefix", prefix);
+        }
+        values.put("verdict", messages.text(reader, verdictKey(detection.outcome())));
+        values.put("player", detection.player());
+        values.put("surface", messages.text(reader, "surface-name." + detection.surface()));
+        values.put("message", preview != null ? preview : messages.text(reader, "alert.hidden"));
+        values.put("reason", Reasons.describe(messages, reader, detection.reason()));
+        String template = DetectionHandler.FOUND_SURFACES.contains(detection.surface()) ? "alert.found" : "alert.line";
+        String line = messages.format(reader, template, values);
+        String afterwards = ActionText.afterwards(messages, reader, detection.outcome());
+        return afterwards.isEmpty() ? line : line + messages.format(reader, "alert.then", Map.of("actions", afterwards));
+    }
+
+    private static DiscordAlerts.Alert discordAlert(MessageService messages, CommandSender console,
+                                                    Detection detection, String preview) {
+        Outcome.Verdict verdict = detection.outcome().verdict();
+        String title = messages.text(console, switch (verdict) {
+            case BLOCKED -> "discord.title-blocked";
+            case CENSORED -> "discord.title-censored";
+            case REVIEW -> "discord.title-review";
+        });
+        Map<String, String> fields = new LinkedHashMap<>();
+        fields.put(plain(messages, console, "discord.field-player"), detection.player());
+        fields.put(plain(messages, console, "discord.field-where"),
+                plain(messages, console, "surface-name." + detection.surface()));
+        fields.put(plain(messages, console, "discord.field-reason"),
+                MessageService.plain(Reasons.describe(messages, console, detection.reason())));
+        if (preview != null) {
+            fields.put(plain(messages, console, "discord.field-message"), "`" + preview.replace('`', '\'') + "`");
+        }
+        fields.put(plain(messages, console, "discord.field-then"),
+                MessageService.plain(ActionText.afterwards(messages, console, detection.outcome())));
+        return new DiscordAlerts.Alert(MessageService.plain(title), verdict == Outcome.Verdict.BLOCKED ? RISK : REVIEW,
+                fields);
+    }
+
+    private static String plain(MessageService messages, CommandSender reader, String key) {
+        return MessageService.plain(messages.text(reader, key));
+    }
+
+    private static String verdictKey(Outcome outcome) {
+        return switch (outcome.verdict()) {
+            case BLOCKED -> "alert.verdict.blocked";
+            case CENSORED -> "alert.verdict.censored";
+            case REVIEW -> "alert.verdict.review";
+        };
     }
 
     static String preview(String message) {
         if (message == null || message.isBlank()) {
-            return "(no text)";
+            return "";
         }
         String flattened = message.replace('\n', ' ').replace('\r', ' ').trim();
         return flattened.length() <= MAX_MESSAGE_PREVIEW

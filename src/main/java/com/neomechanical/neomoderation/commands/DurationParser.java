@@ -44,6 +44,20 @@ public final class DurationParser {
         return (int) seconds;
     }
 
+    /** A rounded-down age such as "45s", "12m", "3h" or "6d", for "how long ago". */
+    public static String approximate(long seconds) {
+        if (seconds < 60) {
+            return Math.max(0, seconds) + "s";
+        }
+        if (seconds < 3_600) {
+            return (seconds / 60) + "m";
+        }
+        if (seconds < 86_400) {
+            return (seconds / 3_600) + "h";
+        }
+        return (seconds / 86_400) + "d";
+    }
+
     public static String format(int seconds) {
         if (seconds <= 0) {
             return "0s";

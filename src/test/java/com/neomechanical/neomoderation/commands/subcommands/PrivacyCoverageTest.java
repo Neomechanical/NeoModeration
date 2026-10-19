@@ -1,20 +1,14 @@
 package com.neomechanical.neomoderation.commands.subcommands;
 
-import com.neomechanical.neomoderation.NeoModerationPlugin;
-import com.neomechanical.neomoderation.config.BukkitConfigView;
 import com.neomechanical.neomoderation.config.ModerationCategorySettings;
-import com.neomechanical.neomoderation.config.ModerationSettings;
-import com.neomechanical.neomoderation.messages.MessageService;
+import com.neomechanical.neomoderation.testing.TestPlugin;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 class PrivacyCoverageTest {
     @Test
@@ -28,17 +22,32 @@ class PrivacyCoverageTest {
         for (String category : ModerationCategorySettings.categoryKeys()) {
             config.set("moderation.categories." + category, false);
         }
-        NeoModerationPlugin plugin = mock(NeoModerationPlugin.class);
-        MessageService messages = mock(MessageService.class);
+
+        String transcript = privacy(config);
+
+        assertTrue(transcript.contains("A key is saved but no cloud check is on, so nothing is sent."), transcript);
+        assertFalse(transcript.contains("Cloud checks send"), transcript);
+    }
+
+    @Test
+    void cloudChecksNameWhatLeavesTheServerAndWhere() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("moderation.enabled", true);
+        config.set("moderation.api.apiKey", "test-key");
+        config.set("moderation.alerts.discordWebhookUrl", "https://discord.com/api/webhooks/1/abc");
+
+        String transcript = privacy(config);
+
+        assertTrue(transcript.contains("Cloud checks send each chat message and map picture to "
+                + "https://api.neomechanical.com/v1/events, with the player's name and UUID."), transcript);
+        assertTrue(transcript.contains("Discord alerts send the player and the rule to your webhook, "
+                + "with a preview of the message."), transcript);
+        assertFalse(transcript.contains("privacy."), transcript);
+    }
+
+    private static String privacy(YamlConfiguration config) {
         CommandSender sender = mock(CommandSender.class);
-        when(plugin.settings()).thenReturn(ModerationSettings.from(new BukkitConfigView(config)));
-        when(plugin.messages()).thenReturn(messages);
-
-        new PrivacyCmd(plugin).execute(sender, "nmod", new String[0]);
-
-        verify(messages).send(eq(sender), eq("privacy.headline"), argThat(fields ->
-                "No checks armed".equals(fields.get("value"))));
-        verify(messages).send(sender, "privacy.cloud-off");
-        verify(messages, never()).send(eq(sender), eq("privacy.cloud"), org.mockito.ArgumentMatchers.anyMap());
+        new PrivacyCmd(TestPlugin.with(config)).execute(sender, "nmod", new String[0]);
+        return TestPlugin.transcript(sender);
     }
 }

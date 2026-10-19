@@ -1,9 +1,9 @@
 package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
-import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.config.SurfaceSettings;
 import com.neomechanical.neomoderation.messages.MessageService;
+import com.neomechanical.neomoderation.testing.TestPlugin;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -20,66 +21,55 @@ import static org.mockito.Mockito.when;
 class SurfaceCmdTest {
 
     @Test
-    void listsConfiguredSurfacesWhenNoArgumentsAreProvided() {
-        NeoModerationPlugin plugin = mock(NeoModerationPlugin.class);
-        MessageService messages = mock(MessageService.class);
-        ModerationSettings settings = mock(ModerationSettings.class);
-        when(plugin.messages()).thenReturn(messages);
-        when(plugin.settings()).thenReturn(settings);
-        when(settings.surfaces()).thenReturn(new SurfaceSettings(
-                SurfaceSettings.SurfaceMode.BLOCK,
-                SurfaceSettings.SurfaceMode.OFF,
-                SurfaceSettings.SurfaceMode.CENSOR,
-                SurfaceSettings.SurfaceMode.MONITOR,
-                List.of("msg", "tell")
-        ));
-
+    void listsEverySurfaceWithItsSettingHighlighted() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("moderation.surfaces.sign", "block");
+        config.set("moderation.surfaces.book", "off");
+        config.set("moderation.surfaces.anvil", "censor");
+        config.set("moderation.surfaces.command", "monitor");
+        config.set("moderation.surfaces.scannedCommands", List.of("msg", "tell"));
+        NeoModerationPlugin plugin = TestPlugin.with(config);
         CommandSender sender = mock(CommandSender.class);
-        SurfaceCmd cmd = new SurfaceCmd(plugin);
-        cmd.execute(sender, "nmod", new String[]{"surface"});
 
-        verify(messages).send(sender, "surface.title");
-        verify(messages).send(sender, "surface.row", Map.of("surface", "sign", "mode", "block"));
-        verify(messages).send(sender, "surface.row", Map.of("surface", "book", "mode", "off"));
-        verify(messages).send(sender, "surface.row", Map.of("surface", "anvil", "mode", "censor"));
-        verify(messages).send(sender, "surface.row", Map.of("surface", "command", "mode", "monitor"));
-        verify(messages).send(sender, "surface.commands", Map.of("commands", "msg, tell"));
+        new SurfaceCmd(plugin).execute(sender, "nmod", new String[]{"surface"});
+
+        List<String> lines = TestPlugin.lines(sender);
+        assertTrue(lines.contains("  Signs: [off] [alert only] [star out] [block] "), String.join("\n", lines));
+        assertTrue(lines.contains("  Commands checked: msg, tell"), String.join("\n", lines));
+        MessageService messages = plugin.messages();
+        String signs = TestPlugin.rawLines(sender).stream().filter(line -> line.contains("Signs")).findFirst().orElseThrow();
+        assertTrue(signs.contains(messages.format(sender, "surface.button-current", Map.of("mode", "block"))), signs);
+        assertTrue(signs.contains(messages.format(sender, "surface.button", Map.of("mode", "off"))), signs);
     }
 
     @Test
     void updatesSingleSurfaceOrAllSurfacesAndReloads() {
-        NeoModerationPlugin plugin = mock(NeoModerationPlugin.class);
-        MessageService messages = mock(MessageService.class);
         YamlConfiguration config = new YamlConfiguration();
-        when(plugin.messages()).thenReturn(messages);
+        NeoModerationPlugin plugin = TestPlugin.with(config);
         when(plugin.getConfig()).thenReturn(config);
-
         CommandSender sender = mock(CommandSender.class);
         SurfaceCmd cmd = new SurfaceCmd(plugin);
 
         cmd.execute(sender, "nmod", new String[]{"surface", "sign", "censor"});
         assertEquals("censor", config.getString("moderation.surfaces.sign"));
         verify(plugin).saveAndReload();
-        verify(messages).send(sender, "surface.updated", Map.of("surface", "sign", "mode", "censor"));
 
         cmd.execute(sender, "nmod", new String[]{"surface", "all", "block"});
         for (String name : SurfaceSettings.SURFACE_NAMES) {
             assertEquals("block", config.getString("moderation.surfaces." + name));
         }
-        verify(messages).send(sender, "surface.updated", Map.of("surface", "all", "mode", "block"));
+        assertEquals(List.of("[NeoMod] Signs: star out.", "[NeoMod] All four: block."), TestPlugin.lines(sender));
     }
 
     @Test
     void rejectsUnknownSurfaceOrModeWithoutSaving() {
-        NeoModerationPlugin plugin = mock(NeoModerationPlugin.class);
-        MessageService messages = mock(MessageService.class);
-        when(plugin.messages()).thenReturn(messages);
-
+        NeoModerationPlugin plugin = TestPlugin.with(new YamlConfiguration());
         CommandSender sender = mock(CommandSender.class);
-        SurfaceCmd cmd = new SurfaceCmd(plugin);
 
-        cmd.execute(sender, "nmod", new String[]{"surface", "chat", "block"});
-        verify(messages).send(sender, "surface.usage", Map.of("label", "nmod"));
+        new SurfaceCmd(plugin).execute(sender, "nmod", new String[]{"surface", "chat", "block"});
+
+        assertEquals(List.of("[NeoMod] Use /nmod surface <sign|book|anvil|command|all> <off|monitor|censor|block>."),
+                TestPlugin.lines(sender));
         verify(plugin, never()).saveAndReload();
     }
 

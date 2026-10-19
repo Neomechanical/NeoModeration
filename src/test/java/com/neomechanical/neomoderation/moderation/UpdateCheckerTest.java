@@ -65,12 +65,9 @@ class UpdateCheckerTest {
     }
 
     @Test
-    void theNoticeNamesBothVersionsAndWhereToGet() {
-        List<String> lines = UpdateChecker.updateLines("1.7.0", "1.6.0");
-        String joined = String.join(" ", lines);
-
-        assertTrue(joined.contains("1.7.0"), joined);
-        assertTrue(joined.contains("1.6.0"), joined);
-        assertTrue(joined.contains(UpdateChecker.RELEASES_PAGE), joined);
+    void releasesComeFromTheRepositoryWhereItLivesNow() {
+        // The old KyTDK address answers with a redirect, which read as "no update".
+        assertTrue(UpdateChecker.RELEASES_API.contains("/repos/Neomechanical/NeoModeration/"));
+        assertTrue(UpdateChecker.RELEASES_PAGE.startsWith("https://github.com/Neomechanical/NeoModeration/"));
     }
 }

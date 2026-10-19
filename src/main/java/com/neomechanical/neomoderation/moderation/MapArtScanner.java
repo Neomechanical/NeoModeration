@@ -4,42 +4,37 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.map.MapPalette;
-import org.bukkit.map.MapView;
 
 import javax.imageio.ImageIO;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.HexFormat;
-import java.util.zip.GZIPInputStream;
 
+/**
+ * Everything the map-art check needs from a filled map: its id, its pixels and
+ * a picture to send. Reflection keeps the plugin compiling against the old
+ * Bukkit API while it runs on modern Paper.
+ *
+ * <p>Pixels come from the server's memory when possible, so a map drawn a
+ * moment ago is checked at once; the world's saved map file is the fallback,
+ * and it only changes when the world saves.</p>
+ */
 public final class MapArtScanner {
-    private static final int TAG_END = 0;
-    private static final int TAG_BYTE_ARRAY = 7;
-    private static final int TAG_COMPOUND = 10;
-    private static final int MAX_NBT_COLLECTION_LENGTH = 16 * 1024 * 1024;
+    static final int SIDE = 128;
+    static final int PIXELS = SIDE * SIDE;
 
     private MapArtScanner() {
-    }
-
-    public static String imageHash(String image) {
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                    .digest(image.getBytes(StandardCharsets.US_ASCII)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 unavailable", e);
-        }
     }
 
     public static Material resolveFilledMapMaterial() {
@@ -68,155 +63,139 @@ public final class MapArtScanner {
         }
     }
 
-    public static Integer resolveMapId(MapMeta meta) {
-        try {
-            Method getMapView = meta.getClass().getMethod("getMapView");
-            Object view = getMapView.invoke(meta);
-            if (view instanceof MapView mapView) {
-                return (int) mapView.getId();
+    private static Integer resolveMapId(MapMeta meta) {
+        Object view = mapView(meta);
+        if (view != null) {
+            try {
+                Object id = view.getClass().getMethod("getId").invoke(view);
+                if (id instanceof Number number) {
+                    return number.intValue();
+                }
+            } catch (ReflectiveOperationException ignored) {
+                // Fall through to the legacy id below.
             }
-        } catch (ReflectiveOperationException ignored) {
         }
         try {
-            Method getMapId = meta.getClass().getMethod("getMapId");
-            Object id = getMapId.invoke(meta);
+            Object id = meta.getClass().getMethod("getMapId").invoke(meta);
             if (id instanceof Number number) {
                 return number.intValue();
             }
         } catch (ReflectiveOperationException ignored) {
+            // No id on this server version.
         }
         return null;
     }
 
-    public static String getBase64Image(int mapId) {
+    /** The map's {@code MapView}, or {@code null} on a server too old to say. */
+    public static Object mapView(MapMeta meta) {
         try {
-            if (Bukkit.getWorlds().isEmpty()) {
-                return null;
-            }
-            File worldFolder = Bukkit.getWorlds().get(0).getWorldFolder();
-            File dataFolder = new File(worldFolder, "data");
-            File mapFile = new File(dataFolder, "map_" + mapId + ".dat");
-            if (!mapFile.exists()) {
-                return null;
-            }
+            return meta.getClass().getMethod("getMapView").invoke(meta);
+        } catch (ReflectiveOperationException ignored) {
+            return null;
+        }
+    }
 
-            byte[] colors = extractColorsFromNbt(mapFile);
-            if (colors == null || colors.length < 16384) {
-                return null;
+    /**
+     * A copy of the map's pixels as the server holds them now, or {@code null}
+     * when this server's map data cannot be reached. Call on the thread that
+     * owns the map's world.
+     */
+    public static byte[] livePixels(Object mapView) {
+        if (mapView == null) {
+            return null;
+        }
+        try {
+            Field worldMapField = mapView.getClass().getDeclaredField("worldMap");
+            worldMapField.setAccessible(true);
+            Object worldMap = worldMapField.get(mapView);
+            for (Class<?> type = worldMap.getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
+                for (Field field : type.getDeclaredFields()) {
+                    if (field.getType() == byte[].class) {
+                        field.setAccessible(true);
+                        byte[] colors = (byte[]) field.get(worldMap);
+                        if (colors != null && colors.length == PIXELS) {
+                            return colors.clone();
+                        }
+                    }
+                }
             }
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            // An unknown server layout; the saved file is the fallback.
+        }
+        return null;
+    }
 
-            BufferedImage image = new BufferedImage(128, 128, BufferedImage.TYPE_INT_RGB);
-            for (int y = 0; y < 128; y++) {
-                for (int x = 0; x < 128; x++) {
-                    int index = y * 128 + x;
-                    @SuppressWarnings("deprecation")
-                    Color color = MapPalette.getColor(colors[index]);
+    /** The pixels in the world's saved map file, or {@code null}. Safe off the main thread. */
+    public static byte[] savedPixels(int mapId) {
+        if (Bukkit.getWorlds().isEmpty()) {
+            return null;
+        }
+        File mapFile = new File(new File(Bukkit.getWorlds().get(0).getWorldFolder(), "data"), "map_" + mapId + ".dat");
+        if (!mapFile.isFile()) {
+            return null;
+        }
+        byte[] colors = MapNbtReader.extractColorsFromNbt(mapFile);
+        return colors != null && colors.length >= PIXELS ? colors : null;
+    }
+
+    /** The map as a base64 PNG, the form the moderation API takes. */
+    @SuppressWarnings("deprecation")
+    public static String pngBase64(byte[] pixels) {
+        try {
+            BufferedImage image = new BufferedImage(SIDE, SIDE, BufferedImage.TYPE_INT_RGB);
+            for (int y = 0; y < SIDE; y++) {
+                for (int x = 0; x < SIDE; x++) {
+                    Color color = MapPalette.getColor(pixels[y * SIDE + x]);
                     image.setRGB(x, y, color.getRGB());
                 }
             }
-
             ByteArrayOutputStream output = new ByteArrayOutputStream();
             ImageIO.write(image, "png", output);
             return Base64.getEncoder().encodeToString(output.toByteArray());
-        } catch (Exception ignored) {
+        } catch (IOException | RuntimeException e) {
             return null;
         }
     }
 
-    private static byte[] extractColorsFromNbt(File file) {
-        try (DataInputStream input = new DataInputStream(new GZIPInputStream(new FileInputStream(file)))) {
-            int rootTag = input.readUnsignedByte();
-            if (rootTag != TAG_COMPOUND) {
-                return null;
-            }
-            readName(input);
-            return findColorsInCompound(input);
-        } catch (Exception ignored) {
+    /** A fingerprint of the pixels, so the same picture is checked once. */
+    public static String fingerprint(byte[] pixels) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(pixels));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
+        }
+    }
+
+    /** The map id of an item, or {@code null} when it is not a filled map. */
+    public static Integer mapIdOf(ItemStack item, Material filledMap) {
+        if (item == null || item.getType() != filledMap || !item.hasItemMeta()) {
             return null;
         }
+        ItemMeta meta = item.getItemMeta();
+        return meta instanceof MapMeta mapMeta ? resolveMapId(mapMeta) : null;
     }
 
-    private static byte[] findColorsInCompound(DataInputStream input) throws IOException {
-        while (true) {
-            int tag = input.readUnsignedByte();
-            if (tag == TAG_END) {
-                return null;
+    /** Takes every copy of one map from an inventory, off-hand included. Returns how many stacks went. */
+    public static int removeMap(PlayerInventory inventory, Material filledMap, int mapId) {
+        int removed = 0;
+        ItemStack[] contents = inventory.getContents();
+        for (int slot = 0; slot < contents.length; slot++) {
+            Integer id = mapIdOf(contents[slot], filledMap);
+            if (id != null && id == mapId) {
+                inventory.setItem(slot, null);
+                removed++;
             }
-            String name = readName(input);
-            if (tag == TAG_BYTE_ARRAY) {
-                int length = readLength(input);
-                if ("colors".equals(name)) {
-                    byte[] payload = new byte[length];
-                    input.readFully(payload);
-                    return payload;
-                }
-                input.skipNBytes(length);
-                continue;
-            }
-            if (tag == TAG_COMPOUND) {
-                byte[] nested = findColorsInCompound(input);
-                if (nested != null) {
-                    return nested;
-                }
-                continue;
-            }
-            skipTagPayload(input, tag);
         }
-    }
-
-    private static String readName(DataInputStream input) throws IOException {
-        int length = input.readUnsignedShort();
-        byte[] nameBytes = new byte[length];
-        input.readFully(nameBytes);
-        return new String(nameBytes, StandardCharsets.UTF_8);
-    }
-
-    private static int readLength(DataInputStream input) throws IOException {
-        int length = input.readInt();
-        if (length < 0 || length > MAX_NBT_COLLECTION_LENGTH) {
-            throw new IOException("Invalid NBT collection length: " + length);
-        }
-        return length;
-    }
-
-    private static void skipElements(DataInputStream input, int count, int elementBytes) throws IOException {
-        long bytes = Math.multiplyExact((long) count, elementBytes);
-        if (bytes > MAX_NBT_COLLECTION_LENGTH) {
-            throw new IOException("NBT payload is too large: " + bytes);
-        }
-        input.skipNBytes(bytes);
-    }
-
-    private static void skipTagPayload(DataInputStream input, int tag) throws IOException {
-        switch (tag) {
-            case 1 -> input.skipNBytes(1);
-            case 2 -> input.skipNBytes(2);
-            case 3 -> input.skipNBytes(4);
-            case 4 -> input.skipNBytes(8);
-            case 5 -> input.skipNBytes(4);
-            case 6 -> input.skipNBytes(8);
-            case TAG_BYTE_ARRAY -> input.skipNBytes(readLength(input));
-            case 8 -> input.skipNBytes(input.readUnsignedShort());
-            case 9 -> {
-                int listType = input.readUnsignedByte();
-                int length = readLength(input);
-                for (int i = 0; i < length; i++) {
-                    skipTagPayload(input, listType);
-                }
+        ItemStack offHand = offHand(inventory);
+        Integer offHandId = mapIdOf(offHand, filledMap);
+        if (offHandId != null && offHandId == mapId) {
+            try {
+                inventory.getClass().getMethod("setItemInOffHand", ItemStack.class).invoke(inventory, (ItemStack) null);
+                removed++;
+            } catch (ReflectiveOperationException ignored) {
+                // No off-hand on this server version.
             }
-            case TAG_COMPOUND -> {
-                while (true) {
-                    int subTag = input.readUnsignedByte();
-                    if (subTag == TAG_END) {
-                        break;
-                    }
-                    readName(input);
-                    skipTagPayload(input, subTag);
-                }
-            }
-            case 11 -> skipElements(input, readLength(input), Integer.BYTES);
-            case 12 -> skipElements(input, readLength(input), Long.BYTES);
-            default -> throw new IOException("Unsupported NBT tag: " + tag);
         }
+        return removed;
     }
 }

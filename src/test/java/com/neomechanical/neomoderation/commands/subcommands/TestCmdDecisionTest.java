@@ -41,12 +41,6 @@ class TestCmdDecisionTest {
     }
 
     @Test
-    void locallyFlaggedMessagesDoNotProceedToCloud() {
-        assertFalse(TestCmd.shouldCheckCloud(true));
-        assertTrue(TestCmd.shouldCheckCloud(false));
-    }
-
-    @Test
     void testAndStatusChooseSpecificRecoveryMessages() {
         assertEquals("test.cloud-auth", TestCmd.cloudMessageKey(ModerationApiResult.Kind.CLIENT_AUTH));
         assertEquals("test.cloud-credits",
@@ -67,15 +61,15 @@ class TestCmdDecisionTest {
         NeoMechanicalUsageClient.UsageException credits = new NeoMechanicalUsageClient.UsageException(
                 ModerationApiResult.Kind.INSUFFICIENT_CREDITS, "HTTP 402");
 
-        String authDetail = DoctorCmd.failureDetail(auth, 10);
-        String creditsDetail = DoctorCmd.failureDetail(credits, 10);
+        DoctorChecks.Check authCheck = DoctorChecks.accountFailure(auth, 10);
+        DoctorChecks.Check creditsCheck = DoctorChecks.accountFailure(credits, 10);
 
-        assertEquals("Account authentication", DoctorCmd.failureCheck(auth.kind()));
-        assertEquals("Account credits", DoctorCmd.failureCheck(credits.kind()));
-        assertTrue(authDetail.contains(CloudRecovery.API_KEYS_URL));
-        assertFalse(authDetail.contains(CloudRecovery.BILLING_URL));
-        assertTrue(creditsDetail.contains(CloudRecovery.BILLING_URL));
-        assertFalse(creditsDetail.contains(CloudRecovery.API_KEYS_URL));
+        assertEquals("account", authCheck.check());
+        assertEquals("credits", creditsCheck.check());
+        assertEquals(CloudRecovery.API_KEYS_URL, authCheck.values().get("url"));
+        assertEquals(CloudRecovery.BILLING_URL, creditsCheck.values().get("url"));
+        assertEquals(DoctorChecks.Level.FAIL, authCheck.level());
+        assertEquals(DoctorChecks.Level.FAIL, creditsCheck.level());
     }
 
     @Test

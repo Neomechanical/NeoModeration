@@ -6,43 +6,22 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.List;
-import java.util.Map;
 
 /**
- * Shared helper for rendering clickable cloud trial call-to-action buttons
- * in command responses and first-join admin prompts.
+ * The clickable "start a free cloud trial" line, shown in command output to an
+ * in-game admin while the server has no cloud key. Never sent unasked.
  */
 public final class TrialPromptSupport {
 
     private TrialPromptSupport() {
     }
 
-    /**
-     * Sends a clickable trial activation button to the sender if they are an in-game
-     * player and the server currently has no configured cloud API key.
-     *
-     * @param plugin the plugin instance
-     * @param sender the command sender
-     */
     public static void sendTrialCtaIfPlayer(NeoModerationPlugin plugin, CommandSender sender) {
-        if (plugin == null || sender == null) {
+        if (!(sender instanceof Player) || !plugin.settings().api().apiKey().isBlank()) {
             return;
         }
-        if (!(sender instanceof Player)) {
-            return;
-        }
-        if (plugin.settings() == null
-                || plugin.settings().api() == null
-                || !plugin.settings().api().apiKey().isBlank()) {
-            return;
-        }
-        if (plugin.messages() == null) {
-            return;
-        }
-
-        String text = plugin.messages().format("trial.cta-button", Map.of());
-        plugin.messages().sendMenu(sender, List.of(
-                MenuRenderer.clickableLine(text, "/nmod trial", "&b/nmod trial", MenuRenderer.ClickAction.RUN)
-        ));
+        plugin.messages().sendMenu(sender, List.of(MenuRenderer.clickableLine(
+                plugin.messages().text(sender, "trial.cta-button"), "/nmod trial",
+                plugin.messages().text(sender, "trial.cta-hover"), MenuRenderer.ClickAction.RUN)));
     }
 }

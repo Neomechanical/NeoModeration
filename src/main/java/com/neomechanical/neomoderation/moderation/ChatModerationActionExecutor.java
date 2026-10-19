@@ -34,16 +34,28 @@ public final class ChatModerationActionExecutor {
             case KICK -> player.kickPlayer(action.reason());
             case BAN -> banPlayer(player, action.reason());
             case MUTE -> muteService.mute(player.getUniqueId(), action.durationSeconds());
-            case TIMEOUT -> runCommand(player, action, fallbackOr(action.command(), DEFAULT_TIMEOUT_COMMAND));
-            case GIVE_ROLE -> runCommand(player, action, fallbackOr(action.command(), DEFAULT_GIVE_ROLE_COMMAND));
-            case TAKE_ROLE -> runCommand(player, action, fallbackOr(action.command(), DEFAULT_TAKE_ROLE_COMMAND));
-            case TEMP_ROLE -> runCommand(player, action, fallbackOr(action.command(), DEFAULT_TEMP_ROLE_COMMAND));
-            case COMMAND -> {
-                if (!action.command().isBlank()) {
-                    runCommand(player, action, action.command());
+            case TIMEOUT, GIVE_ROLE, TAKE_ROLE, TEMP_ROLE, COMMAND -> {
+                String command = commandFor(action);
+                if (!command.isBlank()) {
+                    runCommand(player, action, command);
                 }
             }
         }
+    }
+
+    /**
+     * The console command an action runs, placeholders not yet filled: its own
+     * command, else the default for its type. Empty for actions that run none.
+     */
+    public static String commandFor(ModerationAction action) {
+        return switch (action.type()) {
+            case TIMEOUT -> fallbackOr(action.command(), DEFAULT_TIMEOUT_COMMAND);
+            case GIVE_ROLE -> fallbackOr(action.command(), DEFAULT_GIVE_ROLE_COMMAND);
+            case TAKE_ROLE -> fallbackOr(action.command(), DEFAULT_TAKE_ROLE_COMMAND);
+            case TEMP_ROLE -> fallbackOr(action.command(), DEFAULT_TEMP_ROLE_COMMAND);
+            case COMMAND -> action.command() == null ? "" : action.command().trim();
+            case CLEAR_CHAT, MUTE, KICK, BAN -> "";
+        };
     }
 
     private void clearChat() {
@@ -75,7 +87,7 @@ public final class ChatModerationActionExecutor {
                 .replace("%REASON%", action.reason());
     }
 
-    private String fallbackOr(String maybeEmpty, String fallback) {
+    private static String fallbackOr(String maybeEmpty, String fallback) {
         return maybeEmpty == null || maybeEmpty.trim().isEmpty() ? fallback : maybeEmpty;
     }
 }

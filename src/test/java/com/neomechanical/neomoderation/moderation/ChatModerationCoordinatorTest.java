@@ -222,7 +222,8 @@ class ChatModerationCoordinatorTest {
                         SurfaceSettings.SurfaceMode.OFF,
                         List.of()),
                 new CaseSettings(false, false),
-                false
+                false,
+                true
         );
     }
 }

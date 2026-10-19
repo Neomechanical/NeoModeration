@@ -3,15 +3,20 @@ package com.neomechanical.neomoderation.commands.subcommands;
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.commands.SubCommand;
 import com.neomechanical.neomoderation.config.SurfaceSettings;
+import com.neomechanical.neomoderation.messages.MenuRenderer;
+import com.neomechanical.neomoderation.messages.MessageService;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 /**
- * In-game configuration for extra local moderation surfaces (signs, books,
- * anvil renames, and private-message commands).
+ * Where local rules apply beyond chat: signs, books, anvil renames and message
+ * commands. Bare {@code /nmod surface} shows one row per surface with a
+ * clickable button for each setting, the current one highlighted.
  */
 public class SurfaceCmd implements SubCommand {
     private static final String SURFACES_PREFIX = "moderation.surfaces.";
@@ -28,82 +33,67 @@ public class SurfaceCmd implements SubCommand {
     }
 
     @Override
-    public String getDescription() {
-        return "Configure extra local moderation surfaces.";
-    }
-
-    @Override
-    public String getUsage() {
-        return "/nmod surface <sign|book|anvil|command|all> <off|monitor|censor|block>";
-    }
-
-    @Override
     public List<String> getAliases() {
         return List.of("surfaces");
     }
 
     @Override
     public void execute(CommandSender sender, String label, String[] args) {
+        MessageService messages = plugin.messages();
         if (args.length < 2) {
             showSurfaces(sender, label);
             return;
         }
-        if (args.length != 3) {
-            plugin.messages().send(sender, "surface.usage", Map.of("label", label));
-            return;
-        }
-
         String target = args[1].trim().toLowerCase(Locale.ROOT);
-        String mode = args[2].trim().toLowerCase(Locale.ROOT);
+        String mode = args.length == 3 ? args[2].trim().toLowerCase(Locale.ROOT) : "";
         boolean validTarget = "all".equals(target) || SurfaceSettings.SURFACE_NAMES.contains(target);
-        if (!validTarget || !SurfaceSettings.SurfaceMode.isValid(mode)) {
-            plugin.messages().send(sender, "surface.usage", Map.of("label", label));
+        if (args.length != 3 || !validTarget || !SurfaceSettings.SurfaceMode.isValid(mode)) {
+            messages.send(sender, "surface.usage", Map.of("label", label));
             return;
         }
-
-        if ("all".equals(target)) {
-            for (String surface : SurfaceSettings.SURFACE_NAMES) {
-                plugin.getConfig().set(SURFACES_PREFIX + surface, mode);
-            }
-        } else {
-            plugin.getConfig().set(SURFACES_PREFIX + target, mode);
+        for (String surface : "all".equals(target) ? SurfaceSettings.SURFACE_NAMES : List.of(target)) {
+            plugin.getConfig().set(SURFACES_PREFIX + surface, mode);
         }
         plugin.saveAndReload();
-        plugin.messages().send(sender, "surface.updated", Map.of(
-                "surface", target,
-                "mode", mode
-        ));
+        messages.send(sender, "surface.updated", Map.of(
+                "surface", messages.text(sender, "surface.name." + target),
+                "mode", messages.text(sender, "surface.mode." + mode)));
+        if (sender instanceof Player) {
+            showSurfaces(sender, label);
+        }
     }
 
     private void showSurfaces(CommandSender sender, String label) {
+        MessageService messages = plugin.messages();
         SurfaceSettings surfaces = plugin.settings().surfaces();
-        plugin.messages().send(sender, "surface.title");
-        if (sender instanceof org.bukkit.entity.Player) {
-            java.util.List<com.neomechanical.neomoderation.messages.MenuRenderer.Line> lines = new java.util.ArrayList<>();
-            for (String name : SurfaceSettings.SURFACE_NAMES) {
-                String mode = surfaces.modeFor(name).name().toLowerCase(Locale.ROOT);
-                String formatted = plugin.messages().format("surface.row", Map.of(
-                        "surface", name,
-                        "mode", mode
-                ));
-                String suggest = "/" + label + " surface " + name + " ";
-                lines.add(com.neomechanical.neomoderation.messages.MenuRenderer.clickableLine(
-                        formatted, suggest, "&b" + suggest + "<off|monitor|censor|block>",
-                        com.neomechanical.neomoderation.messages.MenuRenderer.ClickAction.SUGGEST));
-            }
-            plugin.messages().sendMenu(sender, lines);
-        } else {
-            for (String name : SurfaceSettings.SURFACE_NAMES) {
-                plugin.messages().send(sender, "surface.row", Map.of(
-                        "surface", name,
-                        "mode", surfaces.modeFor(name).name().toLowerCase(Locale.ROOT)
-                ));
-            }
+        List<MenuRenderer.Line> lines = new ArrayList<>();
+        lines.add(MenuRenderer.text(messages.text(sender, "surface.title")));
+        lines.add(MenuRenderer.text(messages.text(sender, "surface.chat-row")));
+        for (String surface : SurfaceSettings.SURFACE_NAMES) {
+            String current = surfaces.modeFor(surface).name().toLowerCase(Locale.ROOT);
+            lines.add(row(sender, label, surface, "surface.row", current));
         }
-        plugin.messages().send(sender, "surface.commands", Map.of(
-                "commands", String.join(", ", surfaces.scannedCommands())
-        ));
-        plugin.messages().send(sender, "surface.hint", Map.of("label", label));
+        lines.add(row(sender, label, "all", "surface.all-row", null));
+        lines.add(MenuRenderer.text(messages.format(sender, "surface.commands",
+                Map.of("commands", String.join(", ", surfaces.scannedCommands())))));
+        messages.sendMenu(sender, lines);
+    }
+
+    private MenuRenderer.Line row(CommandSender sender, String label, String surface, String rowKey, String current) {
+        MessageService messages = plugin.messages();
+        String name = messages.text(sender, "surface.name." + surface);
+        List<MenuRenderer.Button> parts = new ArrayList<>();
+        parts.add(new MenuRenderer.Button(messages.format(sender, rowKey, Map.of("surface", name)), "", "",
+                MenuRenderer.ClickAction.NONE));
+        for (String mode : SurfaceSettings.MODE_NAMES) {
+            Map<String, String> values = Map.of("surface", name, "mode", messages.text(sender, "surface.mode." + mode));
+            parts.add(new MenuRenderer.Button(
+                    messages.format(sender, mode.equals(current) ? "surface.button-current" : "surface.button", values),
+                    "/" + label + " surface " + surface + " " + mode,
+                    messages.format(sender, "surface.button-hover", values),
+                    MenuRenderer.ClickAction.RUN));
+        }
+        return MenuRenderer.buttons(parts);
     }
 
     @Override

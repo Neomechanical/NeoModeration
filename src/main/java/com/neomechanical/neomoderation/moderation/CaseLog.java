@@ -9,6 +9,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.logging.Logger;
 
@@ -127,7 +128,7 @@ public final class CaseLog implements AutoCloseable {
         synchronized (lock) {
             try (PreparedStatement update = connection.prepareStatement(
                     "UPDATE cases SET status = ? WHERE id = ?")) {
-                update.setString(1, status.trim().toLowerCase(java.util.Locale.ROOT));
+                update.setString(1, status.trim().toLowerCase(Locale.ROOT));
                 update.setLong(2, id);
                 return update.executeUpdate() > 0;
             } catch (SQLException ignored) {
@@ -151,19 +152,25 @@ public final class CaseLog implements AutoCloseable {
     }
 
     public List<CaseRecord> recent(String playerFilter, int limit) {
+        return recent(playerFilter, limit, 0);
+    }
+
+    /** Newest first, skipping {@code offset} rows, for paging. */
+    public List<CaseRecord> recent(String playerFilter, int limit, int offset) {
         if (connection == null) {
             return List.of();
         }
         String sql = playerFilter == null
-                ? "SELECT * FROM cases ORDER BY id DESC LIMIT ?"
-                : "SELECT * FROM cases WHERE player = ? COLLATE NOCASE ORDER BY id DESC LIMIT ?";
+                ? "SELECT * FROM cases ORDER BY id DESC LIMIT ? OFFSET ?"
+                : "SELECT * FROM cases WHERE player = ? COLLATE NOCASE ORDER BY id DESC LIMIT ? OFFSET ?";
         synchronized (lock) {
             try (PreparedStatement query = connection.prepareStatement(sql)) {
                 int index = 1;
                 if (playerFilter != null) {
                     query.setString(index++, playerFilter);
                 }
-                query.setInt(index, Math.max(1, limit));
+                query.setInt(index++, Math.max(1, limit));
+                query.setInt(index, Math.max(0, offset));
                 try (ResultSet rows = query.executeQuery()) {
                     List<CaseRecord> result = new ArrayList<>();
                     while (rows.next()) {

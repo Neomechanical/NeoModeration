@@ -4,6 +4,7 @@ import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.commands.NeoModerationCommand;
 import com.neomechanical.neomoderation.moderation.ChatModerationCoordinator;
 import com.neomechanical.neomoderation.moderation.TrialClient;
+import org.bukkit.Server;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
@@ -145,7 +146,9 @@ class ListingCopyTest {
     void everyCommandTheCopyNamesExists() throws IOException {
         CommandSender sender = mock(CommandSender.class);
         when(sender.hasPermission(anyString())).thenReturn(true);
-        NeoModerationCommand router = new NeoModerationCommand(mock(NeoModerationPlugin.class));
+        NeoModerationPlugin plugin = mock(NeoModerationPlugin.class);
+        when(plugin.getServer()).thenReturn(mock(Server.class));
+        NeoModerationCommand router = new NeoModerationCommand(plugin);
         List<String> commands = router.onTabComplete(sender, null, "nmod", new String[]{""});
         assertFalse(commands.isEmpty(), "the command router listed no subcommands");
 

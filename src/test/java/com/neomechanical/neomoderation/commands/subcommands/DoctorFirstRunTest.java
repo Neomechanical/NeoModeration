@@ -1,25 +1,15 @@
 package com.neomechanical.neomoderation.commands.subcommands;
 
-import com.neomechanical.neomoderation.NeoModerationPlugin;
-import com.neomechanical.neomoderation.config.BukkitConfigView;
-import com.neomechanical.neomoderation.config.ModerationSettings;
-import com.neomechanical.neomoderation.messages.MessageService;
-import com.neomechanical.neomoderation.moderation.CaseLog;
-import com.neomechanical.neomoderation.moderation.ChatModerationCoordinator;
-import com.neomechanical.neomoderation.moderation.MonitorStats;
+import com.neomechanical.neomoderation.testing.TestPlugin;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.plugin.PluginDescriptionFile;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 class DoctorFirstRunTest {
     @Test
@@ -27,17 +17,13 @@ class DoctorFirstRunTest {
         YamlConfiguration config = new YamlConfiguration();
         config.set("moderation.enabled", true);
         config.set("moderation.offline.bannedWords", List.of("badword"));
-        CommandSender sender = mock(CommandSender.class);
-        MessageService messages = mock(MessageService.class);
 
-        new DoctorCmd(plugin(ModerationSettings.from(new BukkitConfigView(config)), messages))
-                .execute(sender, "nmod", new String[0]);
+        List<String> lines = doctor(config);
 
-        verify(messages).send(eq(sender), eq("doctor.pass"), argThat(fields ->
-                "Actions".equals(fields.get("check"))
-                        && fields.get("detail").contains("block only")));
-        verify(messages, never()).send(eq(sender), eq("doctor.warn"), argThat(fields ->
-                "Actions".equals(fields.get("check"))));
+        assertTrue(lines.contains("  OK Moderation: on"), String.join("\n", lines));
+        assertTrue(lines.contains("  OK After a block: block only, nobody is muted, kicked or banned"),
+                String.join("\n", lines));
+        assertFalse(lines.stream().anyMatch(line -> line.startsWith("  Check After a block")));
     }
 
     @Test
@@ -47,18 +33,13 @@ class DoctorFirstRunTest {
         config.set("moderation.mode", "monitor");
         config.set("moderation.cloudMode", "enforce");
         config.set("moderation.api.apiKey", "test-key");
-        CommandSender sender = mock(CommandSender.class);
-        MessageService messages = mock(MessageService.class);
+        config.set("moderation.api.endpoint", "http://127.0.0.1:9/v1/events");
 
-        new DoctorCmd(plugin(ModerationSettings.from(new BukkitConfigView(config)), messages))
-                .execute(sender, "nmod", new String[0]);
+        List<String> lines = doctor(config);
 
-        verify(messages).send(eq(sender), eq("doctor.warn"), argThat(fields ->
-                "Local mode".equals(fields.get("check"))
-                        && fields.get("detail").contains("local detections")));
-        verify(messages).send(eq(sender), eq("doctor.pass"), argThat(fields ->
-                "Cloud mode".equals(fields.get("check"))
-                        && fields.get("detail").contains("enforce")));
+        assertTrue(lines.contains("  Check Local rules: alerting staff only, run /nmod mode enforce to block"),
+                String.join("\n", lines));
+        assertTrue(lines.contains("  OK Cloud decisions: blocking"), String.join("\n", lines));
     }
 
     @Test
@@ -66,27 +47,29 @@ class DoctorFirstRunTest {
         YamlConfiguration config = new YamlConfiguration();
         config.set("moderation.enabled", true);
         config.set("moderation.offline.enabled", false);
-        CommandSender sender = mock(CommandSender.class);
-        MessageService messages = mock(MessageService.class);
 
-        new DoctorCmd(plugin(ModerationSettings.from(new BukkitConfigView(config)), messages))
-                .execute(sender, "nmod", new String[0]);
+        List<String> lines = doctor(config);
 
-        verify(messages).send(eq(sender), eq("doctor.warn"), argThat(fields ->
-                "Local rules".equals(fields.get("check"))
-                        && fields.get("detail").contains("anti-spam still active")));
+        assertTrue(lines.contains("  Check Rules: no word or link rule; anti-spam still runs"),
+                String.join("\n", lines));
     }
 
-    private static NeoModerationPlugin plugin(ModerationSettings settings, MessageService messages) {
-        NeoModerationPlugin plugin = mock(NeoModerationPlugin.class);
-        when(plugin.settings()).thenReturn(settings);
-        when(plugin.messages()).thenReturn(messages);
-        when(plugin.monitorStats()).thenReturn(mock(MonitorStats.class));
-        when(plugin.caseLog()).thenReturn(mock(CaseLog.class));
-        when(plugin.coordinator()).thenReturn(mock(ChatModerationCoordinator.class));
-        PluginDescriptionFile description = mock(PluginDescriptionFile.class);
-        when(description.getVersion()).thenReturn("1.6.1");
-        when(plugin.getDescription()).thenReturn(description);
-        return plugin;
+    @Test
+    void everyLineIsWrittenOutWithNoKeyShowingThrough() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("moderation.enabled", false);
+        config.set("moderation.alerts.discordWebhookUrl", "https://example.com/hook");
+
+        String transcript = String.join("\n", doctor(config));
+
+        assertTrue(transcript.contains("Fix Moderation: off, run /nmod on"), transcript);
+        assertTrue(transcript.contains("Fix Discord alerts: the URL is not a Discord webhook"), transcript);
+        assertFalse(transcript.contains("doctor."), transcript);
+    }
+
+    private static List<String> doctor(YamlConfiguration config) {
+        CommandSender sender = mock(CommandSender.class);
+        new DoctorCmd(TestPlugin.with(config)).execute(sender, "nmod", new String[0]);
+        return TestPlugin.lines(sender);
     }
 }

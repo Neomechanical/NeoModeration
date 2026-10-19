@@ -1,7 +1,5 @@
 package com.neomechanical.neomoderation.config;
 
-
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +21,8 @@ public record ModerationSettings(
         StrikeSettings strikes,
         SurfaceSettings surfaces,
         CaseSettings cases,
-        boolean chatCensorLocal
+        boolean chatCensorLocal,
+        boolean tellPlayers
 ) {
     public record AlertSettings(boolean enabled, boolean includeMessage, String discordWebhookUrl) {
         public AlertSettings(boolean enabled, boolean includeMessage) {
@@ -61,7 +60,8 @@ public record ModerationSettings(
                 StrikeSettings.from(config),
                 SurfaceSettings.from(config),
                 CaseSettings.from(config),
-                config.getBoolean("moderation.chat.censorLocalDetections", false)
+                config.getBoolean("moderation.chat.censorLocalDetections", false),
+                config.getBoolean("moderation.tellPlayers", true)
         );
     }
 

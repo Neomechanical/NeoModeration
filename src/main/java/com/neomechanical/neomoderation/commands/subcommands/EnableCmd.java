@@ -21,16 +21,6 @@ public class EnableCmd implements SubCommand {
     }
 
     @Override
-    public String getDescription() {
-        return "Enable NeoModeration checks.";
-    }
-
-    @Override
-    public String getUsage() {
-        return "/nmod on";
-    }
-
-    @Override
     public List<String> getAliases() {
         return List.of("enable");
     }

@@ -66,4 +66,17 @@ class StrikeServiceTest {
         }
         assertFalse(service.recordStrike(PLAYER, off, 11).escalation().isPresent());
     }
+
+    @Test
+    void decayedCountsAreDroppedOnceManyPlayersHaveOne() {
+        StrikeService strikes = new StrikeService();
+        for (int i = 0; i <= 1_000; i++) {
+            strikes.recordStrike(UUID.randomUUID(), settings(), 0L);
+        }
+        assertEquals(1_001, strikes.tracked());
+
+        strikes.recordStrike(PLAYER, settings(), 31 * 60_000L);
+
+        assertEquals(1, strikes.tracked(), "every count older than the 30-minute decay goes");
+    }
 }

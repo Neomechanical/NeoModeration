@@ -6,7 +6,6 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.zip.GZIPOutputStream;
@@ -58,8 +57,6 @@ class MapArtScannerTest {
     }
 
     private byte[] extractColors(File file) throws Exception {
-        Method method = MapArtScanner.class.getDeclaredMethod("extractColorsFromNbt", File.class);
-        method.setAccessible(true);
-        return (byte[]) method.invoke(null, file);
+        return MapNbtReader.extractColorsFromNbt(file);
     }
 }

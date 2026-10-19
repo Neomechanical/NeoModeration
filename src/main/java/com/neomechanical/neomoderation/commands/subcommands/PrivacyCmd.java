@@ -3,12 +3,14 @@ package com.neomechanical.neomoderation.commands.subcommands;
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.commands.SubCommand;
 import com.neomechanical.neomoderation.config.ModerationSettings;
+import com.neomechanical.neomoderation.messages.MessageService;
+import com.neomechanical.neomoderation.moderation.DiscordAlerts;
 import com.neomechanical.neomoderation.moderation.ModerationCoverage;
 import org.bukkit.command.CommandSender;
 
 import java.util.Map;
 
-/** One-screen explanation of exactly what data stays local, what leaves, and how. */
+/** One screen on exactly what stays on the server, what leaves it, and where it goes. */
 public class PrivacyCmd implements SubCommand {
     private final NeoModerationPlugin plugin;
 
@@ -22,50 +24,33 @@ public class PrivacyCmd implements SubCommand {
     }
 
     @Override
-    public String getDescription() {
-        return "Show what data stays local and what the cloud receives.";
-    }
-
-    @Override
-    public String getUsage() {
-        return "/nmod privacy";
-    }
-
-    @Override
     public void execute(CommandSender sender, String label, String[] args) {
         ModerationSettings settings = plugin.settings();
         ModerationCoverage coverage = ModerationCoverage.from(settings);
+        MessageService messages = plugin.messages();
 
-        plugin.messages().send(sender, "privacy.title");
-        plugin.messages().send(sender, "privacy.headline", Map.of(
-                "value", coverage.hasLocalChecks()
-                        ? (coverage.hasCloudChecks() ? "Local + cloud" : "Local only")
-                        : (coverage.hasCloudChecks() ? "Cloud only" : "No checks armed")
-        ));
-        plugin.messages().send(sender, "privacy.local");
+        messages.send(sender, "privacy.title");
+        messages.send(sender, "privacy.local");
         if (coverage.hasCloudChecks()) {
             String data = coverage.cloudText()
-                    ? (coverage.mapArt() ? "individual chat messages and filled map images" : "individual chat messages")
-                    : "filled map images";
-            plugin.messages().send(sender, "privacy.cloud", Map.of(
-                    "endpoint", settings.api().endpoint(), "data", data));
-            plugin.messages().send(sender, "privacy.retention");
-            plugin.messages().send(sender, "privacy.timeout", Map.of(
-                    "connect", String.valueOf(settings.api().connectTimeoutMs()),
-                    "read", String.valueOf(settings.api().readTimeoutMs()),
-                    "policy", settings.failOpen() ? "fail-open (chat passes)" : "fail-closed (chat blocks)"
-            ));
-        } else if (settings.api().apiKey().isBlank()) {
-            plugin.messages().send(sender, "privacy.no-cloud");
+                    ? (coverage.mapArt() ? "privacy.data-both" : "privacy.data-text")
+                    : "privacy.data-maps";
+            messages.send(sender, "privacy.cloud", Map.of(
+                    "data", messages.text(sender, data), "endpoint", settings.api().endpoint()));
+            messages.send(sender, "privacy.retention");
+            messages.send(sender, "privacy.timeout", Map.of("policy",
+                    messages.text(sender, settings.failOpen() ? "privacy.policy-open" : "privacy.policy-closed")));
         } else {
-            plugin.messages().send(sender, "privacy.cloud-off");
+            messages.send(sender, settings.api().apiKey().isBlank() ? "privacy.no-cloud" : "privacy.cloud-off");
         }
-        plugin.messages().send(sender, "privacy.mode", Map.of("value",
-                "local " + (coverage.hasLocalChecks()
-                        ? settings.mode().name().toLowerCase(java.util.Locale.ROOT) : "off")
-                        + ", cloud " + (coverage.hasCloudChecks()
-                        ? settings.cloudMode().name().toLowerCase(java.util.Locale.ROOT)
-                        : "off")));
-        plugin.messages().send(sender, "privacy.metrics");
+        if (settings.cases().enabled()) {
+            messages.send(sender, "privacy.cases", Map.of("preview", messages.text(sender,
+                    settings.cases().storeContent() ? "privacy.cases-preview" : "privacy.cases-no-preview")));
+        }
+        if (DiscordAlerts.isWebhookUrl(settings.alerts().discordWebhookUrl())) {
+            messages.send(sender, "privacy.discord", Map.of("message", messages.text(sender,
+                    settings.alerts().includeMessage() ? "privacy.discord-message" : "privacy.discord-no-message")));
+        }
+        messages.send(sender, "privacy.metrics");
     }
 }

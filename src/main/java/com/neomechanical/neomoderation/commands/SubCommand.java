@@ -6,11 +6,8 @@ import java.util.List;
 import java.util.Locale;
 
 public interface SubCommand {
+    /** The subcommand word; its help text is {@code help.usage.<name>} and {@code help.desc.<name>}. */
     String getName();
-
-    String getDescription();
-
-    String getUsage();
 
     void execute(CommandSender sender, String label, String[] args);
 

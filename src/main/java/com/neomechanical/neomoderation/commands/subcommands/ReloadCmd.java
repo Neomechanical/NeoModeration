@@ -17,18 +17,8 @@ public class ReloadCmd implements SubCommand {
     }
 
     @Override
-    public String getDescription() {
-        return "Reload the plugin configuration.";
-    }
-
-    @Override
-    public String getUsage() {
-        return "/nmod reload";
-    }
-
-    @Override
     public void execute(CommandSender sender, String label, String[] args) {
-        plugin.reloadModerationConfig();
+        plugin.reloadEverything();
         plugin.messages().send(sender, "reload.done");
     }
 }

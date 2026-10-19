@@ -1,22 +1,15 @@
 package com.neomechanical.neomoderation.commands.subcommands;
 
-import com.neomechanical.neomoderation.NeoModerationPlugin;
-import com.neomechanical.neomoderation.config.BukkitConfigView;
-import com.neomechanical.neomoderation.config.ModerationSettings;
-import com.neomechanical.neomoderation.messages.MessageService;
-import com.neomechanical.neomoderation.moderation.CaseLog;
-import com.neomechanical.neomoderation.moderation.ChatModerationCoordinator;
-import com.neomechanical.neomoderation.moderation.MonitorStats;
+import com.neomechanical.neomoderation.testing.TestPlugin;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.plugin.PluginDescriptionFile;
 import org.junit.jupiter.api.Test;
 
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.ArgumentMatchers.eq;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 class StatusCoverageTest {
     @Test
@@ -28,52 +21,44 @@ class StatusCoverageTest {
         config.set("moderation.offline.enabled", false);
         config.set("moderation.spam.enabled", false);
         config.set("moderation.api.apiKey", "test-key");
-        CommandSender sender = mock(CommandSender.class);
-        MessageService messages = mock(MessageService.class);
 
-        new StatusCmd(plugin(ModerationSettings.from(new BukkitConfigView(config)), messages))
-                .execute(sender, "nmod", new String[0]);
+        List<String> lines = status(config);
 
-        verify(messages).send(eq(sender), eq("status.mode"), argThat(fields ->
-                fields.get("value").contains("no local checks armed")));
-        verify(messages).send(eq(sender), eq("status.cloud"), argThat(fields ->
-                fields.get("value").contains("mode ENFORCE")
-                        && !fields.get("value").contains("Local + cloud")));
+        assertTrue(lines.contains("Local rules: nothing to check"), String.join("\n", lines));
+        assertTrue(lines.stream().anyMatch(line -> line.startsWith("Cloud: ") && line.endsWith(", blocking")),
+                String.join("\n", lines));
     }
 
     @Test
     void keylessStatusDistinguishesLocalProtectionFromNoChecks() {
-        CommandSender sender = mock(CommandSender.class);
-        MessageService localMessages = mock(MessageService.class);
-        YamlConfiguration localConfig = new YamlConfiguration();
-        localConfig.set("moderation.enabled", true);
-        localConfig.set("moderation.offline.bannedWords", java.util.List.of("badword"));
-        new StatusCmd(plugin(ModerationSettings.from(new BukkitConfigView(localConfig)), localMessages))
-                .execute(sender, "nmod", new String[0]);
-        verify(localMessages).send(eq(sender), eq("status.cloud"), argThat(fields ->
-                fields.get("value").contains("local only")));
+        YamlConfiguration local = new YamlConfiguration();
+        local.set("moderation.enabled", true);
+        local.set("moderation.offline.bannedWords", List.of("badword"));
+        List<String> protectedLines = status(local);
+        assertTrue(protectedLines.contains("Local rules: blocking"), String.join("\n", protectedLines));
+        assertTrue(protectedLines.contains("Cloud: no key. Run /nmod trial for a free 14-day trial."),
+                String.join("\n", protectedLines));
 
-        MessageService inertMessages = mock(MessageService.class);
-        YamlConfiguration inertConfig = new YamlConfiguration();
-        inertConfig.set("moderation.enabled", true);
-        inertConfig.set("moderation.offline.enabled", false);
-        inertConfig.set("moderation.spam.enabled", false);
-        new StatusCmd(plugin(ModerationSettings.from(new BukkitConfigView(inertConfig)), inertMessages))
-                .execute(sender, "nmod", new String[0]);
-        verify(inertMessages).send(eq(sender), eq("status.cloud"), argThat(fields ->
-                fields.get("value").contains("no checks armed")));
+        YamlConfiguration inert = new YamlConfiguration();
+        inert.set("moderation.enabled", true);
+        inert.set("moderation.offline.enabled", false);
+        inert.set("moderation.spam.enabled", false);
+        List<String> inertLines = status(inert);
+        assertTrue(inertLines.contains("Local rules: nothing to check"), String.join("\n", inertLines));
     }
 
-    private static NeoModerationPlugin plugin(ModerationSettings settings, MessageService messages) {
-        NeoModerationPlugin plugin = mock(NeoModerationPlugin.class);
-        when(plugin.settings()).thenReturn(settings);
-        when(plugin.messages()).thenReturn(messages);
-        when(plugin.monitorStats()).thenReturn(mock(MonitorStats.class));
-        when(plugin.caseLog()).thenReturn(mock(CaseLog.class));
-        when(plugin.coordinator()).thenReturn(mock(ChatModerationCoordinator.class));
-        PluginDescriptionFile description = mock(PluginDescriptionFile.class);
-        when(description.getVersion()).thenReturn("1.6.1");
-        when(plugin.getDescription()).thenReturn(description);
-        return plugin;
+    @Test
+    void theHeaderAndEveryLineReadAsWords() {
+        String transcript = String.join("\n", status(new YamlConfiguration()));
+
+        assertTrue(transcript.startsWith("NeoModeration " + TestPlugin.VERSION + ": local rules "), transcript);
+        assertFalse(transcript.contains("status."), transcript);
+        assertFalse(transcript.contains("label."), transcript);
+    }
+
+    private static List<String> status(YamlConfiguration config) {
+        CommandSender sender = mock(CommandSender.class);
+        new StatusCmd(TestPlugin.with(config)).execute(sender, "nmod", new String[0]);
+        return TestPlugin.lines(sender);
     }
 }

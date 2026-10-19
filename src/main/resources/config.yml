@@ -6,21 +6,31 @@
 #  Run "/nmod status" any time to see what is currently active.
 # ===========================================================================
 
-# Language file to use from the /locale folder (en_US, es_ES, fr_FR, de_DE, pt_BR, tr_TR, or your own).
+# Language of the console and of players whose game language has no messages:
+# en_US, es_ES, fr_FR, de_DE, pt_BR, tr_TR, or your own file in /locale.
 locale: "en_US"
 
-# Check GitHub once at startup for a newer NeoModeration and log one line if
-# there is one. Sends nothing about your server and never downloads anything.
-# Word-list moderation ages badly, so an old install quietly misses more.
+# Players read NeoModeration's messages in their own Minecraft language when
+# it is one of the six above. Set to false to use "locale" for everyone.
+perPlayerLanguage: true
+
+# Check GitHub once at startup for a newer NeoModeration, log one line if there
+# is one, and tell each admin once when they join. Sends nothing about your
+# server and never downloads anything.
 updateCheck: true
 
 moderation:
   # Master switch. When false, NeoModeration does nothing.
   enabled: true
 
+  # Tell a player why their message, sign, book, item name or command was
+  # stopped ("It has a word this server blocks."). The text is in the locale
+  # files under "notice" and "why".
+  tellPlayers: true
+
   # How detections are handled:
-  #   monitor = detect, alert staff, and count what WOULD happen, but never
-  #             block a message or punish a player. Great for evaluating.
+  #   monitor = detect, alert staff and count what would happen, but never
+  #             block a message or punish a player.
   #   enforce = block flagged content and run the actions configured below.
   #
   # This is the mode for LOCAL rules: the word and URL lists below, and
@@ -141,12 +151,12 @@ moderation:
     allowedUrls: []
 
   # ---- Cloud moderation (requires a Neomechanical API key) -----------------
-  # Run "/nmod trial" in-game or from console to activate a free 14-day cloud
-  # evaluation with zero browser steps. Or sign up at
+  # Run "/nmod trial" in-game or from the console for a free 14-day cloud
+  # trial; it needs no account. Or sign up at
   # https://neomechanical.com/signup?src=neomoderation, create a key with
-  # events:write + usage:read, then run:  /nmod setup <apiKey>
-  # Verify authentication and credits with /nmod doctor. If credits reach zero,
-  # recover at https://neomechanical.com/billing?src=neomoderation_credits.
+  # events:write and usage:read, then run:  /nmod setup <apiKey>
+  # Check the key and credits with /nmod doctor. If credits run out, add more
+  # at https://neomechanical.com/billing?src=neomoderation_credits.
   api:
     endpoint: "https://api.neomechanical.com/v1/events"
     apiKey: ""
@@ -171,27 +181,31 @@ moderation:
     illicit: true
     selfHarm: true
 
-  # ---- Map art (filled maps) scanning -------------------------------------
-  # Scans filled maps for NSFW imagery via the cloud. Requires an API key.
-  # Results are cached per map so each map is only scanned once.
+  # ---- Map art (filled maps) ----------------------------------------------
+  # The cloud checks map pictures against the categories above. Requires an
+  # API key. Each picture is checked once; drawing on a map makes it a new
+  # picture, which is checked again.
   mapArt:
     enabled: true
-    # Scan when a player scrolls to / holds a filled map.
+    # Check a filled map when a player holds it.
     scanOnHold: true
-    # Scan when a player right-clicks an item frame holding a map.
+    # Check a map a player puts in an item frame, or right-clicks in one.
     scanOnFrameInteract: true
-    # Remove the map from the player when it is flagged. When false the player
-    # is warned but keeps the item.
+    # Take a flagged map away from the player holding it (in enforce cloudMode).
+    # A flagged map already hanging in a frame is taken down, and the player who
+    # clicked it is not blamed. When false, staff are alerted and the map stays.
     confiscate: true
     # How many map results to remember (safe + flagged) before old ones drop.
     cacheSize: 1000
 
   # ---- Extra actions after a message is blocked ---------------------------
   # Empty by default: block the matching message, alert staff, log a case,
-  # but do not mute the player or clear chat for everyone. Opt into extra
-  # actions with /nmod action add ...; order matters.
-  #   type: CLEAR_CHAT | MUTE | KICK | BAN
-  #   MUTE also takes durationSeconds and an optional reason.
+  # but do not mute the player or clear chat for everyone. Add actions with
+  # /nmod action add <clear|mute|kick|ban>; they run in order.
+  #   type: CLEAR_CHAT | MUTE | KICK | BAN | COMMAND
+  #   MUTE takes durationSeconds; KICK and BAN take an optional reason.
+  #   COMMAND runs "command" from the console, with %PLAYER%, %UUID%,
+  #   %DURATION% and %REASON% filled in.
   actions: []
 
   # ---- Local anti-spam (no API key needed, runs before everything) --------
@@ -224,8 +238,9 @@ moderation:
         type: KICK
         reason: "Repeated inappropriate chat"
 
-  # ---- Extra surfaces (local rules only; the cloud is never blocking here) --
-  # Each can be: off | monitor | censor | block (or change in-game with /nmod surface)
+  # ---- Signs, books, item names and commands (local rules only) -----------
+  # Each can be: off | monitor | censor | block. Change them in-game with
+  # /nmod surface.
   surfaces:
     sign: "off"
     book: "off"
@@ -235,12 +250,13 @@ moderation:
     scannedCommands: [ "msg", "tell", "w", "whisper", "me", "r", "reply" ]
 
   # ---- Local case history ---------------------------------------------------
-  # SQLite log of detections at plugins/NeoModeration/cases.db.
-  # View in-game with /nmod cases [player] and /nmod case <id>.
+  # Every detection is saved in plugins/NeoModeration/cases.db. Browse it
+  # in-game with /nmod cases [player] or /nmod cases <id>, and resolve,
+  # dismiss or allow a word from there.
   cases:
     enabled: true
-    # Store a short preview of the offending content. Off by default so the
-    # log stays privacy-clean (metadata only).
+    # Keep a short preview of what the player wrote. Off by default, so the
+    # history holds who, where and why, never the message.
     storeContent: false
 
   # ---- Staff alerts --------------------------------------------------------
@@ -248,19 +264,23 @@ moderation:
   # in-game alert whenever content is flagged, in both monitor and enforce mode.
   alerts:
     enabled: true
-    # Include a short preview of the offending message in the alert. Set to
-    # false to redact content from staff chat.
+    # Show a short preview of the message in the alert. Set to false to keep
+    # message text out of staff chat and Discord.
     includeMessage: true
-    # Optional Discord webhook URL for staff alerts when moderators are offline in-game.
+    # A Discord webhook that receives the same alerts, for when no moderator is
+    # online. Set it with /nmod discord <webhook URL>; /nmod discord test sends
+    # one to check it.
     discordWebhookUrl: ""
 
   chat:
-    # Hook Paper's async chat event for lower-latency scanning.
+    # Check chat messages. When false, chat is not checked at all; signs,
+    # books and commands follow their own settings above.
     scanAsyncChat: true
     # If the cloud is unreachable, let the message through (true) instead of
-    # blocking it (false).
+    # holding it back (false).
     failOpen: true
-    # Replace locally-matched words/links with **** instead of blocking the
+    # Replace locally matched words and links with **** instead of blocking the
     # whole message. Censored messages still count strikes and alert staff,
-    # but skip the punishment actions. Cloud detections always block.
+    # but skip the actions above. Cloud decisions are never censored: they
+    # block or alert, as cloudMode says.
     censorLocalDetections: false

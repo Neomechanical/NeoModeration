@@ -27,12 +27,11 @@ import java.util.Locale;
 import java.util.Optional;
 
 /**
- * Applies the LOCAL rules (and command-rate limiting) to non-chat surfaces:
- * signs, books, anvil renames, and configured message-style commands. These
- * events are synchronous, so the cloud is never consulted here — only the
- * microsecond-fast offline engine runs. Everything routes through the shared
- * {@link DetectionHandler}, so monitor mode, strikes, alerts, and case history
- * behave exactly like chat.
+ * Applies the local rules (and command-rate limiting) to signs, books, anvil
+ * renames and the configured message commands. These events are synchronous,
+ * so only the offline engine runs here, never the cloud. Everything routes
+ * through {@link DetectionHandler}, so monitor mode, strikes, the player's
+ * notice, staff alerts and case history behave exactly as in chat.
  */
 public final class SurfaceModerationListener implements Listener {
     private static final String BYPASS_PERMISSION = "neomoderation.bypass";
@@ -52,7 +51,6 @@ public final class SurfaceModerationListener implements Listener {
                 moderate(event.getPlayer(), mode, "sign", Arrays.asList(event.getLines()));
         if (effective == DetectionHandler.Disposition.BLOCK) {
             event.setCancelled(true);
-            plugin.messages().send(event.getPlayer(), "surface.blocked");
         } else if (effective == DetectionHandler.Disposition.CENSOR) {
             for (int i = 0; i < 4; i++) {
                 String line = event.getLine(i);
@@ -76,7 +74,6 @@ public final class SurfaceModerationListener implements Listener {
                 moderate(event.getPlayer(), mode, "book", text);
         if (effective == DetectionHandler.Disposition.BLOCK) {
             event.setCancelled(true);
-            plugin.messages().send(event.getPlayer(), "surface.blocked");
         } else if (effective == DetectionHandler.Disposition.CENSOR) {
             var offline = plugin.settings().offline();
             if (newMeta.hasTitle()) {
@@ -109,7 +106,6 @@ public final class SurfaceModerationListener implements Listener {
         DetectionHandler.Disposition effective = moderate(player, mode, "anvil", List.of(name));
         if (effective == DetectionHandler.Disposition.BLOCK) {
             event.setCancelled(true);
-            plugin.messages().send(player, "surface.blocked");
         } else if (effective == DetectionHandler.Disposition.CENSOR) {
             meta.setDisplayName(OfflineModerationEngine.censor(name, plugin.settings().offline()));
             item.setItemMeta(meta);
@@ -147,7 +143,6 @@ public final class SurfaceModerationListener implements Listener {
                     requestedFor(mode, false));
             if (effective != DetectionHandler.Disposition.ALLOW) {
                 event.setCancelled(true);
-                plugin.messages().send(player, "surface.blocked");
             }
             return;
         }
@@ -169,7 +164,6 @@ public final class SurfaceModerationListener implements Listener {
                         requestedFor(mode, mode != SurfaceMode.CENSOR || canCensor(List.of(args), settings)));
         if (effective == DetectionHandler.Disposition.BLOCK) {
             event.setCancelled(true);
-            plugin.messages().send(player, "surface.blocked");
         } else if (effective == DetectionHandler.Disposition.CENSOR) {
             event.setMessage(kept + " " + OfflineModerationEngine.censor(args, settings.offline()));
         }

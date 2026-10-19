@@ -8,7 +8,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -72,15 +71,6 @@ public final class UpdateChecker {
         } catch (Exception ignored) {
             return Optional.empty();
         }
-    }
-
-    /** The console lines to print for a newer release. */
-    public static List<String> updateLines(String latest, String current) {
-        return List.of(
-                "A newer NeoModeration is available: " + latest + " (this server runs " + current + ").",
-                "Chat evasions change over time, so an old matcher quietly misses more. "
-                        + "Download: " + RELEASES_PAGE
-        );
     }
 
     static String stripLeadingV(String tag) {

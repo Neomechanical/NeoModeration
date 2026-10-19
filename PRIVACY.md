@@ -8,8 +8,18 @@ active configuration.
 
 With no API key configured, **no chat or map content leaves your server**:
 
-- Banned/allowed word and URL rules run entirely in-process.
+- Word, link, server-ad and spam rules run entirely in-process.
 - No accounts, no telemetry about chat content, and no network calls for moderation.
+
+## What stays on your server
+
+- **Case history**: each detection is saved in `plugins/NeoModeration/cases.db`
+  with the player, where it happened, the rule and what was done. The message
+  itself is kept only when `moderation.cases.storeContent` is `true` (off by
+  default), as a short preview. For a flagged map found in an item frame, the
+  case keeps the map's number and position.
+- **Mutes** are saved in `plugins/NeoModeration/mutes.yml`: the player's UUID
+  and when the mute ends. **Strikes** live in memory and reset on a restart.
 
 ## What the cloud receives (only when you add an API key)
 
@@ -45,11 +55,24 @@ regardless of configuration. If the cloud is unreachable the configured
 blocks, and a circuit breaker pauses cloud calls for 60 seconds after repeated
 errors; local rules keep running throughout.
 
-## Staff alerts
+## Staff alerts and Discord
 
 Alerts shown to staff (`neomoderation.notify`) include a short preview of the
-flagged message. Set `moderation.alerts.includeMessage: false` to redact
-content from staff chat while keeping the alerts.
+flagged message. Set `moderation.alerts.includeMessage: false` to keep message
+text out of staff chat while keeping the alerts.
+
+If you set a Discord webhook (`/nmod discord <webhook URL>`), the same alerts
+go to that Discord channel. Each one holds the player's name, where it
+happened, the rule, what was done and, unless `includeMessage` is `false`, a
+short preview of the message. Nothing goes to Discord until you set a webhook;
+`/nmod discord off` stops it.
+
+## Update check
+
+Once at startup NeoModeration asks GitHub's public API for the latest release
+(`api.github.com/repos/Neomechanical/NeoModeration/releases/latest`). The
+request carries nothing about your server or players. Turn it off with
+`updateCheck: false` in `config.yml`.
 
 ## Plugin usage metrics
 

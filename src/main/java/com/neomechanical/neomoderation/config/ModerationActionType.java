@@ -24,12 +24,4 @@ public enum ModerationActionType {
             return Optional.empty();
         }
     }
-
-    /**
-     * @deprecated Prefer {@link #parse(String)} so invalid types are not silently coerced.
-     */
-    @Deprecated
-    public static ModerationActionType fromString(String value) {
-        return parse(value).orElse(COMMAND);
-    }
 }

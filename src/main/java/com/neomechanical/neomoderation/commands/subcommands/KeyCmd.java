@@ -24,16 +24,6 @@ public class KeyCmd implements SubCommand {
     }
 
     @Override
-    public String getDescription() {
-        return "Manage your API key.";
-    }
-
-    @Override
-    public String getUsage() {
-        return "/nmod key <set|clear> [apiKey]";
-    }
-
-    @Override
     public void execute(CommandSender sender, String label, String[] args) {
         if (args.length < 2) {
             plugin.messages().send(sender, "key.usage", Map.of("label", label));

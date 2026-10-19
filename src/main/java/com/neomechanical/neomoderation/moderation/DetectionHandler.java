@@ -4,17 +4,19 @@ import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.config.ModerationAction;
 import com.neomechanical.neomoderation.config.ModerationMode;
 import com.neomechanical.neomoderation.config.ModerationSettings;
+import com.neomechanical.neomoderation.messages.Reasons;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 
 /**
  * The single end-to-end path for every detection, on every surface: counts it,
- * records a strike, executes actions/escalation (enforce only), alerts staff,
- * logs to console, and appends the case row. Callers pass the disposition they
- * want (ALLOW = alert-only, CENSOR, BLOCK); global monitor mode always
- * downgrades to alert-only.
+ * records a strike, runs actions and escalation (enforce only), tells the player
+ * why, alerts staff, and appends the case row. Callers pass the disposition they
+ * want (ALLOW = alert only, CENSOR, BLOCK); monitor mode always downgrades to
+ * alert only.
  */
 public final class DetectionHandler {
     public enum Disposition {
@@ -37,6 +39,11 @@ public final class DetectionHandler {
             return this == CLOUD ? settings.cloudMode() : settings.mode();
         }
     }
+
+    /** Surfaces that tell the player themselves, such as map art's own removal message. */
+    private static final List<String> SELF_EXPLAINING_SURFACES = List.of("map_art");
+    /** Surfaces whose "message" is where something was found, which every case keeps. */
+    static final List<String> FOUND_SURFACES = List.of("map_frame");
 
     private final NeoModerationPlugin plugin;
     private final ChatModerationActionExecutor actionExecutor;
@@ -69,61 +76,77 @@ public final class DetectionHandler {
         ModerationSettings settings = plugin.settings();
         monitorStats.record(reason);
 
-        ModerationMode effectiveMode = source.modeIn(settings);
-        boolean alertOnly = effectiveMode == ModerationMode.MONITOR || requested == Disposition.ALLOW;
-        int strikeCount = 0;
-        Optional<ModerationAction> escalation = Optional.empty();
+        boolean alertOnly = source.modeIn(settings) == ModerationMode.MONITOR || requested == Disposition.ALLOW;
+        Disposition effective = alertOnly ? Disposition.ALLOW : requested;
+        int strike = 0;
+        List<ModerationAction> actions = new ArrayList<>();
         if (!alertOnly) {
             StrikeService.Result result =
                     strikes.recordStrike(player.getUniqueId(), settings.strikes(), System.currentTimeMillis());
-            strikeCount = result.strikes();
-            escalation = result.escalation();
-        }
-        Disposition effective = alertOnly ? Disposition.ALLOW : requested;
-        String actionsText = actionsText(settings, effective, strikeCount, escalation);
-
-        Optional<ModerationAction> escalationAction = escalation;
-        plugin.runForEntity(player, () -> {
+            strike = result.strikes();
             if (effective == Disposition.BLOCK) {
-                actionExecutor.execute(player, settings.actions());
+                actions.addAll(settings.actions());
             }
-            escalationAction.ifPresent(action -> actionExecutor.execute(player, List.of(action)));
-            notifier.notifyDetection(player, surface, reason, message, settings, actionsText, alertOnly);
-            plugin.getLogger().info((alertOnly ? "MONITOR: " : "")
-                    + surface + " content from " + player.getName()
-                    + " flagged via " + reason + " -> " + actionsText);
+            result.escalation().ifPresent(actions::add);
+        }
+        Outcome outcome = new Outcome(verdictOf(effective), actions, strike);
+        DetectionNotifier.Detection detection =
+                new DetectionNotifier.Detection(player.getName(), surface, reason, message, outcome);
+
+        plugin.runForEntity(player, () -> {
+            if (!alertOnly && settings.tellPlayers() && !SELF_EXPLAINING_SURFACES.contains(surface)) {
+                tellPlayer(player, surface, reason, effective);
+            }
+            actionExecutor.execute(player, actions);
+            notifier.notifyDetection(detection, settings);
         });
-        recordCase(player, surface, reason, message, settings, actionsText, alertOnly);
+        recordCase(player, detection, settings);
         return effective;
     }
 
-    private static String actionsText(
-            ModerationSettings settings,
-            Disposition effective,
-            int strikeCount,
-            Optional<ModerationAction> escalation
-    ) {
-        String escalationSuffix = escalation
-                .map(action -> " + " + ModerationAction.describe(List.of(action)))
-                .orElse("");
-        String strikeSuffix = strikeCount > 0 ? " (strike " + strikeCount + ")" : "";
+    /**
+     * A detection nobody can be blamed for, such as flagged map art already
+     * hanging in an item frame: counted, alerted and logged with where it was,
+     * with no strike, action or notice for {@code finder}, who only came across it.
+     */
+    public Disposition handleFound(Player finder, String surface, String reason, String where,
+                                   Disposition requested, Source source) {
+        ModerationSettings settings = plugin.settings();
+        monitorStats.record(reason);
+        boolean alertOnly = source.modeIn(settings) == ModerationMode.MONITOR || requested == Disposition.ALLOW;
+        Disposition effective = alertOnly ? Disposition.ALLOW : requested;
+        DetectionNotifier.Detection detection = new DetectionNotifier.Detection(
+                finder.getName(), surface, reason, where, new Outcome(verdictOf(effective), List.of(), 0));
+        plugin.runForEntity(finder, () -> notifier.notifyDetection(detection, settings));
+        recordCase(finder, detection, settings);
+        return effective;
+    }
+
+    private void tellPlayer(Player player, String surface, String reason, Disposition effective) {
+        String key = effective == Disposition.CENSOR ? "notice.censored" : "notice." + surface;
+        String why = plugin.messages().text(player, Reasons.whyKey(reason));
+        plugin.messages().send(player, key, Map.of("why", why));
+    }
+
+    private static Outcome.Verdict verdictOf(Disposition effective) {
         return switch (effective) {
-            case ALLOW -> ModerationAction.describe(settings.actions());
-            case CENSOR -> "censored" + escalationSuffix + strikeSuffix;
-            case BLOCK -> ModerationAction.describe(settings.actions()) + escalationSuffix + strikeSuffix;
+            case ALLOW -> Outcome.Verdict.REVIEW;
+            case CENSOR -> Outcome.Verdict.CENSORED;
+            case BLOCK -> Outcome.Verdict.BLOCKED;
         };
     }
 
-    private void recordCase(Player player, String surface, String reason, String message,
-                            ModerationSettings settings, String actionsText, boolean alertOnly) {
-        if (!settings.cases().enabled()) {
+    private void recordCase(Player player, DetectionNotifier.Detection detection, ModerationSettings settings) {
+        if (!settings.cases().enabled() || plugin.caseLog() == null) {
             return;
         }
         long now = System.currentTimeMillis();
         String uuid = player.getUniqueId().toString();
-        String name = player.getName();
-        String preview = settings.cases().storeContent() ? DetectionNotifier.preview(message) : "";
-        String mode = alertOnly ? "monitor" : "enforce";
-        plugin.runAsync(() -> plugin.caseLog().record(now, uuid, name, surface, reason, actionsText, mode, preview));
+        boolean keepText = settings.cases().storeContent() || FOUND_SURFACES.contains(detection.surface());
+        String preview = keepText ? DetectionNotifier.preview(detection.message()) : "";
+        String mode = detection.outcome().verdict() == Outcome.Verdict.REVIEW ? "monitor" : "enforce";
+        String encoded = detection.outcome().encode();
+        plugin.runAsync(() -> plugin.caseLog().record(now, uuid, detection.player(), detection.surface(),
+                detection.reason(), encoded, mode, preview));
     }
 }

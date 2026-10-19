@@ -26,16 +26,6 @@ public class SetupCmd implements SubCommand {
     }
 
     @Override
-    public String getDescription() {
-        return "Setup NeoModeration with an API key.";
-    }
-
-    @Override
-    public String getUsage() {
-        return "/nmod setup <apiKey>";
-    }
-
-    @Override
     public List<String> getAliases() {
         return List.of("cloud");
     }

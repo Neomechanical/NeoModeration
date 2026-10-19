@@ -1,16 +1,22 @@
 package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
-import com.neomechanical.neomoderation.commands.DurationParser;
 import com.neomechanical.neomoderation.commands.SubCommand;
+import com.neomechanical.neomoderation.messages.MenuRenderer;
+import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.moderation.CaseLog;
 import org.bukkit.command.CommandSender;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
-/** Browse the local SQLite case history: /nmod cases [player], /nmod case <id>. */
+/**
+ * The local case history: {@code /nmod cases [player] [page]}, {@code /nmod case <id>},
+ * {@code /nmod cases resolve|dismiss <id>}. Reads run off the main thread.
+ */
 public class CasesCmd implements SubCommand {
     private static final int PAGE_SIZE = 10;
 
@@ -26,173 +32,120 @@ public class CasesCmd implements SubCommand {
     }
 
     @Override
-    public String getDescription() {
-        return "Browse the local detection history.";
-    }
-
-    @Override
-    public String getUsage() {
-        return "/nmod cases [player|id|resolve <id>|dismiss <id>]";
-    }
-
-    @Override
     public List<String> getAliases() {
         return List.of("case");
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, String[] args) {
-        if (args.length == 2) {
-            return SubCommand.filterPrefix(args[1], "resolve", "dismiss");
+        if (args.length != 2) {
+            return List.of();
         }
-        return List.of();
+        List<String> options = new ArrayList<>(List.of("resolve", "dismiss"));
+        plugin.getServer().getOnlinePlayers().forEach(player -> options.add(player.getName()));
+        return SubCommand.filterPrefix(args[1], options.toArray(String[]::new));
     }
 
     @Override
     public void execute(CommandSender sender, String label, String[] args) {
+        MessageService messages = plugin.messages();
         if (!plugin.settings().cases().enabled()) {
-            plugin.messages().send(sender, "cases.disabled");
+            messages.send(sender, "cases.disabled");
             return;
         }
         if (!plugin.caseLog().isAvailable()) {
-            plugin.messages().send(sender, "cases.unavailable");
+            messages.send(sender, "cases.unavailable");
             return;
         }
-        String argument = args.length >= 2 ? args[1].trim() : null;
-        if (argument != null && ("resolve".equalsIgnoreCase(argument) || "dismiss".equalsIgnoreCase(argument))) {
-            if (args.length < 3 || parseId(args[2].trim()) == null) {
-                plugin.messages().send(sender, "cases.not-found", Map.of("id", args.length >= 3 ? args[2].trim() : "?"));
+        String first = args.length >= 2 ? args[1].trim() : "";
+        String action = first.toLowerCase(Locale.ROOT);
+        if (action.equals("resolve") || action.equals("dismiss")) {
+            Long id = args.length >= 3 ? parseLong(args[2]) : null;
+            if (id == null) {
+                messages.send(sender, "cases.not-found", Map.of("id", args.length >= 3 ? args[2] : "?"));
                 return;
             }
-            long targetId = parseId(args[2].trim());
-            String newStatus = "resolve".equalsIgnoreCase(argument) ? "resolved" : "dismissed";
-            plugin.runAsync(() -> {
-                boolean updated = plugin.caseLog().updateStatus(targetId, newStatus);
-                Optional<CaseLog.CaseRecord> record = updated ? plugin.caseLog().byId(targetId) : Optional.empty();
-                plugin.runSync(() -> record.ifPresentOrElse(
-                        found -> renderDetail(sender, label, found),
-                        () -> plugin.messages().send(sender, "cases.not-found", Map.of("id", String.valueOf(targetId)))
-                ));
-            });
+            mark(sender, label, id, action.equals("resolve") ? "resolved" : "dismissed");
             return;
         }
-        Long id = argument != null ? parseId(argument) : null;
+        Long id = first.isEmpty() ? null : parseLong(first);
         if (id != null) {
-            plugin.runAsync(() -> {
-                Optional<CaseLog.CaseRecord> record = plugin.caseLog().byId(id);
-                plugin.runSync(() -> record.ifPresentOrElse(
-                        found -> renderDetail(sender, label, found),
-                        () -> plugin.messages().send(sender, "cases.not-found", Map.of("id", String.valueOf(id)))
-                ));
-            });
+            show(sender, label, id);
             return;
         }
-        String playerFilter = argument;
+        // [player] [page <n>] in any order of the two, as the "Older cases" line writes it.
+        String player = null;
+        int page = 1;
+        for (int i = 1; i < args.length; i++) {
+            if ("page".equalsIgnoreCase(args[i]) && i + 1 < args.length && parseInt(args[i + 1]) != null) {
+                page = parseInt(args[++i]);
+            } else if (player == null) {
+                player = args[i].trim();
+            }
+        }
+        list(sender, label, player, page);
+    }
+
+    private void list(CommandSender sender, String label, String player, int page) {
         plugin.runAsync(() -> {
-            List<CaseLog.CaseRecord> rows = plugin.caseLog().recent(playerFilter, PAGE_SIZE);
-            plugin.runSync(() -> renderList(sender, label, rows));
+            List<CaseLog.CaseRecord> rows = plugin.caseLog().recent(player, PAGE_SIZE, (page - 1) * PAGE_SIZE);
+            plugin.runSync(() -> {
+                MessageService messages = plugin.messages();
+                if (rows.isEmpty()) {
+                    messages.send(sender, "cases.empty");
+                    return;
+                }
+                String who = player == null ? ""
+                        : messages.format(sender, "cases.title-player", Map.of("player", player));
+                List<MenuRenderer.Line> lines = new ArrayList<>();
+                lines.add(MenuRenderer.text(messages.format(sender, "cases.title", Map.of("who", who))));
+                rows.forEach(row -> lines.add(CaseView.row(messages, sender, row, label)));
+                if (rows.size() == PAGE_SIZE) {
+                    String older = "/" + label + " cases " + (player == null ? "" : player + " ") + "page " + (page + 1);
+                    lines.add(MenuRenderer.clickableLine(messages.format(sender, "cases.more", Map.of("command", older)),
+                            older, "", MenuRenderer.ClickAction.RUN));
+                }
+                messages.sendMenu(sender, lines);
+            });
         });
     }
 
-    private void renderList(CommandSender sender, String label, List<CaseLog.CaseRecord> rows) {
-        plugin.messages().send(sender, "cases.title");
-        if (rows.isEmpty()) {
-            plugin.messages().send(sender, "cases.empty");
-            return;
-        }
-        if (sender instanceof org.bukkit.entity.Player) {
-            java.util.List<com.neomechanical.neomoderation.messages.MenuRenderer.Line> lines = new java.util.ArrayList<>();
-            for (CaseLog.CaseRecord row : rows) {
-                Map<String, String> fields = Map.of(
-                        "id", String.valueOf(row.id()),
-                        "player", row.player(),
-                        "surface", row.surface(),
-                        "reason", row.reason(),
-                        "actions", row.action(),
-                        "mode", row.mode(),
-                        "ago", ago(row.timestamp())
-                );
-                String formatted = plugin.messages().format("cases.line", fields);
-                String cmd = "/" + label + " case " + row.id();
-                lines.add(com.neomechanical.neomoderation.messages.MenuRenderer.clickableLine(
-                        formatted, cmd, "&b" + cmd,
-                        com.neomechanical.neomoderation.messages.MenuRenderer.ClickAction.RUN));
-            }
-            plugin.messages().sendMenu(sender, lines);
-            return;
-        }
-        for (CaseLog.CaseRecord row : rows) {
-            plugin.messages().send(sender, "cases.line", Map.of(
-                    "id", String.valueOf(row.id()),
-                    "player", row.player(),
-                    "surface", row.surface(),
-                    "reason", row.reason(),
-                    "actions", row.action(),
-                    "mode", row.mode(),
-                    "ago", ago(row.timestamp())
-            ));
-        }
+    private void show(CommandSender sender, String label, long id) {
+        plugin.runAsync(() -> {
+            Optional<CaseLog.CaseRecord> found = plugin.caseLog().byId(id);
+            plugin.runSync(() -> found.ifPresentOrElse(
+                    row -> plugin.messages().sendMenu(sender, CaseView.detail(plugin.messages(), sender, row, label)),
+                    () -> plugin.messages().send(sender, "cases.not-found", Map.of("id", String.valueOf(id)))));
+        });
     }
 
-    private void renderDetail(CommandSender sender, String label, CaseLog.CaseRecord row) {
-        plugin.messages().send(sender, "cases.title");
-        plugin.messages().send(sender, "cases.line", Map.of(
-                "id", String.valueOf(row.id()),
-                "player", row.player(),
-                "surface", row.surface(),
-                "reason", row.reason(),
-                "actions", row.action() + " [" + row.status() + "]",
-                "mode", row.mode(),
-                "ago", ago(row.timestamp())
-        ));
-        if (!row.preview().isBlank()) {
-            plugin.messages().send(sender, "cases.preview", Map.of("value", row.preview()));
-        }
-        if (sender instanceof org.bukkit.entity.Player) {
-            java.util.List<com.neomechanical.neomoderation.messages.MenuRenderer.Line> actions = new java.util.ArrayList<>();
-            String resolveCmd = "/" + label + " cases resolve " + row.id();
-            String dismissCmd = "/" + label + " cases dismiss " + row.id();
-            actions.add(com.neomechanical.neomoderation.messages.MenuRenderer.clickableLine(
-                    "  &a[Resolve #" + row.id() + "] &8(" + resolveCmd + ")",
-                    resolveCmd, "&a" + resolveCmd,
-                    com.neomechanical.neomoderation.messages.MenuRenderer.ClickAction.RUN));
-            actions.add(com.neomechanical.neomoderation.messages.MenuRenderer.clickableLine(
-                    "  &e[Dismiss #" + row.id() + "] &8(" + dismissCmd + ")",
-                    dismissCmd, "&e" + dismissCmd,
-                    com.neomechanical.neomoderation.messages.MenuRenderer.ClickAction.RUN));
-            String matchedWord = extractBlockedWord(row.reason());
-            if (matchedWord != null) {
-                String allowCmd = "/" + label + " allow word add " + matchedWord;
-                actions.add(com.neomechanical.neomoderation.messages.MenuRenderer.clickableLine(
-                        "  &b[Allow word \"" + matchedWord + "\"] &8(" + allowCmd + ")",
-                        allowCmd, "&b" + allowCmd,
-                        com.neomechanical.neomoderation.messages.MenuRenderer.ClickAction.RUN));
-            }
-            plugin.messages().sendMenu(sender, actions);
-        }
+    private void mark(CommandSender sender, String label, long id, String status) {
+        plugin.runAsync(() -> {
+            boolean updated = plugin.caseLog().updateStatus(id, status);
+            plugin.runSync(() -> {
+                MessageService messages = plugin.messages();
+                if (!updated) {
+                    messages.send(sender, "cases.not-found", Map.of("id", String.valueOf(id)));
+                    return;
+                }
+                messages.send(sender, "cases.updated", Map.of("id", String.valueOf(id),
+                        "status", messages.text(sender, "cases.status-name." + status)));
+            });
+        });
     }
 
-    static String extractBlockedWord(String reason) {
-        if (reason == null) {
-            return null;
-        }
-        String prefix = reason.startsWith("split_blocked_word:") ? "split_blocked_word:"
-                : reason.startsWith("blocked_word:") ? "blocked_word:" : null;
-        if (prefix == null) {
-            return null;
-        }
-        String word = reason.substring(prefix.length()).trim();
-        return word.isEmpty() ? null : word;
-    }
-
-    private static String ago(long timestamp) {
-        long seconds = Math.max(0, (System.currentTimeMillis() - timestamp) / 1000L);
-        return DurationParser.format((int) Math.min(Integer.MAX_VALUE, seconds));
-    }
-
-    private static Long parseId(String value) {
+    private static Long parseLong(String value) {
         try {
-            return Long.parseLong(value);
+            return Long.parseLong(value.trim().replace("#", ""));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private static Integer parseInt(String value) {
+        try {
+            int parsed = Integer.parseInt(value.trim());
+            return parsed > 0 && parsed < 10_000 ? parsed : null;
         } catch (NumberFormatException ignored) {
             return null;
         }
