@@ -20,8 +20,8 @@ format:
   date: "d MMMM yyyy"
 
 label:
-  "on": "activé"
-  "off": "désactivé"
+  "on": "oui"
+  "off": "non"
   none: "aucun"
   blocking: "blocage"
   alert-only: "alerte seulement"
@@ -33,9 +33,9 @@ error:
   api-key-too-long: "{prefix} {#risk}Cette clé dépasse {max} caractères."
   rule-too-long: "{prefix} {#risk}Cela dépasse {max} caractères."
   player-unknown: "{prefix} {#risk}Aucun joueur nommé {#text}{player}{#risk} n'a joué ici."
-
   unknown-command: "{prefix} {#risk}/{label} {command} n'existe pas. {#muted}Voici ce qui existe :"
   admin-only: "{prefix} {#muted}Seuls les administrateurs peuvent utiliser /{label} {command}."
+
 help:
   section:
     start: "{#text}&lPour commencer"
@@ -74,7 +74,7 @@ help:
     "on": "/nmod on"
     "off": "/nmod off"
   desc:
-    trial: "démarrer un essai cloud gratuit de 14 jours"
+    trial: "ce que fait un essai cloud gratuit de 14 jours"
     setup: "connecter une clé cloud"
     status: "ce qui est protégé en ce moment"
     mode: "bloquer, ou seulement alerter l'équipe"
@@ -110,7 +110,7 @@ key:
 trial:
   pending: "{prefix} {#muted}Un essai est déjà en train de démarrer. Attendez qu'il se termine."
   explain-title: "{prefix} {#brand}Un essai cloud gratuit de 14 jours{#muted}, sans compte à créer."
-  explain-sends: "  {#muted}Pendant l'essai, chaque message du chat et chaque image de carte part chez Neomechanical avec le pseudo et l'UUID du joueur pour être vérifié. Rien n'est conservé ni utilisé pour l'entraînement."
+  explain-sends: "  {#muted}Pendant l'essai, chaque message du chat et chaque image de carte part chez Neomechanical avec le pseudo et l'UUID du joueur pour être vérifié. Les messages et les images ne sont ni conservés ni utilisés pour l'entraînement."
   explain-monitor: "  {#muted}Les décisions du cloud ne font qu'alerter l'équipe tant que vous n'avez pas lancé {#brand}/nmod cloudmode enforce{#muted}. Vos listes de mots continuent de fonctionner comme maintenant."
   start-button: "  {#brand}[Démarrer l'essai gratuit]"
   start-hover: "{#muted}Lance {command}"
@@ -132,12 +132,13 @@ trial:
   status-no-key: "{prefix} {#muted}Pas encore de clé cloud. Lancez {#brand}/nmod trial{#muted} pour un essai gratuit de 14 jours."
   status-checking: "{prefix} {#muted}Vérification de l'essai cloud..."
   status-active: "{prefix} {#safe}Essai cloud jusqu'au {#text}{expires}{#safe}. {#muted}Jours restants : {#text}{days}"
-  status-caught: "{prefix} {#muted}Détecté par le cloud depuis le démarrage : {#text}{count}"
+  status-caught: "{prefix} {#muted}Détecté par le cloud pendant l'essai : {#text}{count}"
+  status-caught-startup: "{prefix} {#muted}Détecté par le cloud depuis le démarrage : {#text}{count}"
   status-expired: "{prefix} {#risk}L'essai cloud s'est terminé le {#text}{expires}{#risk}. {#muted}Les règles locales fonctionnent toujours."
   status-standard: "{prefix} {#safe}Ce serveur utilise une clé Neomechanical complète. {#muted}Lancez {#brand}/nmod usage{#muted} pour voir les crédits."
   keep-button: "  {#brand}[Garder la modération cloud]"
   keep-hover: "{#muted}Ouvre {url}"
-  cta-button: "  {#brand}[Démarrer un essai cloud gratuit de 14 jours]"
+  cta-button: "  {#brand}[Essai cloud gratuit de 14 jours]"
   cta-hover: "{#muted}Lance /nmod trial. Aucun compte nécessaire."
 
 toggle:
@@ -157,6 +158,7 @@ status:
   discord: "{#muted}Alertes Discord : {#text}{value}"
   cloud: "{#muted}Cloud : {#text}{value}"
   cloud-no-key: "{#muted}Cloud : {#text}pas de clé{#muted}. Lancez {#brand}/nmod trial{#muted} pour un essai gratuit de 14 jours."
+  cloud-no-key-staff: "{#muted}Cloud : {#text}pas de clé{#muted}."
   cloud-unverified: "{#muted}Dernière vérification cloud : {#text}aucune depuis le démarrage{#muted}. Lancez {#brand}/nmod test hello{#muted}."
   cloud-ready: "{#muted}Dernière vérification cloud : {#safe}réussie{#muted}."
   cloud-auth: "{#muted}Dernière vérification cloud : {#risk}clé refusée{#muted}. Remplacez-la sur {#brand}{keysUrl}{#muted}."
@@ -194,8 +196,8 @@ rules:
   removed: "{prefix} {#safe}{kind} : {#text}{value}{#safe} retiré."
   already-there: "{prefix} {#muted}{kind} : {#text}{value}{#muted} y figure déjà."
   not-there: "{prefix} {#muted}{kind} : {#text}{value}{#muted} n'y figure pas."
-
   in-pack: "{prefix} {#muted}{#text}{value}{#muted} vient d'un pack de langue, donc il bloque toujours. Lancez {#brand}/{label} allow word add {value}{#muted} pour le laisser passer."
+
 action:
   usage: "{prefix} {#muted}Utilisez {#brand}/{label} action <list|add|remove|reset>{#muted}."
   add-usage: "{prefix} {#muted}Utilisez {#brand}/{label} action add <clear|mute|kick|ban> [durée]{#muted}."
@@ -219,6 +221,7 @@ action:
     ban: "bannir"
     command: "lancer /{command}"
     nothing: "rien d'autre"
+  unsafe-name: "Action de commande ignorée pour {player} : un nom avec une espace pourrait ajouter des mots à la commande."
 
 usage:
   fetching: "{prefix} {#muted}Consultation de votre compte Neomechanical..."
@@ -293,8 +296,8 @@ category:
   spam: "spam"
   illicit: "activités illicites"
   selfHarm: "automutilation"
-
 # Avec la préposition, car les lignes écrivent « Steve dans le chat » ou « Steve sur un panneau ».
+
 surface-name:
   chat: "dans le chat"
   sign: "sur un panneau"
@@ -314,6 +317,8 @@ alert:
   then: " {#faint}puis {#muted}{actions}"
   hidden: "message masqué"
   hover: "{#muted}Cliquez pour voir les cas de {player}"
+  paused-player: "{prefix} {#muted}Les alertes sur {#text}{player}{#muted} sont en pause pendant {seconds} secondes. Tout reste enregistré."
+  paused-all: "{prefix} {#muted}Trop d'alertes à la fois, elles sont en pause pendant {seconds} secondes. Tout reste enregistré."
 
 surface:
   title: "{prefix} {#muted}Où s'appliquent les règles locales. Cliquez sur un réglage pour le changer."
@@ -383,6 +388,7 @@ test:
   cloud-request-error: "  {#muted}Cloud : {#risk}requête refusée{#muted}. Lancez {#brand}/nmod doctor{#muted}."
   cloud-skipped-local: "  {#muted}Cloud : {#faint}pas consulté, les règles locales l'ont déjà détecté"
   cloud-skipped-key: "  {#muted}Cloud : {#faint}pas de clé. {#muted}Lancez {#brand}/nmod trial{#muted} pour un essai gratuit de 14 jours."
+  cloud-skipped-key-staff: "  {#muted}Cloud : {#faint}pas de clé."
   cloud-skipped-categories: "  {#muted}Cloud : {#faint}toutes les catégories sont désactivées"
   cloud-skipped-circuit: "  {#muted}Cloud : {#faint}en pause après des erreurs. {#brand}/nmod reload{#muted} réessaie tout de suite."
   would-allowed: "  {#muted}Résultat : {#safe}autorisé"
@@ -423,16 +429,17 @@ doctor:
     "on": "activée"
     "off": "désactivée, lancez /nmod on"
     local-none: "rien à vérifier"
-    local-monitor: "alerter l'équipe seulement ; /nmod mode enforce pour bloquer"
-    local-surfaces: "dans le chat, alerter seulement ; panneaux, livres et commandes suivent leurs propres réglages"
+    local-monitor: "alertent seulement l'équipe ; /nmod mode enforce pour bloquer"
+    local-surfaces: "dans le chat, alertent seulement ; panneaux, livres et commandes suivent leurs propres réglages"
     local-enforce: "blocage"
     rules: "mots interdits : {words}, liens bloqués : {urls}, exceptions : {exceptions}"
     ads-on: "bloquées"
+    ads-on-hint: "bloquées ; laissez passer l'adresse de votre serveur avec /nmod allow url add <adresse>"
     ads-off: "autorisées ; mettez moderation.offline.blockServerAds à true pour les bloquer"
     rules-spam-only: "aucune règle de mots ou de liens ; l'anti-spam fonctionne quand même"
     rules-cloud-only: "aucune règle de mots ou de liens ; seul le cloud vérifie"
     rules-none: "aucune vérification de mots, de liens, de spam ou cloud n'est activée"
-    actions-none: "bloquer seulement ; personne n'est rendu muet, expulsé ou banni"
+    actions-none: "blocage seulement ; personne n'est rendu muet, expulsé ou banni"
     actions-list: "{actions}"
     off-plain: "désactivé"
     spam-on: "messages par 10 s : {rate}, répétitions : {repeats}, majuscules : {caps} %"
@@ -446,14 +453,16 @@ doctor:
     cases-missing: "activé, mais ce serveur n'a pas de pilote SQLite, donc rien n'est enregistré"
     discord-on: "activées"
     discord-bad-url: "l'URL n'est pas un webhook Discord, donc rien n'est envoyé"
-    discord-failing: "Discord a refusé la dernière alerte ({problem}) ; vérifiez que le webhook existe toujours"
+    discord-gone: "Discord indique que ce webhook a été supprimé ; créez-en un nouveau et lancez /nmod discord <URL>"
+    discord-rate-limited: "Discord limite le rythme des alertes, donc certaines ont été perdues"
+    discord-unreachable: "la dernière alerte n'est pas arrivée sur Discord ; vérifiez que ce serveur peut joindre discord.com"
     fail-open: "le chat passe (failOpen: true)"
     fail-closed: "le chat est retenu (failOpen: false)"
     timeouts-ok: "{connect} ms pour se connecter, {read} ms pour répondre"
     timeouts-capped: "connexion et réponse dépassent 2,5 s ensemble ; le chat n'attend jamais plus de 2,5 s"
     no-key: "pas de clé. Lancez /nmod trial, ou créez une clé sur {url} puis lancez /nmod setup <clé>"
     cloud-nothing: "aucune vérification cloud de texte ou de cartes n'est activée"
-    cloud-monitor: "alerter l'équipe seulement ; /nmod cloudmode enforce pour bloquer"
+    cloud-monitor: "alerte seulement l'équipe ; /nmod cloudmode enforce pour bloquer"
     cloud-enforce: "blocage"
     endpoint-bad: "pas une adresse web : {endpoint}"
     circuit-open: "en pause une minute après des erreurs ; /nmod reload réessaie tout de suite"
@@ -570,6 +579,8 @@ welcome:
   surfaces-hover: "{#muted}Lance /nmod surface"
   test-btn: "  {#brand}[Essayer un message]"
   test-hover: "{#muted}Lance /nmod test badword. Rien n'est bloqué."
+  ads-btn: "  {#brand}[Laisser les joueurs partager l'adresse de votre serveur]"
+  ads-hover: "{#muted}Met /nmod allow url add dans votre chat. Tapez ensuite l'adresse de votre serveur."
 
 update:
   available: "{prefix} {#muted}NeoModeration {#text}{latest}{#muted} est sorti ; ce serveur utilise {current}."

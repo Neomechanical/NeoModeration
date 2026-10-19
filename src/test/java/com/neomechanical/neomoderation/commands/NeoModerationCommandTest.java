@@ -31,7 +31,7 @@ class NeoModerationCommandTest {
 
         assertEquals(List.of("[NeoMod] Nothing caught yet.", "[NeoMod] Only admins can use /nmod on."),
                 TestPlugin.lines(moderator));
-        verify(plugin, never()).saveAndReload();
+        verify(plugin, never()).editConfig(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -59,7 +59,7 @@ class NeoModerationCommandTest {
         command.onCommand(admin, bukkitCommand, "nmod", new String[]{"stauts"});
 
         List<String> lines = TestPlugin.lines(admin);
-        assertEquals("[NeoMod] There is no /nmod stauts. Here is what there is:", lines.get(0));
+        assertEquals("[NeoMod] There is no /nmod stauts. Here are the commands:", lines.get(0));
         assertTrue(lines.size() > 3, String.join("\n", lines));
     }
 

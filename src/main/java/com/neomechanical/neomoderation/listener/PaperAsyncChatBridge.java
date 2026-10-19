@@ -72,6 +72,9 @@ public final class PaperAsyncChatBridge {
                     // If Adventure isn't reachable for some reason, blocking is the
                     // safe fallback for a flagged message.
                     cancellable.setCancelled(true);
+                } else if (decision.type() == ChatDecision.Type.SOFTEN && isPlain(component)) {
+                    // Only plain text is softened; colours or hover text another plugin added are kept.
+                    setMessage(event, decision.message());
                 }
             } catch (ReflectiveOperationException exception) {
                 throw new EventException(exception);
@@ -94,6 +97,18 @@ public final class PaperAsyncChatBridge {
             } catch (ReflectiveOperationException ignored) {
                 // Fall through: caller cancels the event instead.
             }
+            return false;
+        }
+    }
+
+    /** Whether a chat component is bare text, with no style and no parts another plugin added. */
+    private static boolean isPlain(Object component) {
+        try {
+            Object children = component.getClass().getMethod("children").invoke(component);
+            Object style = component.getClass().getMethod("style").invoke(component);
+            return children instanceof java.util.List<?> list && list.isEmpty()
+                    && Boolean.TRUE.equals(style.getClass().getMethod("isEmpty").invoke(style));
+        } catch (ReflectiveOperationException | RuntimeException e) {
             return false;
         }
     }

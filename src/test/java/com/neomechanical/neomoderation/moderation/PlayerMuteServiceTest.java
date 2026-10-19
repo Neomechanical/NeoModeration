@@ -16,25 +16,27 @@ class PlayerMuteServiceTest {
 
     @Test
     void mutesAndExpires() throws InterruptedException {
-        PlayerMuteService service = new PlayerMuteService(tempDir.resolve("mutes.yml").toFile());
-        UUID playerId = UUID.randomUUID();
+        try (PlayerMuteService service = new PlayerMuteService(tempDir.resolve("mutes.yml").toFile())) {
+            UUID playerId = UUID.randomUUID();
 
-        service.mute(playerId, 1);
-        assertTrue(service.isMuted(playerId));
-        assertTrue(service.remainingSeconds(playerId) >= 1);
+            service.mute(playerId, 1);
+            assertTrue(service.isMuted(playerId));
+            assertTrue(service.remainingSeconds(playerId) >= 1);
 
-        Thread.sleep(1100);
-        assertFalse(service.isMuted(playerId));
-        assertTrue(service.remainingSeconds(playerId) == 0);
+            Thread.sleep(1100);
+            assertFalse(service.isMuted(playerId));
+            assertTrue(service.remainingSeconds(playerId) == 0);
+        }
     }
 
     @Test
     void unmuteClearsMute() {
-        PlayerMuteService service = new PlayerMuteService(tempDir.resolve("mutes.yml").toFile());
-        UUID playerId = UUID.randomUUID();
-        service.mute(playerId, 60);
-        service.unmute(playerId);
-        assertFalse(service.isMuted(playerId));
+        try (PlayerMuteService service = new PlayerMuteService(tempDir.resolve("mutes.yml").toFile())) {
+            UUID playerId = UUID.randomUUID();
+            service.mute(playerId, 60);
+            service.unmute(playerId);
+            assertFalse(service.isMuted(playerId));
+        }
     }
 
     @Test
@@ -43,8 +45,10 @@ class PlayerMuteServiceTest {
         UUID playerId = UUID.randomUUID();
         PlayerMuteService first = new PlayerMuteService(file);
         first.mute(playerId, 120);
+        first.close();
 
-        PlayerMuteService second = new PlayerMuteService(file);
-        assertTrue(second.isMuted(playerId));
+        try (PlayerMuteService second = new PlayerMuteService(file)) {
+            assertTrue(second.isMuted(playerId));
+        }
     }
 }

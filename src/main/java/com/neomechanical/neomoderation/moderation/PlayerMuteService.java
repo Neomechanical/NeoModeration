@@ -11,11 +11,27 @@ import java.nio.file.StandardCopyOption;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-public final class PlayerMuteService {
+/**
+ * NeoModeration's own mutes, kept in mutes.yml. Changes are written on a
+ * background thread, many at once as one write, so a raid that mutes dozens of
+ * players never waits on the disk; {@link #close()} writes what is left.
+ */
+public final class PlayerMuteService implements AutoCloseable {
     private final ConcurrentHashMap<UUID, Long> mutedUntilMillis = new ConcurrentHashMap<>();
     private final File storageFile;
     private final Object diskLock = new Object();
+    private final AtomicBoolean writeQueued = new AtomicBoolean();
+    private final ExecutorService writer = Executors.newSingleThreadExecutor(task -> {
+        Thread thread = new Thread(task, "NeoModeration-mutes");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     public PlayerMuteService(JavaPlugin plugin) {
         this(new File(plugin.getDataFolder(), "mutes.yml"));
@@ -88,7 +104,36 @@ public final class PlayerMuteService {
         }
     }
 
+    /** Writes any change still waiting; called when the plugin stops. */
+    @Override
+    public void close() {
+        writer.shutdown();
+        try {
+            if (!writer.awaitTermination(5, TimeUnit.SECONDS)) {
+                write();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            write();
+        }
+    }
+
     private void save() {
+        if (storageFile == null || !writeQueued.compareAndSet(false, true)) {
+            return;
+        }
+        try {
+            writer.execute(() -> {
+                writeQueued.set(false);
+                write();
+            });
+        } catch (RejectedExecutionException stopped) {
+            writeQueued.set(false);
+            write();
+        }
+    }
+
+    private void write() {
         if (storageFile == null) {
             return;
         }

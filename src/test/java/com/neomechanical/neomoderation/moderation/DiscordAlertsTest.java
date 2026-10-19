@@ -123,12 +123,12 @@ class DiscordAlertsTest {
         try (DiscordAlerts alerts = new DiscordAlerts(http, NEVER)) {
             alerts.submit(WEBHOOK, alert("Blocked", "Player", "Steve"), "and {count} more");
             alerts.flush();
-            assertEquals("HTTP 404", alerts.lastProblem());
+            assertEquals(DiscordAlerts.Problem.GONE, alerts.lastProblem());
 
             doThrow(new IOException("offline")).when(http).send(any(), any());
             alerts.submit(WEBHOOK, alert("Blocked", "Player", "Steve"), "and {count} more");
             alerts.flush();
-            assertEquals("IOException", alerts.lastProblem());
+            assertEquals(DiscordAlerts.Problem.UNREACHABLE, alerts.lastProblem());
 
             HttpResponse<?> ok = mock(HttpResponse.class);
             when(ok.statusCode()).thenReturn(204);

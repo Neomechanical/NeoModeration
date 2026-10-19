@@ -2,6 +2,7 @@ package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.commands.SubCommand;
+import com.neomechanical.neomoderation.config.ConfigPaths;
 import com.neomechanical.neomoderation.config.ModerationCategorySettings;
 import com.neomechanical.neomoderation.messages.MenuRenderer;
 import com.neomechanical.neomoderation.messages.MessageService;
@@ -59,11 +60,13 @@ public class PresetCmd implements SubCommand {
             messages.send(sender, "preset.usage", Map.of("label", label));
             return;
         }
-        for (String category : ModerationCategorySettings.categoryKeys()) {
-            plugin.getConfig().set("moderation.categories." + category,
-                    preset.disabledCategories().contains(category) ? Boolean.FALSE : preset.threshold());
-        }
-        plugin.saveAndReload();
+        plugin.editConfig(config -> {
+            for (String category : ModerationCategorySettings.categoryKeys()) {
+                config.set(ConfigPaths.CATEGORIES + category,
+                        preset.disabledCategories().contains(category) ? Boolean.FALSE : preset.threshold());
+            }
+            return true;
+        });
         messages.send(sender, "preset.applied", Map.of(
                 "name", preset.name(),
                 "categories", String.valueOf(plugin.settings().categories().enabledCount())));

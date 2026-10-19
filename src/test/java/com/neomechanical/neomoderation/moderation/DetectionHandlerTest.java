@@ -57,4 +57,24 @@ class DetectionHandlerTest {
         assertTrue(actionsRun(player).isEmpty());
         verify(notifier).notifyDetection(any(), any());
     }
+
+    @Test
+    void spamNeverClimbsTheStrikeLadder() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("moderation.enabled", true);
+        config.set("moderation.strikes.enabled", true);
+        config.set("moderation.strikes.escalation", List.of(Map.of("atStrikes", 2, "type", "kick")));
+        NeoModerationPlugin plugin = TestPlugin.with(config);
+        StrikeService strikes = new StrikeService();
+        DetectionHandler handler = new DetectionHandler(plugin, executor, plugin.monitorStats(), notifier, strikes);
+        Player player = TestPlugin.player("Steve", "en_us");
+
+        for (int i = 0; i < 5; i++) {
+            handler.handle(player, "chat", "spam:duplicate", "gg", DetectionHandler.Disposition.BLOCK);
+        }
+
+        assertEquals(0, strikes.tracked(), "spam earns no strike");
+        org.mockito.Mockito.verify(executor, org.mockito.Mockito.never())
+                .execute(eq(player), org.mockito.ArgumentMatchers.argThat(actions -> !actions.isEmpty()));
+    }
 }

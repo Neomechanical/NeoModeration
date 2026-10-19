@@ -19,6 +19,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiPredicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Keeps the locale files in {@code plugins/NeoModeration/locale} current.
@@ -32,6 +34,7 @@ import java.util.function.BiPredicate;
  * longer uses is removed only while it still holds a shipped text.</p>
  */
 final class LocaleStore {
+    private static final Pattern PARSER_POSITION = Pattern.compile("line \\d+, column \\d+");
     private static final String SHIPPED_FILE = ".shipped.yml";
 
     private LocaleStore() {
@@ -98,8 +101,15 @@ final class LocaleStore {
             }
             String reason = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage().strip();
             int lineBreak = reason.indexOf('\n');
-            plugin.getLogger().warning("Could not read locale/" + file.getName() + ", so it was left as it is and "
-                    + "the built-in texts are used until it is fixed: "
+            // The parser names where it gave up last: "line 4, column 5".
+            Matcher where = PARSER_POSITION.matcher(reason);
+            String position = null;
+            while (where.find()) {
+                position = where.group();
+            }
+            plugin.getLogger().warning("Could not read locale/" + file.getName()
+                    + (position == null ? "" : " (" + position + ")")
+                    + ", so it was left as it is and the built-in texts are used until it is fixed: "
                     + (lineBreak > 0 ? reason.substring(0, lineBreak) : reason));
             return null;
         }

@@ -21,6 +21,8 @@ public final class SecretCommandLogFilter {
     private static final Pattern SECRET_COMMAND = Pattern.compile(
             "(?i)/(?:[a-z0-9_.-]+:)?(?:nmod|neomod|neomoderation)\\s+"
                     + "(?:setup\\s+\\S|key\\s+set\\s+\\S|discord\\s+https?://)");
+    /** The filter this plugin added, so a reload removes it before adding a new one. */
+    private static volatile Object installed;
 
     private SecretCommandLogFilter() {
     }
@@ -49,12 +51,35 @@ public final class SecretCommandLogFilter {
             InvocationHandler handler = (proxy, method, args) ->
                     answer(proxy, method, args, reader, deny, neutral, started);
             Object filter = Proxy.newProxyInstance(filterType.getClassLoader(), new Class<?>[]{filterType}, handler);
-            Object root = Class.forName("org.apache.logging.log4j.LogManager").getMethod("getRootLogger").invoke(null);
-            root.getClass().getMethod("addFilter", filterType).invoke(root, filter);
+            uninstall();
+            rootLogger().getClass().getMethod("addFilter", filterType).invoke(rootLogger(), filter);
+            installed = filter;
             return true;
         } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
             return false;
         }
+    }
+
+    /** Takes the filter off the root logger again, when the plugin stops or reloads. */
+    public static void uninstall() {
+        Object filter = installed;
+        if (filter == null) {
+            return;
+        }
+        installed = null;
+        try {
+            Class<?> filterType = Class.forName("org.apache.logging.log4j.core.Filter");
+            Object root = rootLogger();
+            // Log4j keeps a logger's filters on its LoggerConfig.
+            Object config = root.getClass().getMethod("get").invoke(root);
+            config.getClass().getMethod("removeFilter", filterType).invoke(config, filter);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+            // Nothing to remove where Log4j is missing.
+        }
+    }
+
+    private static Object rootLogger() throws ReflectiveOperationException {
+        return Class.forName("org.apache.logging.log4j.LogManager").getMethod("getRootLogger").invoke(null);
     }
 
     private static Object answer(Object proxy, Method method, Object[] args, Reader reader, Object deny,

@@ -117,7 +117,7 @@ class CloudHealthIsolationTest {
                 new ModerationApiSettings(endpoint, "test-key", 1000, 1000),
                 new OfflineModerationSettings(true, false, true, List.of(), List.of(), List.of(), List.of()),
                 new ModerationCategorySettings(Map.of()),
-                new MapArtSettings(true, true, true, true, 1000),
+                new MapArtSettings(true, true, true, true, 1000, 30),
                 List.of(),
                 true,
                 true,

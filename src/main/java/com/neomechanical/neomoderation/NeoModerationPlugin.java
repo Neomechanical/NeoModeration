@@ -31,6 +31,7 @@ import com.neomechanical.neomoderation.platform.PlatformScheduler;
 import com.neomechanical.neomoderation.platform.SecretCommandLogFilter;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.Configuration;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Entity;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -39,19 +40,20 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 
 public final class NeoModerationPlugin extends JavaPlugin {
     private static final int BSTATS_PLUGIN_ID = 32542;
 
     private ChatModerationCoordinator coordinator;
     // Swapped whole on reload and read from chat threads, so every reader sees a complete one.
+    /** Held while config.yml is read and changed, so two commands never edit it at once. */
+    private final Object configLock = new Object();
     private volatile ModerationSettings settings;
     private volatile MessageService messages;
     private PlayerMuteService muteService;
     private MonitorStats monitorStats;
-    private DetectionNotifier notifier;
     private SpamDetector spamDetector;
-    private StrikeService strikeService;
     private CaseLog caseLog;
     private DetectionHandler detectionHandler;
     private PlatformScheduler scheduler;
@@ -74,16 +76,15 @@ public final class NeoModerationPlugin extends JavaPlugin {
         coordinator = new ChatModerationCoordinator(getLogger());
         monitorStats = new MonitorStats();
         discordAlerts = new DiscordAlerts();
-        notifier = new DetectionNotifier(this, discordAlerts);
         spamDetector = new SpamDetector();
-        strikeService = new StrikeService();
         caseLog = CaseLog.open(getDataFolder().toPath().resolve("cases.db"), getLogger());
         detectionHandler = new DetectionHandler(
                 this,
-                new ChatModerationActionExecutor("NeoModeration", muteService),
+                new ChatModerationActionExecutor("NeoModeration", muteService, player -> getLogger().warning(
+                        MessageService.plain(messages.format("action.unsafe-name", Map.of("player", player))))),
                 monitorStats,
-                notifier,
-                strikeService
+                new DetectionNotifier(this, discordAlerts),
+                new StrikeService()
         );
         ChatModerationProcessor processor = new ChatModerationProcessor(
                 this,
@@ -152,6 +153,10 @@ public final class NeoModerationPlugin extends JavaPlugin {
         if (caseLog != null) {
             caseLog.close();
         }
+        if (muteService != null) {
+            muteService.close();
+        }
+        SecretCommandLogFilter.uninstall();
     }
 
     /**
@@ -159,28 +164,61 @@ public final class NeoModerationPlugin extends JavaPlugin {
      * language settings changed, so an in-game edit does not parse every locale file.
      */
     public void reloadModerationConfig() {
-        reloadConfig();
-        String serverLocale = MessageService.resolveLocaleCode(getConfig().getString("locale", "en_US"));
-        List<ConfigMigrations.Change> migrated = ConfigMigrations.apply(getConfig(), editedLocales.contains(serverLocale));
-        if (!migrated.isEmpty()) {
-            saveConfig();
-        }
-        settings = ModerationSettings.from(new BukkitConfigView(getConfig()), getLogger());
-        String locale = getConfig().getString("locale", "en_US") + "|" + perPlayerLanguage();
-        if (messages == null || !locale.equals(messagesLocale)) {
-            loadMessages();
-        }
-        migrated.forEach(change -> getLogger().info(MessageService.plain(messages.format(change.key(), change.values()))));
-        if (coordinator != null) {
-            coordinator.resetCircuit();
+        synchronized (configLock) {
+            reloadConfig();
+            String serverLocale = MessageService.resolveLocaleCode(getConfig().getString("locale", "en_US"));
+            // A locale file of the server's own ("my_texts") holds texts it wrote, as an edited bundled one does.
+            boolean ownTexts = editedLocales.contains(serverLocale)
+                    || !MessageService.BUNDLED_LOCALES.contains(serverLocale);
+            List<ConfigMigrations.Change> migrated = ConfigMigrations.apply(getConfig(), ownTexts);
+            if (!migrated.isEmpty()) {
+                saveConfig();
+            }
+            settings = ModerationSettings.from(new BukkitConfigView(getConfig()), getLogger());
+            String locale = getConfig().getString("locale", "en_US") + "|" + perPlayerLanguage();
+            if (messages == null || !locale.equals(messagesLocale)) {
+                loadMessages();
+            }
+            migrated.forEach(change ->
+                    getLogger().info(MessageService.plain(messages.format(change.key(), change.values()))));
+            if (coordinator != null) {
+                coordinator.resetCircuit();
+            }
         }
     }
 
     /** /nmod reload: config.yml and every locale file, including files an admin edited by hand. */
     public void reloadEverything() {
-        editedLocales = MessageService.prepareFiles(this);
-        messagesLocale = null;
-        reloadModerationConfig();
+        synchronized (configLock) {
+            editedLocales = MessageService.prepareFiles(this);
+            messagesLocale = null;
+            reloadModerationConfig();
+        }
+    }
+
+    /**
+     * Changes config.yml and, when {@code edit} returns true, saves and applies it.
+     * Every command that changes a setting comes through here, under one lock: on
+     * Folia, admins in different regions can run commands at the same moment, and
+     * a Bukkit configuration is not safe to share between threads.
+     */
+    public boolean editConfig(Predicate<FileConfiguration> edit) {
+        synchronized (configLock) {
+            if (!edit.test(getConfig())) {
+                return false;
+            }
+            saveConfig();
+            reloadModerationConfig();
+            return true;
+        }
+    }
+
+    /** Sets one value in config.yml, then saves and applies it. */
+    public void setConfig(String path, Object value) {
+        editConfig(config -> {
+            config.set(path, value);
+            return true;
+        });
     }
 
     private void loadMessages() {
@@ -201,12 +239,6 @@ public final class NeoModerationPlugin extends JavaPlugin {
     private int bundledWordCount() {
         Configuration bundled = getConfig().getDefaults();
         return bundled == null ? 0 : bundled.getStringList("moderation.offline.bannedWords").size();
-    }
-
-    /** Persist in-memory config edits and re-apply them atomically. */
-    public void saveAndReload() {
-        saveConfig();
-        reloadModerationConfig();
     }
 
     public void runAsync(Runnable task) {
@@ -257,20 +289,12 @@ public final class NeoModerationPlugin extends JavaPlugin {
         return monitorStats;
     }
 
-    public DetectionNotifier notifier() {
-        return notifier;
-    }
-
     public DiscordAlerts discordAlerts() {
         return discordAlerts;
     }
 
     public SpamDetector spamDetector() {
         return spamDetector;
-    }
-
-    public StrikeService strikeService() {
-        return strikeService;
     }
 
     public CaseLog caseLog() {

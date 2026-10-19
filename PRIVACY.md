@@ -31,8 +31,8 @@ sent over HTTPS to the configured endpoint (default
 
 | Field | Content |
 |---|---|
-| `actor.externalId` | The player's Minecraft UUID |
-| `actor.username` / `displayName` | The player's name |
+| `actor.externalId` | The player's Minecraft UUID; for a map already hanging in an item frame, the frame's ID instead, so the player who clicked it is not named |
+| `actor.username` / `displayName` | The player's name; `item_frame` for a map already hanging in a frame |
 | `content.text` | The chat message being checked |
 | `content.attachments` | For map-art scans only: the rendered map image |
 | `metadata.platformPolicy.thresholds` | Your per-category thresholds |

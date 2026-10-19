@@ -1,7 +1,7 @@
 package com.neomechanical.neomoderation.moderation;
 
-import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.NeoModerationPlugin;
+import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.messages.ActionText;
 import com.neomechanical.neomoderation.messages.MenuRenderer;
@@ -17,8 +17,9 @@ import java.util.Map;
 /**
  * Tells people about a detection: one line in the console, an alert to every
  * online player holding {@code neomoderation.notify} in their own language
- * (click it for the player's cases), and a post to the Discord webhook if one is
- * set. Runs on the offender's thread.
+ * (click it for the player's cases; paused during a raid, see
+ * {@link AlertThrottle}), and a post to the Discord webhook if one is set. Runs
+ * on the offender's thread.
  */
 public final class DetectionNotifier {
     private static final int MAX_MESSAGE_PREVIEW = 80;
@@ -27,6 +28,7 @@ public final class DetectionNotifier {
 
     private final NeoModerationPlugin plugin;
     private final DiscordAlerts discord;
+    private final AlertThrottle throttle = new AlertThrottle();
 
     public DetectionNotifier(NeoModerationPlugin plugin, DiscordAlerts discord) {
         this.plugin = plugin;
@@ -47,15 +49,25 @@ public final class DetectionNotifier {
         // The logger already names the plugin, so the console line goes without the chat prefix.
         plugin.getLogger().info(MessageService.plain(line(messages, console, detection, preview, "")).trim());
 
-        if (settings.alerts().enabled()) {
+        AlertThrottle.Decision shown = settings.alerts().enabled()
+                ? throttle.admit(detection.player(), System.currentTimeMillis())
+                : AlertThrottle.Decision.QUIET;
+        if (shown != AlertThrottle.Decision.QUIET) {
             String casesCommand = CaseLog.historyCommand("nmod", detection.player());
             for (Player staff : plugin.getServer().getOnlinePlayers()) {
                 if (!staff.hasPermission(Permissions.NOTIFY)) {
                     continue;
                 }
-                String line = line(messages, staff, detection, preview, null);
+                String line = switch (shown) {
+                    case PAUSE_PLAYER -> messages.format(staff, "alert.paused-player", Map.of("player",
+                            detection.player(), "seconds", String.valueOf(AlertThrottle.PLAYER_WINDOW_MS / 1000)));
+                    case PAUSE_ALL -> messages.format(staff, "alert.paused-all",
+                            Map.of("seconds", String.valueOf(AlertThrottle.OVERALL_WINDOW_MS / 1000)));
+                    default -> line(messages, staff, detection, preview, null);
+                };
                 // The click opens the player's cases, so it is only offered to staff who may open them.
                 messages.sendMenu(staff, List.of(staff.hasPermission(Permissions.MODERATE)
+                        && shown != AlertThrottle.Decision.PAUSE_ALL
                         ? MenuRenderer.clickableLine(line, casesCommand,
                                 messages.format(staff, "alert.hover", Map.of("player", detection.player())),
                                 MenuRenderer.ClickAction.RUN)
@@ -97,11 +109,14 @@ public final class DetectionNotifier {
         String title = messages.plainText(console, "discord.title-" + verdict.key());
         Map<String, String> fields = new LinkedHashMap<>();
         fields.put(messages.plainText(console, "discord.field-player"), detection.player());
+        String where = messages.plainText(console, "surface-name." + detection.surface());
+        // A found map's "message" is where it hangs, which belongs with where, not with what was written.
+        boolean found = DetectionHandler.FOUND_SURFACES.contains(detection.surface());
         fields.put(messages.plainText(console, "discord.field-where"),
-                messages.plainText(console, "surface-name." + detection.surface()));
+                found && preview != null ? where + ": " + preview : where);
         fields.put(messages.plainText(console, "discord.field-reason"),
                 MessageService.plain(Reasons.describe(messages, console, detection.reason())));
-        if (preview != null) {
+        if (preview != null && !found) {
             fields.put(messages.plainText(console, "discord.field-message"), "`" + preview.replace('`', '\'') + "`");
         }
         fields.put(messages.plainText(console, "discord.field-then"),

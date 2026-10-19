@@ -12,7 +12,8 @@ import java.util.Map;
  * {@code blocked_word:fuck}, {@code blocked_url:grabify.link},
  * {@code server_ad:play.example.net}, {@code spam:caps},
  * {@code platform:harassment}, {@code map_art:sexual}. {@code split_} before
- * the kind marks a word assembled from several short messages.</p>
+ * the kind marks a word assembled from several short messages, and
+ * {@code spaced_} one read across a space in a single message ("f uck").</p>
  */
 public final class Reasons {
 
@@ -43,8 +44,8 @@ public final class Reasons {
         }
     }
 
-    /** A reason taken apart. */
-    public record Parsed(Kind kind, boolean split, String detail) {
+    /** A reason taken apart: {@code split} across messages, {@code spaced} across a space in one. */
+    public record Parsed(Kind kind, boolean split, boolean spaced, String detail) {
     }
 
     private Reasons() {
@@ -56,6 +57,10 @@ public final class Reasons {
         boolean split = raw.startsWith("split_");
         if (split) {
             raw = raw.substring("split_".length());
+        }
+        boolean spaced = raw.startsWith("spaced_");
+        if (spaced) {
+            raw = raw.substring("spaced_".length());
         }
         int colon = raw.indexOf(':');
         String kind = (colon >= 0 ? raw.substring(0, colon) : raw).toLowerCase(Locale.ROOT);
@@ -76,7 +81,7 @@ public final class Reasons {
             case "map_art" -> Kind.MAP;
             default -> Kind.OTHER;
         };
-        return new Parsed(parsed, split, parsed == Kind.OTHER ? original : detail);
+        return new Parsed(parsed, split, spaced, parsed == Kind.OTHER ? original : detail);
     }
 
     /** The reason in words, in the language {@code reader} reads: "banned word "fuck"". */

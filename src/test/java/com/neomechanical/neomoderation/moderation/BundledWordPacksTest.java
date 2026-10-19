@@ -32,7 +32,9 @@ class BundledWordPacksTest {
             assertTrue(words.size() >= 20, code + " pack has only " + words.size() + " words");
             Set<String> seen = new HashSet<>();
             for (String word : words) {
-                assertTrue(word.matches("[a-z]{3,}"), code + " pack entry '" + word + "' must be 3+ lowercase ASCII letters");
+                // A phrase keeps its single spaces ("va te faire foutre"), which the filter reads across.
+                assertTrue(word.matches("[a-z]+( [a-z]+)*") && word.replace(" ", "").length() >= 3,
+                        code + " pack entry '" + word + "' must be 3+ lowercase ASCII letters");
                 assertTrue(seen.add(word), code + " pack repeats '" + word + "'");
             }
         }

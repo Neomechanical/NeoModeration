@@ -3,10 +3,12 @@ package com.neomechanical.neomoderation.commands.subcommands;
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.commands.DurationParser;
 import com.neomechanical.neomoderation.commands.SubCommand;
+import com.neomechanical.neomoderation.config.ConfigPaths;
 import com.neomechanical.neomoderation.config.ModerationAction;
 import com.neomechanical.neomoderation.config.ModerationActionType;
 import com.neomechanical.neomoderation.messages.ActionText;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.ConfigurationSection;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -17,7 +19,6 @@ import java.util.Optional;
 
 public class ActionCmd implements SubCommand {
     private final NeoModerationPlugin plugin;
-    private static final String ACTIONS_PATH = "moderation.actions";
     private static final int DEFAULT_MUTE_SECONDS = 300;
 
     public ActionCmd(NeoModerationPlugin plugin) {
@@ -93,12 +94,15 @@ public class ActionCmd implements SubCommand {
             return;
         }
 
-        List<Map<String, Object>> actions = loadActionMaps();
-        actions.removeIf(entry -> type.name().equalsIgnoreCase(String.valueOf(entry.get("type"))));
         // No reason is stored: each player reads the default one in their own language.
         Map<String, Object> actionMap = buildActionMap(type, durationSeconds);
-        actions.add(actionMap);
-        saveActions(actions);
+        plugin.editConfig(config -> {
+            List<Map<String, Object>> actions = actionMaps(config);
+            actions.removeIf(entry -> isType(entry, type));
+            actions.add(actionMap);
+            config.set(ConfigPaths.ACTIONS, actions);
+            return true;
+        });
         plugin.messages().send(sender, "action.added", Map.of(
                 "value", ActionText.name(plugin.messages(), sender, ModerationAction.from(actionMap))
         ));
@@ -116,24 +120,28 @@ public class ActionCmd implements SubCommand {
             return;
         }
 
-        List<Map<String, Object>> actions = loadActionMaps();
-        Optional<ModerationAction> existing = actions.stream()
-                .filter(entry -> type.name().equalsIgnoreCase(String.valueOf(entry.get("type"))))
-                .findFirst()
-                .flatMap(ModerationAction::tryFrom);
+        Optional<ModerationAction> existing = plugin.settings().actions().stream()
+                .filter(action -> action.type() == type)
+                .findFirst();
         if (existing.isEmpty()) {
             plugin.messages().send(sender, "action.missing", Map.of("value", kind));
             return;
         }
-        actions.removeIf(entry -> type.name().equalsIgnoreCase(String.valueOf(entry.get("type"))));
-        saveActions(actions);
+        plugin.editConfig(config -> {
+            List<Map<String, Object>> actions = actionMaps(config);
+            boolean removed = actions.removeIf(entry -> isType(entry, type));
+            if (removed) {
+                config.set(ConfigPaths.ACTIONS, actions);
+            }
+            return removed;
+        });
         // Named as it was set, such as "mute for 30m", not as a fresh one would be.
         plugin.messages().send(sender, "action.removed",
                 Map.of("value", ActionText.name(plugin.messages(), sender, existing.get())));
     }
 
     private void resetActions(CommandSender sender) {
-        saveActions(List.of());
+        plugin.setConfig(ConfigPaths.ACTIONS, List.of());
         plugin.messages().send(sender, "action.reset");
     }
 
@@ -156,10 +164,13 @@ public class ActionCmd implements SubCommand {
         return map;
     }
 
-    @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> loadActionMaps() {
+    private static boolean isType(Map<String, Object> entry, ModerationActionType type) {
+        return type.name().equalsIgnoreCase(String.valueOf(entry.get("type")));
+    }
+
+    private static List<Map<String, Object>> actionMaps(ConfigurationSection config) {
         List<Map<String, Object>> actions = new ArrayList<>();
-        for (Map<?, ?> raw : plugin.getConfig().getMapList(ACTIONS_PATH)) {
+        for (Map<?, ?> raw : config.getMapList(ConfigPaths.ACTIONS)) {
             Map<String, Object> copy = new LinkedHashMap<>();
             for (Map.Entry<?, ?> entry : raw.entrySet()) {
                 copy.put(String.valueOf(entry.getKey()), entry.getValue());
@@ -167,11 +178,6 @@ public class ActionCmd implements SubCommand {
             actions.add(copy);
         }
         return actions;
-    }
-
-    private void saveActions(List<Map<String, Object>> actions) {
-        plugin.getConfig().set(ACTIONS_PATH, actions);
-        plugin.saveAndReload();
     }
 
     @Override

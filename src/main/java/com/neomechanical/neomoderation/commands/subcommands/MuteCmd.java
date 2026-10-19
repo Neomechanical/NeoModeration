@@ -41,12 +41,36 @@ public class MuteCmd implements SubCommand {
             messages.send(sender, unmute ? "mute.unmute-usage" : "mute.usage", Map.of("label", label));
             return;
         }
-        OfflinePlayer target = find(args[1]);
-        if (target == null) {
-            messages.send(sender, "error.player-unknown", Map.of("player", args[1]));
+        int seconds = DEFAULT_SECONDS;
+        if (!unmute) {
+            try {
+                seconds = DurationParser.parseSeconds(args.length == 3 ? args[2] : null, DEFAULT_SECONDS);
+            } catch (IllegalArgumentException e) {
+                messages.send(sender, "action.bad-duration", Map.of("value", args[2]));
+                return;
+            }
+        }
+        String typed = args[1];
+        int duration = seconds;
+        OfflinePlayer known = findQuickly(typed);
+        if (known != null) {
+            apply(sender, typed, known, duration);
             return;
         }
-        String name = target.getName() == null ? args[1] : target.getName();
+        // Reading every player the server has stored can take a while, so it happens off the main thread.
+        plugin.runAsync(() -> {
+            OfflinePlayer stored = searchStored(typed);
+            plugin.runSync(() -> apply(sender, typed, stored, duration));
+        });
+    }
+
+    private void apply(CommandSender sender, String typed, OfflinePlayer target, int seconds) {
+        MessageService messages = plugin.messages();
+        if (target == null) {
+            messages.send(sender, "error.player-unknown", Map.of("player", typed));
+            return;
+        }
+        String name = target.getName() == null ? typed : target.getName();
         if (unmute) {
             if (!plugin.muteService().isMuted(target.getUniqueId())) {
                 messages.send(sender, "mute.not-muted", Map.of("player", name));
@@ -57,21 +81,14 @@ public class MuteCmd implements SubCommand {
             tell(target, "mute.told-unmuted", Map.of());
             return;
         }
-        int seconds;
-        try {
-            seconds = DurationParser.parseSeconds(args.length == 3 ? args[2] : null, DEFAULT_SECONDS);
-        } catch (IllegalArgumentException e) {
-            messages.send(sender, "action.bad-duration", Map.of("value", args[2]));
-            return;
-        }
         plugin.muteService().mute(target.getUniqueId(), seconds);
         String duration = DurationParser.format(seconds);
         messages.send(sender, "mute.done", Map.of("player", name, "duration", duration));
         tell(target, "mute.told", Map.of("duration", duration));
     }
 
-    /** An online player, else one the server has seen, without a web lookup. */
-    private OfflinePlayer find(String name) {
+    /** An online player, else one in Paper's name cache; never a web lookup. */
+    private OfflinePlayer findQuickly(String name) {
         Player online = plugin.getServer().getPlayerExact(name);
         if (online != null) {
             return online;
@@ -84,8 +101,12 @@ public class MuteCmd implements SubCommand {
                 return player;
             }
         } catch (ReflectiveOperationException ignored) {
-            // Fall back to the players this server has stored.
+            // Spigot: the stored players are searched instead.
         }
+        return null;
+    }
+
+    private OfflinePlayer searchStored(String name) {
         for (OfflinePlayer known : plugin.getServer().getOfflinePlayers()) {
             if (name.equalsIgnoreCase(known.getName())) {
                 return known;

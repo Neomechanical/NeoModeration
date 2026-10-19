@@ -1,7 +1,7 @@
 package com.neomechanical.neomoderation.commands;
 
-import com.neomechanical.neomoderation.config.InputLimits;
 import com.neomechanical.neomoderation.NeoModerationPlugin;
+import com.neomechanical.neomoderation.config.InputLimits;
 import com.neomechanical.neomoderation.config.OfflineModerationSettings;
 import com.neomechanical.neomoderation.messages.MessageService;
 import org.bukkit.command.CommandSender;
@@ -54,13 +54,15 @@ public final class RuleListEditor {
             messages.send(sender, "error.rule-too-long", Map.of("max", String.valueOf(InputLimits.MAX_RULE_VALUE_LENGTH)));
             return;
         }
-        List<String> values = new ArrayList<>(plugin.getConfig().getStringList(list.path()));
         boolean adding = "add".equals(action);
-        boolean changed = adding ? add(values, value) : values.removeIf(existing -> existing.equalsIgnoreCase(value));
-        if (changed) {
-            plugin.getConfig().set(list.path(), values);
-            plugin.saveAndReload();
-        }
+        boolean changed = plugin.editConfig(config -> {
+            List<String> values = new ArrayList<>(config.getStringList(list.path()));
+            boolean edited = adding ? add(values, value) : values.removeIf(existing -> existing.equalsIgnoreCase(value));
+            if (edited) {
+                config.set(list.path(), values);
+            }
+            return edited;
+        });
         String key = changed ? (adding ? "rules.added" : "rules.removed") : (adding ? "rules.already-there" : "rules.not-there");
         messages.send(sender, key, Map.of("kind", kind, "value", value));
         if (!changed && !adding && list == RuleList.BANNED_WORDS && fromLanguagePack(plugin, value)) {

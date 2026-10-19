@@ -2,13 +2,13 @@ NeoModeration by Neomechanical filters Minecraft chat. It blocks swearing, slurs
 
 ## What a new install does
 
-- Blocks messages that contain a word from starter lists of swear words and slurs: English, plus the Spanish, French, German, Portuguese or Turkish list that matches `locale` in `config.yml` (`languagePacks` turns on more). A word only matches from the start of a word to the end of one, so "assignment" and "Scunthorpe" stay clean, and everyday phrases that spell a banned word, such as "put a", are never read as it.
+- Blocks messages that contain a word from starter lists of swear words and slurs: English, plus the Spanish, French, German, Portuguese or Turkish list that matches `locale` in `config.yml` (`languagePacks` turns on more). A word only matches from the start of a word to the end of one, so "assignment" and "Scunthorpe" stay clean, and two everyday words are never read as one ("put a" is not a slur). A word one language uses every day, such as French "retard" (late), passes for players of that language.
 - Also matches common disguises of a listed word: spaced or stretched letters, accents, look-alike letters, leetspeak such as `b4dw0rd`, and words split across rapid short messages.
 - Blocks ads for other Minecraft servers: public IP addresses, addresses with a port, `play.` and `mc.` style addresses, free hosts such as `aternos.me`, and "join myserver.net". Ordinary links stay. Let your own server's address through with `/nmod allow url`.
 - Blocks a starter list of IP-grabber and scam links, including ones written with `(dot)` or `[.]`.
 - Blocks spam: message floods, the same message again and again and long runs of one character. Messages in capitals go out in lower case.
 - Tells the player why a message was stopped, in their own game language.
-- Alerts staff with the `neomoderation.notify` permission (operators by default), showing the player, the message, the reason and the action taken, with a clickable link to the player's case history.
+- Alerts staff with the `neomoderation.notify` permission (operators by default), showing the player, the message, the reason and the action taken. Staff who may open cases can click an alert for that player's history. During a raid, alerts pause instead of flooding staff chat.
 - Lets moderators with `neomoderation.moderate` use cases, mutes and tests while settings stay with admins.
 - Logs each detection as a case on your server. `/nmod cases` lists them; open one to resolve or dismiss it, allow the word or mute the player. The log leaves out the message text unless you turn it on.
 
@@ -28,12 +28,12 @@ To have local rules alert staff without blocking, run `/nmod mode monitor`.
 - Block every link and server IP address, including ones written with `(dot)` or `[.]` (`moderation.offline.blockAnyUrl`).
 - Check signs, books, anvil renames and chat commands such as `/msg` and `/me` with `/nmod surface`. Each can monitor, censor or block. Command checks also catch a player who sends those commands too fast.
 - Send detection alerts to a Discord staff channel with `/nmod discord`, and check the webhook with `/nmod discord test`.
-- Add actions after a block with `/nmod action`: clear chat, mute, kick or ban. Mutes need no other plugin and cover private messages too, and `/nmod mute` mutes a player by hand.
+- Add actions after a block with `/nmod action`: clear chat, mute, kick or ban. Mutes need no other plugin and cover private messages too (`/msg`, `/tell`, `/r`, `/me`, `/mail` and their aliases), and `/nmod mute` mutes a player by hand.
 - Add a strike for each blocked or starred-out message and act when a player reaches a set count (`moderation.strikes`).
 
 ## Optional cloud checks
 
-The Neomechanical Moderation API can read each chat message for its meaning, in eight categories: sexual content, hate, harassment, violence, scams, spam, illicit activity and self-harm. It can also check map art when a player holds a filled map, puts one in an item frame or right-clicks one there.
+The Neomechanical Moderation API can read each chat message for its meaning, in eight categories: sexual content, hate, harassment, violence, scams, spam, illicit activity and self-harm. It can also check map art when a player holds a filled map, puts one in an item frame or right-clicks one there, up to 30 new pictures per player an hour.
 
 - `/nmod trial` explains what a free 14-day trial sends, and `/nmod trial start` starts it. It needs no account, and each server can start one trial.
 - To use your own workspace, [create an account](https://neomechanical.com/signup?src=neomoderation_hangar), create an API key with the `events:write` and `usage:read` scopes, and run `/nmod setup <key>`.
@@ -49,7 +49,7 @@ Without an API key or a Discord webhook, no chat or map content leaves your serv
 
 ## Compatibility
 
-NeoModeration runs on Bukkit, Spigot, Paper and Purpur, Minecraft 1.18.2 to 26.2. Release checks run on Paper 1.18.2, 1.19.4, 1.20.6 and 1.21.11. In-game messages are in English, Spanish, French, German, Portuguese or Turkish, and each player reads them in their own game language.
+NeoModeration runs on Bukkit, Spigot, Paper, Purpur and Folia, Minecraft 1.18.2 to 26.3. Release checks run on Paper 1.18.2, 1.19.4, 1.20.6, 1.21.11, 26.1.2, 26.2 and 26.3 and on Folia 1.21.11. In-game messages are in English, Spanish, French, German, Portuguese or Turkish, and each player reads them in their own game language.
 
 ## Links
 

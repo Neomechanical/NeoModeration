@@ -7,6 +7,7 @@ import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 public final class ChatModerationActionExecutor {
@@ -23,10 +24,13 @@ public final class ChatModerationActionExecutor {
 
     private final String sourceName;
     private final PlayerMuteService muteService;
+    private final Consumer<String> unsafeName;
 
-    public ChatModerationActionExecutor(String sourceName, PlayerMuteService muteService) {
+    /** {@code unsafeName} hears the name of a player whose command action was skipped (see {@link #COMMAND_SAFE_NAME}). */
+    public ChatModerationActionExecutor(String sourceName, PlayerMuteService muteService, Consumer<String> unsafeName) {
         this.sourceName = sourceName;
         this.muteService = muteService;
+        this.unsafeName = unsafeName;
     }
 
     public void execute(Player player, List<ModerationAction> actions) {
@@ -81,6 +85,7 @@ public final class ChatModerationActionExecutor {
 
     private void runCommand(Player player, ModerationAction action, String command) {
         if (!COMMAND_SAFE_NAME.matcher(player.getName()).matches()) {
+            unsafeName.accept(player.getName());
             return;
         }
         ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();

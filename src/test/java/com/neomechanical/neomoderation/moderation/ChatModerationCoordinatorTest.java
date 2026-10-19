@@ -109,8 +109,8 @@ class ChatModerationCoordinatorTest {
     }
 
     @Test
-    void aFullQueueLetsExcessMessagesThroughUncheckedWithoutOpeningTheCircuit() throws Exception {
-        CountDownLatch started = new CountDownLatch(2);
+    void messagesWhoseWaitRunsOutInTheQueueNeverPauseTheCloud() throws Exception {
+        CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         ModerationApiClient apiClient = mock(ModerationApiClient.class);
         when(apiClient.moderateText(anyString(), anyString(), anyString(),
@@ -120,30 +120,104 @@ class ChatModerationCoordinatorTest {
             return ModerationApiResult.clear();
         });
         ModerationCircuitBreaker breaker = new ModerationCircuitBreaker(Logger.getLogger("test"));
-        ExecutorService callers = Executors.newFixedThreadPool(2);
+        ExecutorService callers = Executors.newSingleThreadExecutor();
         Player player = player();
-        ModerationSettings settings = settings("http://127.0.0.1:1", true, 1000);
+        ModerationSettings settings = settings("http://127.0.0.1:1", true);
 
-        try (ChatModerationCoordinator coordinator = new ChatModerationCoordinator(breaker, apiClient, 2, 0)) {
+        try (ChatModerationCoordinator coordinator = new ChatModerationCoordinator(breaker, apiClient, 1, 2)) {
             Future<ModerationApiResult> first = callers.submit(() -> coordinator.checkMessage(player, "first", settings));
-            Future<ModerationApiResult> second = callers.submit(() -> coordinator.checkMessage(player, "second", settings));
-            assertTrue(started.await(2, TimeUnit.SECONDS), "Both cloud workers must be occupied");
+            assertTrue(started.await(2, TimeUnit.SECONDS), "The cloud worker must be busy");
 
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < 4; i++) {
                 assertEquals(ModerationApiResult.Kind.OVERLOADED,
-                        coordinator.checkMessage(player, "excess", settings).kind());
+                        coordinator.checkMessage(player, "queued", settings).kind());
             }
-            assertTrue(coordinator.isRemoteCallAllowed());
-            assertEquals(ModerationApiResult.Kind.OVERLOADED, coordinator.lastCloudResultKind());
-            verify(apiClient, times(2)).moderateText(anyString(), anyString(), anyString(),
-                    any(ModerationApiSettings.class), any(ModerationCategorySettings.class));
+            assertTrue(coordinator.isRemoteCallAllowed(), "waiting in the queue is not the cloud failing");
 
             release.countDown();
-            assertEquals(ModerationApiResult.Kind.CLEAR, first.get(2, TimeUnit.SECONDS).kind());
-            assertEquals(ModerationApiResult.Kind.CLEAR, second.get(2, TimeUnit.SECONDS).kind());
+            assertEquals(ModerationApiResult.Kind.OVERLOADED, first.get(2, TimeUnit.SECONDS).kind());
+            verify(apiClient, times(1)).moderateText(anyString(), anyString(), anyString(),
+                    any(ModerationApiSettings.class), any(ModerationCategorySettings.class));
+            assertTrue(coordinator.isRemoteCallAllowed());
         } finally {
             release.countDown();
             callers.shutdownNow();
+        }
+    }
+
+    @Test
+    void theShippedPoolTakesARaidOfFortyMessagesAgainstASlowCloudWithoutPausingIt() throws Exception {
+        ModerationApiClient apiClient = mock(ModerationApiClient.class);
+        when(apiClient.moderateText(anyString(), anyString(), anyString(),
+                any(ModerationApiSettings.class), any(ModerationCategorySettings.class))).thenAnswer(invocation -> {
+            Thread.sleep(700);
+            return ModerationApiResult.clear();
+        });
+        ModerationCircuitBreaker breaker = new ModerationCircuitBreaker(Logger.getLogger("test"));
+        ExecutorService callers = Executors.newFixedThreadPool(40);
+        Player player = player();
+        ModerationSettings settings = settings("http://127.0.0.1:1", true, 1000);
+
+        try (ChatModerationCoordinator coordinator = new ChatModerationCoordinator(breaker, apiClient)) {
+            List<Future<ModerationApiResult>> answers = new java.util.ArrayList<>();
+            for (int i = 0; i < 40; i++) {
+                answers.add(callers.submit(() -> coordinator.checkMessage(player, "raid", settings)));
+            }
+            int clear = 0;
+            for (Future<ModerationApiResult> answer : answers) {
+                ModerationApiResult.Kind kind = answer.get(10, TimeUnit.SECONDS).kind();
+                assertTrue(kind == ModerationApiResult.Kind.CLEAR || kind == ModerationApiResult.Kind.OVERLOADED,
+                        kind.name());
+                clear += kind == ModerationApiResult.Kind.CLEAR ? 1 : 0;
+            }
+            assertTrue(clear >= 16, "only " + clear + " of 40 were checked");
+            assertTrue(coordinator.isRemoteCallAllowed(), "a busy server must not pause the cloud");
+        } finally {
+            callers.shutdownNow();
+        }
+    }
+
+    @Test
+    void aCloudTooSlowForChatIsPausedAfterThreeSlowAnswers() throws Exception {
+        ModerationApiClient apiClient = mock(ModerationApiClient.class);
+        when(apiClient.moderateText(anyString(), anyString(), anyString(),
+                any(ModerationApiSettings.class), any(ModerationCategorySettings.class))).thenAnswer(invocation -> {
+            Thread.sleep(700);
+            return ModerationApiResult.clear();
+        });
+        ModerationCircuitBreaker breaker = new ModerationCircuitBreaker(Logger.getLogger("test"));
+        Player player = player();
+        ModerationSettings settings = settings("http://127.0.0.1:1", true);
+
+        try (ChatModerationCoordinator coordinator = new ChatModerationCoordinator(breaker, apiClient, 1, 4)) {
+            for (int i = 0; i < 3; i++) {
+                assertEquals(ModerationApiResult.Kind.OVERLOADED, coordinator.checkMessage(player, "slow", settings).kind());
+            }
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (coordinator.isRemoteCallAllowed() && System.nanoTime() < deadline) {
+                Thread.sleep(20);
+            }
+            assertFalse(coordinator.isRemoteCallAllowed(), "three answers slower than chat can wait pause the cloud");
+        }
+    }
+
+    @Test
+    void aFlaggedAnswerThatCameTooLateStillReachesStaff() throws Exception {
+        ModerationApiClient apiClient = mock(ModerationApiClient.class);
+        when(apiClient.moderateText(anyString(), anyString(), anyString(),
+                any(ModerationApiSettings.class), any(ModerationCategorySettings.class))).thenAnswer(invocation -> {
+            Thread.sleep(700);
+            return ModerationApiResult.flagged("harassment");
+        });
+        java.util.concurrent.CompletableFuture<ModerationApiResult> late = new java.util.concurrent.CompletableFuture<>();
+
+        try (ChatModerationCoordinator coordinator = new ChatModerationCoordinator(
+                new ModerationCircuitBreaker(Logger.getLogger("test")), apiClient, 1, 0)) {
+            ModerationApiResult now = coordinator.checkMessage(player(), "hello", settings("http://127.0.0.1:1", true),
+                    late::complete);
+
+            assertEquals(ModerationApiResult.Kind.OVERLOADED, now.kind());
+            assertTrue(late.get(3, TimeUnit.SECONDS).isFlagged());
         }
     }
 
@@ -208,7 +282,7 @@ class ChatModerationCoordinatorTest {
                 new ModerationApiSettings(endpoint, "test-key", timeoutMs, timeoutMs),
                 new OfflineModerationSettings(true, false, true, List.of(), List.of(), List.of(), List.of()),
                 new ModerationCategorySettings(Map.of()),
-                new MapArtSettings(true, true, true, true, 1000),
+                new MapArtSettings(true, true, true, true, 1000, 30),
                 List.of(),
                 true,
                 failOpen,

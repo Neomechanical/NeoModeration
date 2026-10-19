@@ -2,6 +2,7 @@ package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.commands.SubCommand;
+import com.neomechanical.neomoderation.config.ConfigPaths;
 import com.neomechanical.neomoderation.config.ModerationApiSettings;
 import com.neomechanical.neomoderation.messages.DateText;
 import com.neomechanical.neomoderation.messages.MenuRenderer;
@@ -12,6 +13,9 @@ import com.neomechanical.neomoderation.platform.InstallIdentity;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -23,7 +27,8 @@ import java.util.Map;
  * link to keep it.
  */
 public class TrialCmd implements SubCommand {
-    private static final String KEY_PATH = "moderation.api.apiKey";
+    /** How long a trial runs, to count back from its end. */
+    private static final int TRIAL_DAYS = 14;
 
     private final NeoModerationPlugin plugin;
     private final TrialClient trialClient;
@@ -106,13 +111,20 @@ public class TrialCmd implements SubCommand {
     }
 
     private void saveTrialKey(CommandSender sender, ModerationApiSettings asked, TrialClient.TrialResult result) {
-        if (!plugin.settings().api().apiKey().isBlank() || !plugin.settings().api().endpoint().equals(asked.endpoint())) {
+        // Checked under the config lock, so a key an admin set meanwhile is never overwritten.
+        boolean saved = plugin.editConfig(config -> {
+            if (!plugin.settings().api().apiKey().isBlank()
+                    || !plugin.settings().api().endpoint().equals(asked.endpoint())) {
+                return false;
+            }
+            config.set(ConfigPaths.CLOUD_MODE, "monitor");
+            config.set(ConfigPaths.API_KEY, result.apiKey());
+            return true;
+        });
+        if (!saved) {
             reply(sender, () -> plugin.messages().send(sender, "trial.configuration-changed"));
             return;
         }
-        plugin.getConfig().set("moderation.cloudMode", "monitor");
-        plugin.getConfig().set(KEY_PATH, result.apiKey());
-        plugin.saveAndReload();
         boolean moderationOn = plugin.settings().enabled();
         reply(sender, () -> {
             MessageService messages = plugin.messages();
@@ -137,14 +149,28 @@ public class TrialCmd implements SubCommand {
         plugin.runAsync(() -> {
             try {
                 TrialClient.TrialStatusResult status = trialClient.fetchTrialStatus(api);
-                reply(sender, () -> sendStatus(sender, status));
+                long caught = caughtDuring(status);
+                reply(sender, () -> sendStatus(sender, status, caught));
             } catch (TrialClient.TrialException e) {
                 reply(sender, () -> sendFailure(sender, e));
             }
         });
     }
 
-    private void sendStatus(CommandSender sender, TrialClient.TrialStatusResult status) {
+    /** What the cloud caught since the trial began, from the case history; -1 when there is none to read. */
+    private long caughtDuring(TrialClient.TrialStatusResult status) {
+        if (!status.isTrial() || !plugin.settings().cases().enabled()) {
+            return -1L;
+        }
+        try {
+            Instant started = Instant.parse(status.expiresAt()).minus(TRIAL_DAYS, ChronoUnit.DAYS);
+            return plugin.caseLog().countCloudSince(started.toEpochMilli());
+        } catch (DateTimeParseException e) {
+            return -1L;
+        }
+    }
+
+    private void sendStatus(CommandSender sender, TrialClient.TrialStatusResult status, long caught) {
         MessageService messages = plugin.messages();
         if (!status.isTrial()) {
             messages.send(sender, "trial.status-standard");
@@ -156,8 +182,9 @@ public class TrialCmd implements SubCommand {
         } else {
             messages.send(sender, "trial.status-active",
                     Map.of("days", String.valueOf(status.daysRemaining()), "expires", expires));
-            messages.send(sender, "trial.status-caught",
-                    Map.of("count", String.valueOf(plugin.monitorStats().cloudTotal())));
+            // The case history covers the whole trial; without it only this run's count is known.
+            messages.send(sender, caught >= 0 ? "trial.status-caught" : "trial.status-caught-startup",
+                    Map.of("count", String.valueOf(caught >= 0 ? caught : plugin.monitorStats().cloudTotal())));
         }
         sendKeepButton(sender, status.upgradeUrl());
     }

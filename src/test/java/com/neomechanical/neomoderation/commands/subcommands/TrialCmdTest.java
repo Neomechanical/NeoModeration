@@ -80,7 +80,7 @@ class TrialCmdTest {
         assertTrue(transcript.contains("each chat message and map picture goes to Neomechanical"), transcript);
         assertTrue(transcript.contains("Cloud decisions only alert staff until you run /nmod cloudmode enforce"),
                 transcript);
-        assertTrue(lines().contains("  Run /nmod trial start to start it."), transcript);
+        assertTrue(lines().contains("  Run /nmod trial start to begin."), transcript);
     }
 
     @Test
@@ -92,7 +92,7 @@ class TrialCmdTest {
         new TrialCmd(plugin, trialClient).execute(sender, "nmod", new String[]{"trial", "start"});
 
         verify(trialClient).activateTrial(any(), any(), eq("Paper 1.21.4"));
-        verify(plugin).saveAndReload();
+        verify(plugin).editConfig(any());
         assertEquals(null, config.get("moderation.enabled"), "a trial never switches moderation on by itself");
         assertEquals("nmt_trial_key_999", config.get("moderation.api.apiKey"));
         assertEquals("monitor", config.get("moderation.cloudMode"));
@@ -117,7 +117,7 @@ class TrialCmdTest {
         new TrialCmd(plugin, trialClient).execute(sender, "nmod", new String[]{"trial", "start"});
 
         assertEquals("owner-configured-key", config.get("moderation.api.apiKey"));
-        verify(plugin, never()).saveAndReload();
+        assertEquals(null, config.get("moderation.cloudMode"), "nothing of the trial was written");
         assertTrue(lines().get(lines().size() - 1).startsWith("[NeoMod] The cloud settings changed while the trial"),
                 String.join("\n", lines()));
         verify(plugin).finishTrialActivation();
@@ -209,7 +209,7 @@ class TrialCmdTest {
         assertEquals(List.of(
                 "[NeoMod] Checking the cloud trial...",
                 "[NeoMod] Cloud trial until 22 October 2026. Days left: 12",
-                "[NeoMod] Caught by the cloud since startup: 0",
+                "[NeoMod] Caught by the cloud during the trial: 0",
                 "  [Keep cloud moderation] " + BILLING), lines());
     }
 

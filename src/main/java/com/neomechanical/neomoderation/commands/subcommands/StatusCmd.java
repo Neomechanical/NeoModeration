@@ -95,7 +95,9 @@ public class StatusCmd implements SubCommand {
         messages.send(sender, "status.discord", Map.of("value",
                 onOff(messages, sender, DiscordAlerts.isWebhookUrl(settings.alerts().discordWebhookUrl()))));
         if (settings.api().apiKey().isBlank()) {
-            messages.send(sender, "status.cloud-no-key");
+            // Only admins can start a trial, so only they are pointed at it.
+            messages.send(sender, sender.hasPermission(Permissions.ADMIN)
+                    ? "status.cloud-no-key" : "status.cloud-no-key-staff");
             TrialPromptSupport.sendTrialCtaIfPlayer(plugin, sender);
             return;
         }

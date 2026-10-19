@@ -36,4 +36,17 @@ class CaseLogTest {
             assertTrue(log.byId(9999).isEmpty());
         }
     }
+
+    @Test
+    void countsCloudDetectionsOfChatAndMapsSinceAMoment() {
+        try (CaseLog log = CaseLog.open(tempDir.resolve("cloud.db"), Logger.getLogger("test"))) {
+            log.record(1000L, "uuid-a", "Alice", "chat", "platform:harassment", "blocked", "monitor", "");
+            log.record(5000L, "uuid-a", "Alice", "chat", "platform:scam", "blocked", "monitor", "");
+            log.record(6000L, "uuid-b", "Bob", "map_art", "map_art:sexual", "blocked", "monitor", "#7");
+            log.record(7000L, "uuid-b", "Bob", "chat", "blocked_word:badword", "blocked", "enforce", "");
+
+            assertEquals(2L, log.countCloudSince(5000L), "only cloud detections since the moment count");
+            assertEquals(3L, log.countCloudSince(0L));
+        }
+    }
 }

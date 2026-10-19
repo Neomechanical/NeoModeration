@@ -1,13 +1,14 @@
 package com.neomechanical.neomoderation.listener;
 
-import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.NeoModerationPlugin;
+import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.config.MapArtSettings;
 import com.neomechanical.neomoderation.config.ModerationApiSettings;
 import com.neomechanical.neomoderation.config.ModerationCategorySettings;
 import com.neomechanical.neomoderation.config.ModerationMode;
 import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.moderation.DetectionHandler;
+import com.neomechanical.neomoderation.moderation.FixedWindow;
 import com.neomechanical.neomoderation.moderation.MapArtScanner;
 import com.neomechanical.neomoderation.moderation.ModerationApiResult;
 import org.bukkit.Location;
@@ -23,9 +24,11 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.MapMeta;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 
@@ -38,18 +41,28 @@ import java.util.concurrent.Semaphore;
  * <p>A player holding or placing a flagged map is its owner and is handled
  * like any detection (alert, case, strike and actions in enforce mode, the map
  * taken away). A flagged map already hanging in a frame belongs to nobody we
- * know: it is taken down and staff are told where, and the player who clicked
- * it is not punished.</p>
+ * know: it is taken down and staff are told where, the player who clicked it is
+ * not punished, and the cloud is told about the frame rather than the player.</p>
+ *
+ * <p>Each player can have only so many new pictures checked an hour
+ * ({@code checksPerPlayerPerHour}), so nobody can use up the server's cloud
+ * credits by drawing maps.</p>
  */
 public final class MapArtListener implements Listener {
     private static final String SURFACE = "map_art";
     private static final String FRAME_SURFACE = "map_frame";
+    /** Who the cloud is told showed a map that was already hanging: the frame, not whoever clicked it. */
+    private static final String FRAME_ACTOR = "item_frame";
+    private static final long HOUR_MS = 3_600_000L;
+    /** Past this many players, allowances whose hour is over are dropped. */
+    private static final int CLEANUP_THRESHOLD = 256;
 
     private final NeoModerationPlugin plugin;
     private final Set<CacheKey> cleanMaps;
     private final Map<CacheKey, String> flaggedMaps;
     private final Set<Integer> pendingMaps = ConcurrentHashMap.newKeySet();
     private final Semaphore scanSlots = new Semaphore(2);
+    private final Map<UUID, FixedWindow> checksThisHour = new HashMap<>();
     private final Material filledMap = MapArtScanner.resolveFilledMapMaterial();
 
     public MapArtListener(NeoModerationPlugin plugin) {
@@ -59,8 +72,19 @@ public final class MapArtListener implements Listener {
         this.flaggedMaps = bounded(cacheSize);
     }
 
-    /** Where a checked map is: in the player's hands (theirs) or already hanging in a frame (nobody's). */
-    private record Sighting(Player player, ItemStack item, ItemFrame frame, boolean hanging) {
+    /**
+     * Where a checked map is: in the player's hands (theirs) or already hanging in
+     * a frame (nobody's), and who the cloud is told showed it.
+     */
+    private record Sighting(Player player, ItemStack item, ItemFrame frame, boolean hanging,
+                            String actorName, String actorId) {
+        static Sighting held(Player player, ItemStack item, ItemFrame frame) {
+            return new Sighting(player, item, frame, false, player.getName(), player.getUniqueId().toString());
+        }
+
+        static Sighting hanging(Player finder, ItemStack item, ItemFrame frame) {
+            return new Sighting(finder, item, frame, true, FRAME_ACTOR, frame.getUniqueId().toString());
+        }
     }
 
     private record CacheKey(String pixels, ModerationApiSettings api, ModerationCategorySettings categories) {
@@ -78,9 +102,9 @@ public final class MapArtListener implements Listener {
             held = MapArtScanner.offHand(player.getInventory());
         }
         if (MapArtScanner.mapIdOf(held, filledMap) != null) {
-            check(new Sighting(player, held, frame, false));
+            check(Sighting.held(player, held, frame));
         } else if (MapArtScanner.mapIdOf(frame.getItem(), filledMap) != null) {
-            check(new Sighting(player, frame.getItem(), frame, true));
+            check(Sighting.hanging(player, frame.getItem(), frame));
         }
     }
 
@@ -91,7 +115,7 @@ public final class MapArtListener implements Listener {
         }
         ItemStack item = event.getPlayer().getInventory().getItem(event.getNewSlot());
         if (MapArtScanner.mapIdOf(item, filledMap) != null) {
-            check(new Sighting(event.getPlayer(), item, null, false));
+            check(Sighting.held(event.getPlayer(), item, null));
         }
     }
 
@@ -136,11 +160,11 @@ public final class MapArtListener implements Listener {
             return;
         }
         String image = MapArtScanner.pngBase64(pixels);
-        if (image == null) {
+        if (image == null || !mayCheck(sighting.player().getUniqueId(), settings.mapArt())) {
             return;
         }
-        ModerationApiResult result = plugin.apiClient().moderateImage(sighting.player().getName(),
-                sighting.player().getUniqueId().toString(), image, settings.api(), settings.categories());
+        ModerationApiResult result = plugin.apiClient().moderateImage(sighting.actorName(), sighting.actorId(),
+                image, settings.api(), settings.categories());
         plugin.coordinator().recordApiResult(result);
         if (!isCacheableResult(result)) {
             return;
@@ -152,6 +176,22 @@ public final class MapArtListener implements Listener {
         String category = result.category() == null ? "" : result.category();
         flaggedMaps.put(key, category);
         act(sighting, mapId, category, settings);
+    }
+
+    /** Counts a new picture against the player's hourly allowance; false once it is used up. */
+    private boolean mayCheck(UUID player, MapArtSettings settings) {
+        long now = System.currentTimeMillis();
+        synchronized (checksThisHour) {
+            if (checksThisHour.size() > CLEANUP_THRESHOLD) {
+                checksThisHour.values().removeIf(window -> window.ended(now));
+            }
+            FixedWindow window = checksThisHour.computeIfAbsent(player, ignored -> new FixedWindow(HOUR_MS));
+            if (!settings.allowsAnotherCheck(window.count(now))) {
+                return false;
+            }
+            window.add(now);
+            return true;
+        }
     }
 
     private void act(Sighting sighting, int mapId, String category, ModerationSettings scanned) {

@@ -7,8 +7,10 @@ import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.moderation.DetectionHandler;
 import com.neomechanical.neomoderation.moderation.PlayerMuteService;
 import com.neomechanical.neomoderation.moderation.SpamDetector;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.Server;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandMap;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.junit.jupiter.api.Test;
@@ -65,6 +67,59 @@ class SurfaceModerationListenerTest {
         verify(whisper).setCancelled(true);
         verify(plugin.messages()).send(player, "mute.blocked", Map.of("duration", "10m"));
         verify(spawn, never()).setCancelled(true);
+    }
+
+    @Test
+    void aMuteCoversTheUsualAliasesOfTheMessageCommands() {
+        NeoModerationPlugin plugin = pluginWith("off");
+        Player player = mock(Player.class);
+        UUID id = UUID.randomUUID();
+        when(player.getUniqueId()).thenReturn(id);
+        when(plugin.muteService().isMuted(id)).thenReturn(true);
+        SurfaceModerationListener listener = new SurfaceModerationListener(plugin, mock(DetectionHandler.class));
+
+        for (String text : List.of("/m Notch hi", "/t Notch hi", "/pm Notch hi", "/tm hello team", "/teammsg hi",
+                "/mail send Notch hi", "/essentials:msg Notch hi", "/er hi", "/whisper Notch hi")) {
+            PlayerCommandPreprocessEvent event = command(player, text);
+            listener.onCommand(event);
+            verify(event).setCancelled(true);
+        }
+        PlayerCommandPreprocessEvent home = command(player, "/home");
+        listener.onCommand(home);
+        verify(home, never()).setCancelled(true);
+    }
+
+    @Test
+    void aMuteFollowsAnyAliasTheServerKnowsForAMessageCommand() {
+        NeoModerationPlugin plugin = pluginWith("off");
+        Server server = mock(Server.class, withSettings().extraInterfaces(CommandMapHolder.class));
+        CommandMap map = mock(CommandMap.class);
+        when(((CommandMapHolder) server).getCommandMap()).thenReturn(map);
+        Command msg = mock(Command.class);
+        when(msg.getName()).thenReturn("msg");
+        Command warp = mock(Command.class);
+        when(warp.getName()).thenReturn("warp");
+        when(map.getCommand("whisp")).thenReturn(msg);
+        when(map.getCommand("warp")).thenReturn(warp);
+        when(plugin.getServer()).thenReturn(server);
+        Player player = mock(Player.class);
+        UUID id = UUID.randomUUID();
+        when(player.getUniqueId()).thenReturn(id);
+        when(plugin.muteService().isMuted(id)).thenReturn(true);
+        SurfaceModerationListener listener = new SurfaceModerationListener(plugin, mock(DetectionHandler.class));
+
+        PlayerCommandPreprocessEvent whisp = command(player, "/whisp Notch hi");
+        PlayerCommandPreprocessEvent warpTo = command(player, "/warp shop");
+        listener.onCommand(whisp);
+        listener.onCommand(warpTo);
+
+        verify(whisp).setCancelled(true);
+        verify(warpTo, never()).setCancelled(true);
+    }
+
+    /** {@code Server#getCommandMap()}, which the 1.8 API the plugin compiles against does not have. */
+    public interface CommandMapHolder {
+        CommandMap getCommandMap();
     }
 
     private static PlayerCommandPreprocessEvent command(Player player, String text) {

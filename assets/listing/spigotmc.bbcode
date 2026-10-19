@@ -2,13 +2,13 @@ NeoModeration by Neomechanical filters Minecraft chat. It blocks swearing, slurs
 
 [B]What a new install does[/B]
 [LIST]
-[*]Blocks messages that contain a word from starter lists of swear words and slurs: English, plus the Spanish, French, German, Portuguese or Turkish list that matches [FONT=Courier New]locale[/FONT] in [FONT=Courier New]config.yml[/FONT] ([FONT=Courier New]languagePacks[/FONT] turns on more). A word only matches from the start of a word to the end of one, so "assignment" and "Scunthorpe" stay clean, and everyday phrases that spell a banned word, such as "put a", are never read as it.
+[*]Blocks messages that contain a word from starter lists of swear words and slurs: English, plus the Spanish, French, German, Portuguese or Turkish list that matches [FONT=Courier New]locale[/FONT] in [FONT=Courier New]config.yml[/FONT] ([FONT=Courier New]languagePacks[/FONT] turns on more). A word only matches from the start of a word to the end of one, so "assignment" and "Scunthorpe" stay clean, and two everyday words are never read as one ("put a" is not a slur). A word one language uses every day, such as French "retard" (late), passes for players of that language.
 [*]Also matches common disguises of a listed word: spaced or stretched letters, accents, look-alike letters, leetspeak such as [FONT=Courier New]b4dw0rd[/FONT], and words split across rapid short messages.
 [*]Blocks ads for other Minecraft servers: public IP addresses, addresses with a port, [FONT=Courier New]play.[/FONT] and [FONT=Courier New]mc.[/FONT] style addresses, free hosts such as [FONT=Courier New]aternos.me[/FONT], and "join myserver.net". Ordinary links stay. Let your own server's address through with [FONT=Courier New]/nmod allow url[/FONT].
 [*]Blocks a starter list of IP-grabber and scam links, including ones written with [FONT=Courier New](dot)[/FONT] or [FONT=Courier New][.][/FONT].
 [*]Blocks spam: message floods, the same message again and again and long runs of one character. Messages in capitals go out in lower case.
 [*]Tells the player why a message was stopped, in their own game language.
-[*]Alerts staff with the [FONT=Courier New]neomoderation.notify[/FONT] permission (operators by default), showing the player, the message, the reason and the action taken, with a clickable link to the player's case history.
+[*]Alerts staff with the [FONT=Courier New]neomoderation.notify[/FONT] permission (operators by default), showing the player, the message, the reason and the action taken. Staff who may open cases can click an alert for that player's history. During a raid, alerts pause instead of flooding staff chat.
 [*]Lets moderators with [FONT=Courier New]neomoderation.moderate[/FONT] use cases, mutes and tests while settings stay with admins.
 [*]Logs each detection as a case on your server. [FONT=Courier New]/nmod cases[/FONT] lists them; open one to resolve or dismiss it, allow the word or mute the player. The log leaves out the message text unless you turn it on.
 [/LIST]
@@ -28,12 +28,12 @@ To have local rules alert staff without blocking, run [FONT=Courier New]/nmod mo
 [*]Block every link and server IP address, including ones written with [FONT=Courier New](dot)[/FONT] or [FONT=Courier New][.][/FONT] ([FONT=Courier New]moderation.offline.blockAnyUrl[/FONT]).
 [*]Check signs, books, anvil renames and chat commands such as [FONT=Courier New]/msg[/FONT] and [FONT=Courier New]/me[/FONT] with [FONT=Courier New]/nmod surface[/FONT]. Each can monitor, censor or block. Command checks also catch a player who sends those commands too fast.
 [*]Send detection alerts to a Discord staff channel with [FONT=Courier New]/nmod discord[/FONT], and check the webhook with [FONT=Courier New]/nmod discord test[/FONT].
-[*]Add actions after a block with [FONT=Courier New]/nmod action[/FONT]: clear chat, mute, kick or ban. Mutes need no other plugin and cover private messages too, and [FONT=Courier New]/nmod mute[/FONT] mutes a player by hand.
+[*]Add actions after a block with [FONT=Courier New]/nmod action[/FONT]: clear chat, mute, kick or ban. Mutes need no other plugin and cover private messages too ([FONT=Courier New]/msg[/FONT], [FONT=Courier New]/tell[/FONT], [FONT=Courier New]/r[/FONT], [FONT=Courier New]/me[/FONT], [FONT=Courier New]/mail[/FONT] and their aliases), and [FONT=Courier New]/nmod mute[/FONT] mutes a player by hand.
 [*]Add a strike for each blocked or starred-out message and act when a player reaches a set count ([FONT=Courier New]moderation.strikes[/FONT]).
 [/LIST]
 
 [B]Optional cloud checks[/B]
-The Neomechanical Moderation API can read each chat message for its meaning, in eight categories: sexual content, hate, harassment, violence, scams, spam, illicit activity and self-harm. It can also check map art when a player holds a filled map, puts one in an item frame or right-clicks one there.
+The Neomechanical Moderation API can read each chat message for its meaning, in eight categories: sexual content, hate, harassment, violence, scams, spam, illicit activity and self-harm. It can also check map art when a player holds a filled map, puts one in an item frame or right-clicks one there, up to 30 new pictures per player an hour.
 [LIST]
 [*][FONT=Courier New]/nmod trial[/FONT] explains what a free 14-day trial sends, and [FONT=Courier New]/nmod trial start[/FONT] starts it. It needs no account, and each server can start one trial.
 [*]To use your own workspace, [URL='https://neomechanical.com/signup?src=neomoderation_spigot']create an account[/URL], create an API key with the [FONT=Courier New]events:write[/FONT] and [FONT=Courier New]usage:read[/FONT] scopes, and run [FONT=Courier New]/nmod setup <key>[/FONT].
@@ -48,7 +48,7 @@ The Neomechanical Moderation API can read each chat message for its meaning, in 
 Without an API key or a Discord webhook, no chat or map content leaves your server. NeoModeration sends technical metrics to bStats, which hold no chat, player names or API keys. Turn them off in [FONT=Courier New]plugins/bStats/config.yml[/FONT]. Once at startup, NeoModeration asks GitHub whether a newer version exists. Turn that off with [FONT=Courier New]updateCheck[/FONT] in [FONT=Courier New]config.yml[/FONT].
 
 [B]Compatibility[/B]
-NeoModeration runs on Bukkit, Spigot, Paper and Purpur, Minecraft 1.18.2 to 26.2. Release checks run on Paper 1.18.2, 1.19.4, 1.20.6 and 1.21.11. In-game messages are in English, Spanish, French, German, Portuguese or Turkish, and each player reads them in their own game language.
+NeoModeration runs on Bukkit, Spigot, Paper, Purpur and Folia, Minecraft 1.18.2 to 26.3. Release checks run on Paper 1.18.2, 1.19.4, 1.20.6, 1.21.11, 26.1.2, 26.2 and 26.3 and on Folia 1.21.11. In-game messages are in English, Spanish, French, German, Portuguese or Turkish, and each player reads them in their own game language.
 
 [B]Links[/B]
 [LIST]

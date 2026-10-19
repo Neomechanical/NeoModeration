@@ -9,8 +9,8 @@ import java.util.Set;
 /**
  * The local rules. {@code bannedWords} and {@code allowedWords} are the server's
  * own lists as written in config.yml; {@code packWords} are the words of the
- * language packs it selected. What is enforced is {@link #effectiveWords()} less
- * {@link #effectiveAllowedWords()}.
+ * language packs it selected; {@code locale} is the server's language. What is
+ * enforced is {@link #effectiveWords()} less {@link #effectiveAllowedWords()}.
  */
 public record OfflineModerationSettings(
         boolean enabled,
@@ -22,9 +22,28 @@ public record OfflineModerationSettings(
         List<String> allowedUrls,
         List<String> languagePacks,
         List<String> packWords,
-        boolean blockServerAds
+        boolean blockServerAds,
+        String locale
 ) {
     public static final List<String> DEFAULT_LANGUAGE_PACKS = List.of(BundledWordPacks.AUTO);
+    private static final String DEFAULT_LOCALE = "en_US";
+
+    /** Local rules on an English server. */
+    public OfflineModerationSettings(
+            boolean enabled,
+            boolean blockAnyUrl,
+            boolean normalizeLeetspeak,
+            List<String> bannedWords,
+            List<String> bannedUrls,
+            List<String> allowedWords,
+            List<String> allowedUrls,
+            List<String> languagePacks,
+            List<String> packWords,
+            boolean blockServerAds
+    ) {
+        this(enabled, blockAnyUrl, normalizeLeetspeak, bannedWords, bannedUrls, allowedWords, allowedUrls,
+                languagePacks, packWords, blockServerAds, DEFAULT_LOCALE);
+    }
 
     /** Local rules with no language packs and no server-advertising check. */
     public OfflineModerationSettings(
@@ -45,8 +64,8 @@ public record OfflineModerationSettings(
         List<String> requestedPacks = config.get("moderation.offline.languagePacks") == null
                 ? DEFAULT_LANGUAGE_PACKS
                 : config.getStringList("moderation.offline.languagePacks");
-        List<String> packs = BundledWordPacks.select(
-                requestedPacks, config.getString("locale", "en_US"), !configuredWords.isEmpty());
+        String locale = config.getString("locale", DEFAULT_LOCALE);
+        List<String> packs = BundledWordPacks.select(requestedPacks, locale, !configuredWords.isEmpty());
         return new OfflineModerationSettings(
                 config.getBoolean("moderation.offline.enabled", true),
                 config.getBoolean("moderation.offline.blockAnyUrl", false),
@@ -57,17 +76,20 @@ public record OfflineModerationSettings(
                 normalizeList(config.getStringList("moderation.offline.allowedUrls")),
                 packs,
                 BundledWordPacks.wordsOf(packs),
-                config.getBoolean("moderation.offline.blockServerAds", true)
+                config.getBoolean("moderation.offline.blockServerAds", true),
+                locale
         );
     }
 
     /**
      * Every allowed phrase in force: the server's own, then the everyday phrases
-     * every server allows and those its language packs allow.
+     * every server allows, those its language packs allow, and the words its own
+     * language uses every day that another language's list bans.
      */
     public List<String> effectiveAllowedWords() {
         Set<String> merged = new LinkedHashSet<>(allowedWords);
         merged.addAll(BundledWordPacks.allowedOf(languagePacks));
+        merged.addAll(BundledWordPacks.languageWords(locale));
         return List.copyOf(merged);
     }
 

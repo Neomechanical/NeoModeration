@@ -1,8 +1,9 @@
 package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
-import com.neomechanical.neomoderation.config.InputLimits;
 import com.neomechanical.neomoderation.commands.SubCommand;
+import com.neomechanical.neomoderation.config.ConfigPaths;
+import com.neomechanical.neomoderation.config.InputLimits;
 import com.neomechanical.neomoderation.moderation.CloudRecovery;
 import org.bukkit.command.CommandSender;
 
@@ -11,8 +12,6 @@ import java.util.List;
 import java.util.Map;
 
 public class SetupCmd implements SubCommand {
-    private static final String KEY_PATH = "moderation.api.apiKey";
-    private static final String ENABLED_PATH = "moderation.enabled";
 
     private final NeoModerationPlugin plugin;
 
@@ -57,9 +56,11 @@ public class SetupCmd implements SubCommand {
             ));
             return;
         }
-        plugin.getConfig().set(ENABLED_PATH, true);
-        plugin.getConfig().set(KEY_PATH, apiKey);
-        plugin.saveAndReload();
+        plugin.editConfig(config -> {
+            config.set(ConfigPaths.ENABLED, true);
+            config.set(ConfigPaths.API_KEY, apiKey);
+            return true;
+        });
         plugin.messages().send(sender, "setup.done");
     }
 }

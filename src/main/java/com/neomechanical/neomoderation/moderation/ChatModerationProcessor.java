@@ -1,16 +1,18 @@
 package com.neomechanical.neomoderation.moderation;
 
-import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.NeoModerationPlugin;
+import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.commands.DurationParser;
-import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.config.ModerationMode;
+import com.neomechanical.neomoderation.config.ModerationSettings;
+import com.neomechanical.neomoderation.platform.GameLanguage;
 import org.bukkit.entity.Player;
 
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 public final class ChatModerationProcessor {
     private final NeoModerationPlugin plugin;
@@ -71,10 +73,14 @@ public final class ChatModerationProcessor {
 
         Optional<String> spamReason = spamDetector.checkMessage(
                 player.getUniqueId(), player.getName(), message, settings.spam(), System.currentTimeMillis());
+        String speaker = GameLanguage.of(player);
         String text = message;
         if (spamReason.isPresent() && SpamDetector.CAPS.equals(spamReason.get())) {
-            // Shouting is turned down, not punished: the message goes on in lower case.
-            text = message.toLowerCase(Locale.ROOT);
+            // Shouting is turned down, not punished: the message goes on in lower case, the way the
+            // player's language writes it ("IŞIK" is "ışık" in Turkish). Local monitor mode changes nothing.
+            if (settings.mode() == ModerationMode.ENFORCE) {
+                text = message.toLowerCase(speaker == null ? Locale.ROOT : Locale.forLanguageTag(speaker.replace('_', '-')));
+            }
             spamReason = Optional.empty();
         }
         if (spamReason.isPresent()) {
@@ -83,11 +89,11 @@ public final class ChatModerationProcessor {
                     null);
         }
 
-        OfflineModerationResult offlineResult = OfflineModerationEngine.evaluate(text, settings.offline());
+        OfflineModerationResult offlineResult = OfflineModerationEngine.evaluate(text, settings.offline(), speaker);
         if (offlineResult.flagged()) {
             splitMessageWindow.clear(player.getUniqueId());
             String censored = settings.chatCensorLocal()
-                    ? OfflineModerationEngine.censorCompletely(text, settings.offline()).orElse(null)
+                    ? OfflineModerationEngine.censorCompletely(text, settings.offline(), speaker).orElse(null)
                     : null;
             DetectionHandler.Disposition requested = censored != null
                     ? DetectionHandler.Disposition.CENSOR
@@ -98,29 +104,31 @@ public final class ChatModerationProcessor {
         }
 
         Optional<String> splitReason = splitMessageWindow.recordAndCheck(
-                player.getUniqueId(), text, settings.offline());
+                player.getUniqueId(), text, settings.offline(), speaker);
         if (splitReason.isPresent()) {
             return toDecision(
                     handler.handle(player, "chat", splitReason.get(), message, DetectionHandler.Disposition.BLOCK),
                     null);
         }
 
-        ChatDecision passed = text.equals(message) ? ChatDecision.allow() : ChatDecision.censor(text);
+        ChatDecision passed = text.equals(message) ? ChatDecision.allow() : ChatDecision.soften(text);
         if (settings.api().apiKey().isBlank() || settings.categories().enabledCount() == 0) {
             return passed;
         }
         String checked = text;
+        // An answer that can no longer stop the message only tells staff.
+        Consumer<ModerationApiResult> alertOnly = result -> {
+            if (result.isFlagged()) {
+                handler.handle(player, "chat", result.reason(), checked, DetectionHandler.Disposition.ALLOW,
+                        DetectionHandler.Source.CLOUD);
+            }
+        };
         if (settings.cloudMode() == ModerationMode.MONITOR || !mayWait) {
             // The cloud can only alert staff here, so the message goes now and the answer follows it.
-            coordinator.checkInBackground(player, checked, settings, result -> {
-                if (result.isFlagged()) {
-                    handler.handle(player, "chat", result.reason(), checked, DetectionHandler.Disposition.ALLOW,
-                            DetectionHandler.Source.CLOUD);
-                }
-            });
+            coordinator.checkInBackground(player, checked, settings, alertOnly);
             return passed;
         }
-        ModerationApiResult cloudResult = coordinator.checkMessage(player, checked, settings);
+        ModerationApiResult cloudResult = coordinator.checkMessage(player, checked, settings, alertOnly);
         if (!cloudResult.isFlagged()) {
             if (cloudResult.kind() != ModerationApiResult.Kind.CLEAR && !settings.failOpen()
                     && settings.cloudMode() == ModerationMode.ENFORCE) {

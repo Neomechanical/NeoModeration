@@ -4,6 +4,7 @@ import com.neomechanical.neomoderation.config.BukkitConfigView;
 import com.neomechanical.neomoderation.config.ModerationCategorySettings;
 import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.messages.MessageService;
+import com.neomechanical.neomoderation.moderation.DiscordAlerts;
 import com.neomechanical.neomoderation.moderation.ModerationApiResult;
 import com.neomechanical.neomoderation.moderation.NeoMechanicalUsageClient;
 import com.neomechanical.neomoderation.moderation.UsageSummary;
@@ -30,7 +31,9 @@ class DoctorChecksTest {
             setup.accept(config);
             ModerationSettings settings = ModerationSettings.from(new BukkitConfigView(config));
             checks.addAll(DoctorChecks.local(settings, true, null));
-            checks.addAll(DoctorChecks.local(settings, false, "HTTP 404"));
+            for (DiscordAlerts.Problem problem : DiscordAlerts.Problem.values()) {
+                checks.addAll(DoctorChecks.local(settings, false, problem));
+            }
             checks.addAll(DoctorChecks.cloudSetup(settings, false, null));
             for (ModerationApiResult.Kind kind : ModerationApiResult.Kind.values()) {
                 checks.addAll(DoctorChecks.cloudSetup(settings, true, kind));

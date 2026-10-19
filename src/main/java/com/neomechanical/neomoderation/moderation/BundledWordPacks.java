@@ -9,6 +9,8 @@ import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -24,8 +26,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * {@code auto} adds the pack for the language of {@code locale}, a code such as
  * {@code es} adds that pack, and {@code all} adds every one. A pack line starting
  * with {@code +} is a phrase the pack allows, and {@code wordpacks/everyday.txt}
- * holds phrases every server allows: real words that spell a banned one once
- * their spaces are dropped ("put a").</p>
+ * holds phrases every server allows.</p>
+ *
+ * <p>Two more lists shape how words are read: {@code wordpacks/common-words.txt},
+ * everyday words a banned word is never read across ("put a" is not "puta"),
+ * and {@code wordpacks/languages.txt}, words one language uses every day that
+ * another language's list bans ("retard" in French), allowed for that
+ * language's speakers.</p>
  */
 public final class BundledWordPacks {
 
@@ -40,6 +47,8 @@ public final class BundledWordPacks {
     }
 
     private static final Map<String, Pack> LOADED = new ConcurrentHashMap<>();
+    private static volatile Set<String> commonWords;
+    private static volatile Map<String, List<String>> languageWords;
 
     private BundledWordPacks() {
     }
@@ -100,6 +109,62 @@ public final class BundledWordPacks {
         return List.copyOf(merged);
     }
 
+    /**
+     * Everyday words, normalised the way chat is: a banned word is never read
+     * across a space between two of them. See {@code wordpacks/common-words.txt}.
+     */
+    static Set<String> commonWords() {
+        Set<String> words = commonWords;
+        if (words == null) {
+            Set<String> loaded = new HashSet<>();
+            for (String line : lines("common-words")) {
+                for (String word : line.split("\\s+")) {
+                    String normalized = new String(TextNormalizer.normalize(word, false).chars());
+                    if (!normalized.isEmpty()) {
+                        loaded.add(normalized);
+                    }
+                }
+            }
+            words = Set.copyOf(loaded);
+            commonWords = words;
+        }
+        return words;
+    }
+
+    /**
+     * Words the speakers of {@code locale}'s language use every day that another
+     * language's list bans, such as French "retard". {@code locale} is a game or
+     * server locale such as {@code pt_PT} or {@code sv_se}; a list named for a
+     * language ({@code sv}) covers all its countries, one named for a country
+     * ({@code pt_pt}) only that one. Empty for {@code null}.
+     */
+    public static List<String> languageWords(String locale) {
+        if (locale == null || locale.isBlank()) {
+            return List.of();
+        }
+        Map<String, List<String>> lists = languageWords;
+        if (lists == null) {
+            Map<String, List<String>> loaded = new LinkedHashMap<>();
+            for (String line : lines("languages")) {
+                int colon = line.indexOf(':');
+                if (colon > 0) {
+                    loaded.put(line.substring(0, colon).trim().toLowerCase(Locale.ROOT),
+                            List.of(line.substring(colon + 1).trim().split("\\s+")));
+                }
+            }
+            lists = Map.copyOf(loaded);
+            languageWords = lists;
+        }
+        String code = locale.trim().replace('-', '_').toLowerCase(Locale.ROOT);
+        int separator = code.indexOf('_');
+        String language = separator > 0 ? code.substring(0, separator) : code;
+        List<String> words = new ArrayList<>(lists.getOrDefault(language, List.of()));
+        if (!code.equals(language)) {
+            words.addAll(lists.getOrDefault(code, List.of()));
+        }
+        return List.copyOf(words);
+    }
+
     /** The two-letter language of a locale code such as {@code pt-br} or {@code de_AT}. */
     public static String languageOf(String locale) {
         String resolved = MessageService.resolveLocaleCode(locale);
@@ -116,32 +181,40 @@ public final class BundledWordPacks {
 
     /** Reads {@code wordpacks/<name>.txt}: a word per line, {@code +} before an allowed phrase, {@code #} comments. */
     private static Pack load(String name) {
+        List<String> words = new ArrayList<>();
+        List<String> allowed = new ArrayList<>();
+        for (String entry : lines(name)) {
+            if (entry.startsWith("+")) {
+                allowed.add(entry.substring(1).trim());
+            } else if (EVERYDAY.equals(name)) {
+                allowed.add(entry);
+            } else {
+                words.add(entry);
+            }
+        }
+        return new Pack(List.copyOf(words), List.copyOf(allowed));
+    }
+
+    /** The lines of {@code wordpacks/<name>.txt}, trimmed, without blank lines and {@code #} comments. */
+    private static List<String> lines(String name) {
         String path = "/wordpacks/" + name + ".txt";
         try (InputStream stream = BundledWordPacks.class.getResourceAsStream(path)) {
             if (stream == null) {
-                return new Pack(List.of(), List.of());
+                return List.of();
             }
-            List<String> words = new ArrayList<>();
-            List<String> allowed = new ArrayList<>();
+            List<String> lines = new ArrayList<>();
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     String entry = line.trim();
-                    if (entry.isEmpty() || entry.startsWith("#")) {
-                        continue;
-                    }
-                    if (entry.startsWith("+")) {
-                        allowed.add(entry.substring(1).trim());
-                    } else if (EVERYDAY.equals(name)) {
-                        allowed.add(entry);
-                    } else {
-                        words.add(entry);
+                    if (!entry.isEmpty() && !entry.startsWith("#")) {
+                        lines.add(entry);
                     }
                 }
             }
-            return new Pack(List.copyOf(words), List.copyOf(allowed));
+            return lines;
         } catch (IOException e) {
-            throw new UncheckedIOException("Bundled word pack " + path + " is unreadable", e);
+            throw new UncheckedIOException("Bundled word list " + path + " is unreadable", e);
         }
     }
 }

@@ -1,7 +1,7 @@
 package com.neomechanical.neomoderation.listener;
 
-import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.NeoModerationPlugin;
+import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.testing.TestPlugin;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -25,8 +25,9 @@ class AdminJoinListenerTest {
             "[NeoMod] NeoModeration blocks swearing, slurs, scam links, server ads and spam. "
                     + "It does not mute or kick anyone unless you set that up.",
             "  [Try a message]",
+            "  [Let players share your server's address]",
             "  [Check signs, books and commands too]",
-            "  [Start a free 14-day cloud trial]");
+            "  [Free 14-day cloud trial]");
 
     @TempDir
     Path tempDir;

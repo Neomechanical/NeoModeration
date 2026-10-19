@@ -19,7 +19,7 @@ public final class ChatModerationListener implements Listener {
         ChatDecision decision = processor.handleChat(event.getPlayer(), event.getMessage(), event.isAsynchronous());
         switch (decision.type()) {
             case BLOCK -> event.setCancelled(true);
-            case CENSOR -> event.setMessage(decision.message());
+            case CENSOR, SOFTEN -> event.setMessage(decision.message());
             case ALLOW -> {
             }
         }

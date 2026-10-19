@@ -1,14 +1,17 @@
 package com.neomechanical.neomoderation.listener;
 
-import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.NeoModerationPlugin;
+import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.commands.DurationParser;
 import com.neomechanical.neomoderation.config.ModerationSettings;
-import com.neomechanical.neomoderation.config.SurfaceSettings;
 import com.neomechanical.neomoderation.config.SurfaceSettings.SurfaceMode;
+import com.neomechanical.neomoderation.config.SurfaceSettings;
 import com.neomechanical.neomoderation.moderation.DetectionHandler;
 import com.neomechanical.neomoderation.moderation.OfflineModerationEngine;
 import com.neomechanical.neomoderation.moderation.OfflineModerationResult;
+import com.neomechanical.neomoderation.platform.GameLanguage;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandMap;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -28,6 +31,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Applies the local rules (and command-rate limiting) to signs, books, anvil
@@ -35,8 +39,17 @@ import java.util.Optional;
  * so only the offline engine runs here, never the cloud. Everything routes
  * through {@link DetectionHandler}, so monitor mode, strikes, the player's
  * notice, staff alerts and case history behave exactly as in chat.
+ *
+ * <p>A muted player cannot use any command that sends a message: those listed,
+ * {@code scannedCommands}, and every alias the server knows for them, such as
+ * EssentialsX's {@code /m} for {@code /msg}.</p>
  */
 public final class SurfaceModerationListener implements Listener {
+    /** Commands that send a message, by the name their plugin registers. */
+    private static final Set<String> MESSAGE_COMMANDS = Set.of(
+            "msg", "tell", "w", "whisper", "m", "t", "pm", "dm", "message", "emsg", "epm", "etell", "ewhisper",
+            "r", "reply", "er", "ereply", "me", "mail", "email", "teammsg", "tm");
+
     private final NeoModerationPlugin plugin;
     private final DetectionHandler handler;
 
@@ -56,7 +69,8 @@ public final class SurfaceModerationListener implements Listener {
             for (int i = 0; i < 4; i++) {
                 String line = event.getLine(i);
                 if (line != null && !line.isEmpty()) {
-                    event.setLine(i, OfflineModerationEngine.censor(line, plugin.settings().offline()));
+                    event.setLine(i, OfflineModerationEngine.censor(line, plugin.settings().offline(),
+                            GameLanguage.of(event.getPlayer())));
                 }
             }
         }
@@ -77,11 +91,12 @@ public final class SurfaceModerationListener implements Listener {
             event.setCancelled(true);
         } else if (effective == DetectionHandler.Disposition.CENSOR) {
             var offline = plugin.settings().offline();
+            String speaker = GameLanguage.of(event.getPlayer());
             if (newMeta.hasTitle()) {
-                newMeta.setTitle(OfflineModerationEngine.censor(newMeta.getTitle(), offline));
+                newMeta.setTitle(OfflineModerationEngine.censor(newMeta.getTitle(), offline, speaker));
             }
             List<String> pages = new ArrayList<>(newMeta.getPages());
-            pages.replaceAll(page -> OfflineModerationEngine.censor(page, offline));
+            pages.replaceAll(page -> OfflineModerationEngine.censor(page, offline, speaker));
             newMeta.setPages(pages);
             event.setNewBookMeta(newMeta);
         }
@@ -108,7 +123,7 @@ public final class SurfaceModerationListener implements Listener {
         if (effective == DetectionHandler.Disposition.BLOCK) {
             event.setCancelled(true);
         } else if (effective == DetectionHandler.Disposition.CENSOR) {
-            meta.setDisplayName(OfflineModerationEngine.censor(name, plugin.settings().offline()));
+            meta.setDisplayName(OfflineModerationEngine.censor(name, plugin.settings().offline(), GameLanguage.of(player)));
             item.setItemMeta(meta);
         }
     }
@@ -124,15 +139,16 @@ public final class SurfaceModerationListener implements Listener {
         String command = parts[0].startsWith("/") ? parts[0].substring(1) : parts[0];
         command = command.toLowerCase(Locale.ROOT);
         String bareCommand = command.substring(command.indexOf(':') + 1);
-        if (!settings.surfaces().scannedCommands().contains(command)
-                && !settings.surfaces().scannedCommands().contains(bareCommand)) {
-            return;
-        }
-        // A mute covers the message commands too, whatever the command surface is set to.
-        if (plugin.muteService().isMuted(player.getUniqueId())) {
+        boolean scanned = settings.surfaces().scannedCommands().contains(command)
+                || settings.surfaces().scannedCommands().contains(bareCommand);
+        // A mute covers every message command too, whatever the command surface is set to.
+        if ((scanned || sendsMessage(bareCommand)) && plugin.muteService().isMuted(player.getUniqueId())) {
             event.setCancelled(true);
             plugin.messages().send(player, "mute.blocked", Map.of("duration",
                     DurationParser.format(plugin.muteService().remainingSeconds(player.getUniqueId()))));
+            return;
+        }
+        if (!scanned) {
             return;
         }
         SurfaceMode mode = settings.surfaces().command();
@@ -160,17 +176,41 @@ public final class SurfaceModerationListener implements Listener {
         }
         String kept = String.join(" ", Arrays.copyOfRange(parts, 0, firstChecked));
         String args = String.join(" ", Arrays.copyOfRange(parts, firstChecked, parts.length));
-        OfflineModerationResult result = OfflineModerationEngine.evaluate(args, settings.offline());
+        String speaker = GameLanguage.of(player);
+        OfflineModerationResult result = OfflineModerationEngine.evaluate(args, settings.offline(), speaker);
         if (!result.flagged()) {
             return;
         }
         DetectionHandler.Disposition effective =
                 handler.handle(player, "command", result.reason(), args,
-                        requestedFor(mode, mode != SurfaceMode.CENSOR || canCensor(List.of(args), settings)));
+                        requestedFor(mode, mode != SurfaceMode.CENSOR || canCensor(List.of(args), settings, speaker)));
         if (effective == DetectionHandler.Disposition.BLOCK) {
             event.setCancelled(true);
         } else if (effective == DetectionHandler.Disposition.CENSOR) {
-            event.setMessage(kept + " " + OfflineModerationEngine.censor(args, settings.offline()));
+            event.setMessage(kept + " " + OfflineModerationEngine.censor(args, settings.offline(), speaker));
+        }
+    }
+
+    /** Whether a command sends a message: by its name, or by the command the server runs for it. */
+    private boolean sendsMessage(String command) {
+        if (MESSAGE_COMMANDS.contains(command)) {
+            return true;
+        }
+        Command resolved = resolve(command);
+        if (resolved == null) {
+            return false;
+        }
+        String name = resolved.getName().toLowerCase(Locale.ROOT);
+        return MESSAGE_COMMANDS.contains(name.substring(name.indexOf(':') + 1));
+    }
+
+    /** The command the server runs for a label, through its command map, which the 1.8 API does not expose. */
+    private Command resolve(String label) {
+        try {
+            Object map = plugin.getServer().getClass().getMethod("getCommandMap").invoke(plugin.getServer());
+            return map instanceof CommandMap commandMap ? commandMap.getCommand(label) : null;
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            return null;
         }
     }
 
@@ -184,19 +224,20 @@ public final class SurfaceModerationListener implements Listener {
                 || player.hasPermission(Permissions.BYPASS)) {
             return DetectionHandler.Disposition.ALLOW;
         }
-        OfflineModerationResult result = OfflineModerationEngine.evaluate(text, settings.offline());
+        String speaker = GameLanguage.of(player);
+        OfflineModerationResult result = OfflineModerationEngine.evaluate(text, settings.offline(), speaker);
         if (!result.flagged()) {
             return DetectionHandler.Disposition.ALLOW;
         }
         return handler.handle(player, surface, result.reason(), text,
-                requestedFor(mode, mode != SurfaceMode.CENSOR || canCensor(parts, settings)));
+                requestedFor(mode, mode != SurfaceMode.CENSOR || canCensor(parts, settings, speaker)));
     }
 
-    private static boolean canCensor(List<String> parts, ModerationSettings settings) {
+    private static boolean canCensor(List<String> parts, ModerationSettings settings, String speaker) {
         String censored = String.join(" ", parts.stream()
-                .map(part -> OfflineModerationEngine.censor(part, settings.offline())).toList());
+                .map(part -> OfflineModerationEngine.censor(part, settings.offline(), speaker)).toList());
         return !censored.equals(String.join(" ", parts))
-                && !OfflineModerationEngine.evaluate(censored, settings.offline()).flagged();
+                && !OfflineModerationEngine.evaluate(censored, settings.offline(), speaker).flagged();
     }
 
     /** Spam hits can't be censored, so they escalate CENSOR to BLOCK. */

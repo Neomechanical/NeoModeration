@@ -4,10 +4,10 @@
 # and "siktir" are in because they are the most common forms in game chat.
 amk
 siktir
-siktirgit
+siktir git
 orospu
 orospular
-orospucocugu
+orospu cocugu
 sikerim
 sikik
 sikeyim
@@ -18,8 +18,8 @@ dalyarak
 gotveren
 amcik
 amcuk
-aminakoyayim
-aminakoyim
+amina koyayim
+amina koyim
 ibne
 ibneler
 pezevenk

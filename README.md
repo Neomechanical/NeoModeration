@@ -29,16 +29,16 @@ Or connect an existing workspace key:
 
 ## Why add cloud moderation?
 
-The local rules catch words, links and server ads, however they are spelled. What they cannot do is read meaning. Harassment and threats in plain words, encouragement to self-harm, scams that never use a banned word, sexual talk and abuse in languages without a word pack all pass a word list. The cloud reads each message for its meaning in eight categories and checks map art.
+The local rules catch listed words, links and server ads, including spaced-out, accented and look-alike spellings. What they cannot do is read meaning. Harassment and threats in plain words, encouragement to self-harm, scams that never use a banned word, sexual talk and abuse in languages without a word pack all pass a word list. The cloud reads each message for its meaning in eight categories and checks map art.
 
 The free 14-day trial runs on your own chat, and while it runs its decisions only alert staff, so you can judge them before they block anything. [How the cloud checks Minecraft chat](https://neomechanical.com/docs/use-cases/minecraft?src=neomoderation_github).
 
 ## What runs without a key
 
-- Starter lists of swear words and slurs in English, plus the Spanish, French, German, Portuguese or Turkish list that matches `locale` in `config.yml`. `moderation.offline.languagePacks` takes `[auto, es]`, `[all]` or `[]`. A word only matches from the start of a word to the end of one, so "assignment" and "Scunthorpe" stay clean, and everyday phrases that spell a banned word, such as "put a", are never read as it. Matching sees through spacing, accents, look-alike letters, leetspeak and words split across rapid short messages.
+- Starter lists of swear words and slurs in English, plus the Spanish, French, German, Portuguese or Turkish list that matches `locale` in `config.yml`. `moderation.offline.languagePacks` takes `[auto, es]`, `[all]` or `[]`. A word only matches from the start of a word to the end of one, so "assignment" and "Scunthorpe" stay clean. Matching sees through spacing ("f uck", "k y s"), accents, look-alike letters, leetspeak and words split across rapid short messages, but two everyday words are never read as one ("put a" is not a slur). Write a word with a space, such as "ass hole", to catch it however it is spaced. A word one language uses every day and another bans, such as French "retard" (late) or the Spanish name Kike, passes for players whose game language it is, and for everyone when `locale` is that language.
 - Ads for other servers are blocked on a new install: public IP addresses, addresses with a port, `play.` and `mc.` style addresses, free hosts such as `aternos.me`, and "join myserver.net". Ordinary links are not affected. Let your own address through with `/nmod allow url add <address>`. An upgraded server keeps this off until you set `moderation.offline.blockServerAds: true`.
 - IP grabbers and fake giveaway links from a starter list are blocked, including ones written with `(dot)` or `[.]`.
-- Anti-spam blocks message floods, the same message again, character floods and command floods, and sends messages in capitals on in lower case. Spam is only blocked; your actions stay for abuse. Tune it under `moderation.spam`.
+- Anti-spam blocks message floods, the same message again, character floods and command floods, and lets messages in capitals through in lower case. Spam is only blocked; your actions stay for abuse. Tune it under `moderation.spam`.
 - Players whose message, sign, book, item name or command is stopped are told why, in their own game language (`moderation.tellPlayers`).
 - `moderation.chat.censorLocalDetections: true` stars out matched words and lets the rest of the message through.
 - Strikes are off on a new install. Turn them on under `moderation.strikes` to act when a player reaches a set count.
@@ -47,9 +47,9 @@ The free 14-day trial runs on your own chat, and while it runs its decisions onl
 
 ## Staff tools
 
-- Players with `neomoderation.notify` see each detection in chat. Those who may open cases can click it for that player's history. `moderation.alerts.includeMessage: false` hides the message text.
+- Players with `neomoderation.notify` see each detection in chat. Those who may open cases can click it for that player's history. During a raid, alerts about one player pause after three in 30 seconds, and all alerts after a dozen in 10 seconds; the console and case history still get every one. `moderation.alerts.includeMessage: false` hides the message text.
 - `/nmod discord <webhook URL>` sends the same alerts to a Discord channel, batched so a raid cannot flood it, with mentions turned off. `/nmod discord test` checks it, and `/nmod doctor` says when Discord refuses alerts.
-- `/nmod mute <player> [duration]` and `/nmod unmute <player>` mute a player by hand. A mute covers public chat and the message commands (`/msg`, `/tell`, `/r`, `/me` and the rest of `scannedCommands`), with no other plugin.
+- `/nmod mute <player> [duration]` and `/nmod unmute <player>` mute a player by hand. A mute covers public chat and every message command (`/msg`, `/tell`, `/r`, `/me`, `/mail`, `/teammsg`, the rest of `scannedCommands`, and any alias the server has for them, such as EssentialsX's `/m`), with no other plugin.
 - `/nmod allow word|url add <value>` fixes a false positive at once. Allowed phrases and links always win.
 - `/nmod preset family|community|minimal` sets how strict the cloud is without touching local rules or actions. Each category also takes its own threshold (0.05 to 0.99) in `config.yml`.
 - `/nmod doctor` lists every setting that needs attention.
@@ -108,16 +108,16 @@ Messages ship in English (`en_US`), Spanish (`es_ES`), French (`fr_FR`), German 
 
 ## Compatibility
 
-Supports Bukkit, Spigot, Paper and Purpur on Minecraft 1.18.2 through the
-current Paper calendar releases (26.1, 26.2). The automated release matrix
-verifies Paper 1.18.2, 1.19.4, 1.20.6 and 1.21.11; Paper 26.2 is verified by
-hand (build 112 under Java 25) until the chat harness supports the 26.x
-protocol.
+Supports Bukkit, Spigot, Paper, Purpur and Folia on Minecraft 1.18.2 through
+the current Paper releases, 26.2 and 26.3. Before each release, every check
+runs on Paper 1.18.2, 1.19.4, 1.20.6, 1.21.11, 26.1.2, 26.2 and 26.3 and on
+Folia 1.21.11. On each, a real player joins, chats, is blocked and leaves a
+case, and an operator's menus arrive. On 26.2 and 26.3 the test player joins
+through ViaBackwards, because the test client speaks up to 26.1.
 
-Paper marks the whole `1.x` line end-of-life as of 2026-06-15; 26.1 and 26.2 are
-the only versions it still supports. NeoModeration runs on both schemes because
-it compiles against the stable Bukkit API and reaches newer Paper APIs
-reflectively.
+Paper marks the whole `1.x` line end-of-life as of 2026-06-15 and supports 26.2
+and 26.3 today. NeoModeration runs on both schemes because it compiles against
+the stable Bukkit API and reaches newer Paper and Folia APIs reflectively.
 
 ## Map-art checks
 
@@ -127,7 +127,9 @@ memory, so a map drawn a moment ago is checked at once; each picture is checked
 once, and drawing on it makes it a new picture. In enforce cloud mode a flagged
 map is taken from the player holding it, and a flagged map already hanging in a
 frame is taken down without blaming the player who found it. In monitor mode,
-staff are alerted instead. Tune it under `moderation.mapArt` in `config.yml`:
+staff are alerted instead. Each player can have 30 new pictures checked an hour,
+so nobody can use up your credits by drawing maps. Tune it under
+`moderation.mapArt` in `config.yml`:
 
 ```yaml
 moderation:
@@ -137,6 +139,7 @@ moderation:
     scanOnFrameInteract: true
     confiscate: true      # false = alert staff and leave the map
     cacheSize: 1000
+    checksPerPlayerPerHour: 30   # 0 = no limit
 ```
 
 ## Permissions

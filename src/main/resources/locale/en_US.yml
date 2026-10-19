@@ -32,9 +32,9 @@ error:
   api-key-too-long: "{prefix} {#risk}That key is longer than {max} characters."
   rule-too-long: "{prefix} {#risk}That is longer than {max} characters."
   player-unknown: "{prefix} {#risk}No player called {#text}{player}{#risk} has played here."
-
-  unknown-command: "{prefix} {#risk}There is no /{label} {command}. {#muted}Here is what there is:"
+  unknown-command: "{prefix} {#risk}There is no /{label} {command}. {#muted}Here are the commands:"
   admin-only: "{prefix} {#muted}Only admins can use /{label} {command}."
+
 help:
   section:
     start: "{#text}&lGet started"
@@ -73,7 +73,7 @@ help:
     "on": "/nmod on"
     "off": "/nmod off"
   desc:
-    trial: "start a free 14-day cloud trial"
+    trial: "what a free 14-day cloud trial does"
     setup: "connect a cloud key"
     status: "what is protected right now"
     mode: "block, or only alert staff"
@@ -108,12 +108,12 @@ key:
 
 trial:
   pending: "{prefix} {#muted}A trial is already starting. Wait for it to finish."
-  explain-title: "{prefix} {#brand}A free 14-day cloud trial{#muted}, with no account to make."
-  explain-sends: "  {#muted}While it runs, each chat message and map picture goes to Neomechanical with the player's name and UUID to be checked. Nothing is kept or used for training."
+  explain-title: "{prefix} {#brand}A free 14-day cloud trial{#muted}. No account needed."
+  explain-sends: "  {#muted}While it runs, each chat message and map picture goes to Neomechanical with the player's name and UUID to be checked. Messages and pictures are not kept or used for training."
   explain-monitor: "  {#muted}Cloud decisions only alert staff until you run {#brand}/nmod cloudmode enforce{#muted}. Your word lists keep working as they do now."
   start-button: "  {#brand}[Start the free trial]"
   start-hover: "{#muted}Runs {command}"
-  start-console: "  {#muted}Run {#brand}{command}{#muted} to start it."
+  start-console: "  {#muted}Run {#brand}{command}{#muted} to begin."
   configuration-changed: "{prefix} {#review}The cloud settings changed while the trial started, so yours were kept. {#muted}Run {#brand}/nmod trial{#muted} to see them."
   requesting: "{prefix} {#muted}Starting your free 14-day cloud trial..."
   activated: "{prefix} {#safe}Your 14-day cloud trial is on until {#text}{expires}{#safe}."
@@ -131,12 +131,13 @@ trial:
   status-no-key: "{prefix} {#muted}No cloud key yet. Run {#brand}/nmod trial{#muted} for a free 14-day trial."
   status-checking: "{prefix} {#muted}Checking the cloud trial..."
   status-active: "{prefix} {#safe}Cloud trial until {#text}{expires}{#safe}. {#muted}Days left: {#text}{days}"
-  status-caught: "{prefix} {#muted}Caught by the cloud since startup: {#text}{count}"
+  status-caught: "{prefix} {#muted}Caught by the cloud during the trial: {#text}{count}"
+  status-caught-startup: "{prefix} {#muted}Caught by the cloud since startup: {#text}{count}"
   status-expired: "{prefix} {#risk}The cloud trial ended on {#text}{expires}{#risk}. {#muted}Local rules still run."
   status-standard: "{prefix} {#safe}This server uses a full Neomechanical key. {#muted}Run {#brand}/nmod usage{#muted} for credits."
   keep-button: "  {#brand}[Keep cloud moderation]"
   keep-hover: "{#muted}Opens {url}"
-  cta-button: "  {#brand}[Start a free 14-day cloud trial]"
+  cta-button: "  {#brand}[Free 14-day cloud trial]"
   cta-hover: "{#muted}Runs /nmod trial. No account needed."
 
 toggle:
@@ -156,6 +157,7 @@ status:
   discord: "{#muted}Discord alerts: {#text}{value}"
   cloud: "{#muted}Cloud: {#text}{value}"
   cloud-no-key: "{#muted}Cloud: {#text}no key{#muted}. Run {#brand}/nmod trial{#muted} for a free 14-day trial."
+  cloud-no-key-staff: "{#muted}Cloud: {#text}no key{#muted}."
   cloud-unverified: "{#muted}Last cloud check: {#text}none since startup{#muted}. Run {#brand}/nmod test hello{#muted}."
   cloud-ready: "{#muted}Last cloud check: {#safe}worked{#muted}."
   cloud-auth: "{#muted}Last cloud check: {#risk}key rejected{#muted}. Replace it at {#brand}{keysUrl}{#muted}."
@@ -193,8 +195,8 @@ rules:
   removed: "{prefix} {#safe}Removed {#text}{value}{#safe} from {kind}."
   already-there: "{prefix} {#muted}{#text}{value}{#muted} is already in {kind}."
   not-there: "{prefix} {#muted}{#text}{value}{#muted} is not in {kind}."
-
   in-pack: "{prefix} {#muted}{#text}{value}{#muted} comes from a language pack, so it still blocks. Run {#brand}/{label} allow word add {value}{#muted} to let it through."
+
 action:
   usage: "{prefix} {#muted}Use {#brand}/{label} action <list|add|remove|reset>{#muted}."
   add-usage: "{prefix} {#muted}Use {#brand}/{label} action add <clear|mute|kick|ban> [duration]{#muted}."
@@ -218,6 +220,7 @@ action:
     ban: "ban"
     command: "run /{command}"
     nothing: "nothing else"
+  unsafe-name: "Skipped a command action for {player}: a name with a space could add words to the command."
 
 usage:
   fetching: "{prefix} {#muted}Checking your Neomechanical account..."
@@ -312,6 +315,8 @@ alert:
   then: " {#faint}then {#muted}{actions}"
   hidden: "message hidden"
   hover: "{#muted}Click to see {player}'s cases"
+  paused-player: "{prefix} {#muted}Alerts about {#text}{player}{#muted} pause for {seconds} seconds. Everything is still logged."
+  paused-all: "{prefix} {#muted}Too many alerts at once, so they pause for {seconds} seconds. Everything is still logged."
 
 surface:
   title: "{prefix} {#muted}Where local rules apply. Click a setting to change it."
@@ -343,7 +348,7 @@ allow:
 mode:
   usage: "{prefix} {#muted}Use {#brand}/{label} mode <monitor|enforce>{#muted}."
   current: "{prefix} {#muted}Local rules: {#text}{value}"
-  stats: "{prefix} {#muted}Caught in the last {#text}{since}{#muted}: {#text}{total}"
+  stats: "{prefix} {#muted}Caught since startup, {#text}{since}{#muted} ago: {#text}{total}"
   stats-line: "  {#faint}{count} {#muted}{what}"
   set-monitor: "{prefix} {#review}Local rules now only alert staff. {#muted}Nothing is blocked until {#brand}/nmod mode enforce{#muted}."
   set-enforce: "{prefix} {#safe}Local rules now block. {#muted}Actions you set with {#brand}/nmod action{#muted} run too."
@@ -381,6 +386,7 @@ test:
   cloud-request-error: "  {#muted}Cloud: {#risk}request refused{#muted}. Run {#brand}/nmod doctor{#muted}."
   cloud-skipped-local: "  {#muted}Cloud: {#faint}not asked, local rules already caught it"
   cloud-skipped-key: "  {#muted}Cloud: {#faint}no key. {#muted}Run {#brand}/nmod trial{#muted} for a free 14-day trial."
+  cloud-skipped-key-staff: "  {#muted}Cloud: {#faint}no key."
   cloud-skipped-categories: "  {#muted}Cloud: {#faint}every category is off"
   cloud-skipped-circuit: "  {#muted}Cloud: {#faint}paused after errors. {#brand}/nmod reload{#muted} retries now."
   would-allowed: "  {#muted}Result: {#safe}allowed"
@@ -426,6 +432,7 @@ doctor:
     local-enforce: "blocking"
     rules: "banned words: {words}, blocked links: {urls}, exceptions: {exceptions}"
     ads-on: "blocked"
+    ads-on-hint: "blocked; let your own address through with /nmod allow url add <address>"
     ads-off: "allowed; set moderation.offline.blockServerAds to true to block them"
     rules-spam-only: "no word or link rule; anti-spam still runs"
     rules-cloud-only: "no word or link rule; only the cloud checks"
@@ -444,7 +451,9 @@ doctor:
     cases-missing: "on, but this server has no SQLite driver, so nothing is saved"
     discord-on: "on"
     discord-bad-url: "the URL is not a Discord webhook, so nothing is sent"
-    discord-failing: "Discord refused the last alert ({problem}); check the webhook still exists"
+    discord-gone: "Discord says this webhook was deleted; make a new one and run /nmod discord <URL>"
+    discord-rate-limited: "Discord limits how fast alerts arrive, so some were dropped"
+    discord-unreachable: "the last alert did not reach Discord; check this server can reach discord.com"
     fail-open: "chat goes through (failOpen: true)"
     fail-closed: "chat is held back (failOpen: false)"
     timeouts-ok: "{connect} ms to connect, {read} ms to answer"
@@ -568,6 +577,8 @@ welcome:
   surfaces-hover: "{#muted}Runs /nmod surface"
   test-btn: "  {#brand}[Try a message]"
   test-hover: "{#muted}Runs /nmod test badword. Nothing is blocked."
+  ads-btn: "  {#brand}[Let players share your server's address]"
+  ads-hover: "{#muted}Puts /nmod allow url add in your chat. Type your server's address after it."
 
 update:
   available: "{prefix} {#muted}NeoModeration {#text}{latest}{#muted} is out; this server runs {current}."
@@ -600,7 +611,7 @@ startup:
   status: "Run /nmod status any time to see what is on."
 
 migrated:
-  words: "Updated the starter word list, which you had not edited: \"scam\" is off it, so players can warn each other about scams. Words added: {count}."
+  words: "Updated the starter word list, which you had not edited: it no longer has \"scam\", so players can warn each other about scams. Words added: {count}."
   server-ads: "Ads for other servers stay allowed on this updated server (moderation.offline.blockServerAds: false). Set it to true to block them, after adding your own address to allowedUrls."
   language-packs: "The starter word list for your language stays off on this updated server (moderation.offline.languagePacks: []). Set it to [auto] to turn it on."
   tell-players: "Players are now told why a message was stopped (moderation.tellPlayers: true). Set it to false to block without a word."

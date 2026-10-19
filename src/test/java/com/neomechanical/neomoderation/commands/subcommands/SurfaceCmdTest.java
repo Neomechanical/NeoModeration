@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -52,7 +53,7 @@ class SurfaceCmdTest {
 
         cmd.execute(sender, "nmod", new String[]{"surface", "sign", "censor"});
         assertEquals("censor", config.getString("moderation.surfaces.sign"));
-        verify(plugin).saveAndReload();
+        verify(plugin).editConfig(any());
 
         cmd.execute(sender, "nmod", new String[]{"surface", "all", "block"});
         for (String name : SurfaceSettings.SURFACE_NAMES) {
@@ -70,7 +71,7 @@ class SurfaceCmdTest {
 
         assertEquals(List.of("[NeoMod] Use /nmod surface <sign|book|anvil|command|all> <off|monitor|censor|block>."),
                 TestPlugin.lines(sender));
-        verify(plugin, never()).saveAndReload();
+        verify(plugin, never()).editConfig(any());
     }
 
     @Test

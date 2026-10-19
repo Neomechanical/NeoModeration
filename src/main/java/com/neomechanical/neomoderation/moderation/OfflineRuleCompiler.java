@@ -4,6 +4,10 @@ import com.neomechanical.neomoderation.config.OfflineModerationSettings;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Compiles and caches {@link OfflineModerationSettings} into run-collapsed token
@@ -11,19 +15,36 @@ import java.util.List;
  */
 final class OfflineRuleCompiler {
 
-    record CompiledWord(String original, char[] runChars, int[] runLengths, String collapsed) {
+    /**
+     * A banned word ready to match. {@code spaced} when the rule itself was
+     * written with a space ("ass hole"), which reads it across every space.
+     */
+    record CompiledWord(String original, char[] runChars, int[] runLengths, String collapsed, boolean spaced) {
     }
 
     record CompiledUrl(String original, String normalized) {
     }
 
+    /**
+     * The compiled rules. {@code speakerPhrases} caches, per game language, the
+     * words that language's speakers may use although another language bans them.
+     */
     record CompiledRules(
             OfflineModerationSettings source,
             List<CompiledWord> words,
             List<String[]> allowedPhrases,
             List<CompiledUrl> urls,
-            List<String> allowedUrls
+            List<String> allowedUrls,
+            Map<String, List<String[]>> speakerPhrases
     ) {
+        /** The phrases a speaker of {@code language} may use besides everyone's; empty for {@code null}. */
+        List<String[]> speakerPhrases(String language) {
+            if (language == null || language.isBlank()) {
+                return List.of();
+            }
+            return speakerPhrases.computeIfAbsent(language.toLowerCase(Locale.ROOT), code ->
+                    tokenizeAll(BundledWordPacks.languageWords(code), source.normalizeLeetspeak()));
+        }
     }
 
     private static volatile CompiledRules cachedRules;
@@ -41,27 +62,61 @@ final class OfflineRuleCompiler {
     }
 
     /**
+     * Marks every token a banned word may not run into from the token before it:
+     * the end of a contraction ("let's hit"), and a word after a word ("put a"),
+     * by {@link BundledWordPacks#commonWords()}. A single letter between single
+     * letters is spelled out ("k y s"), never a word.
+     */
+    static boolean[] crossingBlocked(TextNormalizer.Normalized text) {
+        boolean[] blocked = text.joinBlocked().clone();
+        List<int[]> tokens = tokensOf(text);
+        if (tokens.size() < 2) {
+            return blocked;
+        }
+        Set<String> common = BundledWordPacks.commonWords();
+        boolean[] word = new boolean[tokens.size()];
+        for (int t = 0; t < tokens.size(); t++) {
+            int[] token = tokens.get(t);
+            boolean single = token[1] - token[0] == 1;
+            boolean spelledOut = single
+                    && ((t > 0 && length(tokens.get(t - 1)) == 1)
+                    || (t + 1 < tokens.size() && length(tokens.get(t + 1)) == 1));
+            word[t] = !spelledOut && common.contains(new String(text.chars(), token[0], token[1] - token[0]));
+        }
+        for (int t = 1; t < tokens.size(); t++) {
+            if (word[t - 1] && word[t]) {
+                blocked[tokens.get(t)[0]] = true;
+            }
+        }
+        return blocked;
+    }
+
+    /**
      * Finds the first match of {@code word} at or after normalised index
      * {@code from}, or {@code null}. A match must start where a token starts and
      * finish where one finishes; between those points separators are ignored,
-     * except the apostrophe inside a contraction, which a match never crosses.
+     * except into a token {@code crossing} marks (see {@link #crossingBlocked}),
+     * unless the word was written with a space. A match never starts after the
+     * apostrophe of a contraction.
      */
     static int[] findMatch(
             TextNormalizer.Normalized text,
             CompiledWord word,
             boolean[] masked,
+            boolean[] crossing,
             int from
     ) {
         char[] chars = text.chars();
         boolean[] tokenStart = text.tokenStart();
         boolean[] tokenEnd = text.tokenEnd();
-        boolean[] joinBlocked = text.joinBlocked();
+        boolean[] startBlocked = text.joinBlocked();
+        boolean[] joinBlocked = word.spaced() ? startBlocked : crossing;
         char[] runChars = word.runChars();
         int[] runLengths = word.runLengths();
         int length = chars.length;
 
         for (int start = from; start < length; start++) {
-            if (!tokenStart[start] || masked[start] || joinBlocked[start]) {
+            if (!tokenStart[start] || masked[start] || startBlocked[start]) {
                 continue;
             }
             int position = start;
@@ -135,6 +190,20 @@ final class OfflineRuleCompiler {
         return masked;
     }
 
+    /** Whether a match from {@code start} to {@code end} runs across a space. */
+    static boolean crossesSpace(TextNormalizer.Normalized text, int start, int end) {
+        for (int i = start + 1; i < end; i++) {
+            if (text.tokenStart()[i]) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static int length(int[] token) {
+        return token[1] - token[0];
+    }
+
     private static List<int[]> tokensOf(TextNormalizer.Normalized text) {
         List<int[]> tokens = new ArrayList<>();
         boolean[] tokenStart = text.tokenStart();
@@ -174,14 +243,7 @@ final class OfflineRuleCompiler {
                 words.add(compiled);
             }
         }
-        List<String> allowedWords = settings.effectiveAllowedWords();
-        List<String[]> allowedPhrases = new ArrayList<>(allowedWords.size());
-        for (String allowedWord : allowedWords) {
-            String[] tokens = tokenizeRule(allowedWord, settings.normalizeLeetspeak());
-            if (tokens.length > 0) {
-                allowedPhrases.add(tokens);
-            }
-        }
+        List<String[]> allowedPhrases = tokenizeAll(settings.effectiveAllowedWords(), settings.normalizeLeetspeak());
         List<CompiledUrl> urls = new ArrayList<>(settings.bannedUrls().size());
         for (String bannedUrl : settings.bannedUrls()) {
             String normalized = lower(bannedUrl).trim();
@@ -199,10 +261,22 @@ final class OfflineRuleCompiler {
         return new CompiledRules(
                 settings,
                 List.copyOf(words),
-                List.copyOf(allowedPhrases),
+                allowedPhrases,
                 List.copyOf(urls),
-                List.copyOf(allowedUrls)
+                List.copyOf(allowedUrls),
+                new ConcurrentHashMap<>()
         );
+    }
+
+    private static List<String[]> tokenizeAll(List<String> phrases, boolean normalizeLeetspeak) {
+        List<String[]> tokenized = new ArrayList<>(phrases.size());
+        for (String phrase : phrases) {
+            String[] tokens = tokenizeRule(phrase, normalizeLeetspeak);
+            if (tokens.length > 0) {
+                tokenized.add(tokens);
+            }
+        }
+        return List.copyOf(tokenized);
     }
 
     private static CompiledWord compileWord(String bannedWord, boolean normalizeLeetspeak) {
@@ -230,7 +304,8 @@ final class OfflineRuleCompiler {
         for (int i = 0; i < lengths.length; i++) {
             lengths[i] = runLengths.get(i);
         }
-        return new CompiledWord(bannedWord, chars, lengths, normalized.collapsed());
+        boolean spaced = crossesSpace(normalized, 0, letters.length);
+        return new CompiledWord(bannedWord, chars, lengths, normalized.collapsed(), spaced);
     }
 
     private static String[] tokenizeRule(String rule, boolean normalizeLeetspeak) {

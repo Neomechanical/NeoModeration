@@ -2,8 +2,8 @@ package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.Permissions;
-import com.neomechanical.neomoderation.moderation.CaseLog;
 import com.neomechanical.neomoderation.moderation.CaseLog.CaseRecord;
+import com.neomechanical.neomoderation.moderation.CaseLog;
 import com.neomechanical.neomoderation.testing.TestPlugin;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -61,6 +61,16 @@ class CasesCmdTest {
 
         verify(caseLog, never()).byId(anyLong());
         assertEquals("[NeoMod] Cases for 1234. Click one to open it.", TestPlugin.lines(staff).get(0));
+    }
+
+    @Test
+    void aPlayerNamedLikeAnActionIsListedFromTheMoreFromButton() {
+        when(caseLog.recent("Resolve", 11, 0)).thenReturn(cases(1));
+
+        run("cases", "Resolve", "page", "1");
+
+        verify(caseLog, never()).updateStatus(anyLong(), anyString());
+        assertEquals("[NeoMod] Cases for Resolve. Click one to open it.", TestPlugin.lines(staff).get(0));
     }
 
     @Test

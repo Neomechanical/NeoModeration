@@ -36,24 +36,27 @@ public final class SplitMessageWindow {
      * offline moderation rules.
      *
      * @param player   the player sending the message
-     * @param message  the raw chat message
+     * @param message  the raw chat message, which on its own broke no rule
      * @param settings current offline moderation settings
+     * @param speaker  the player's game language, or {@code null}
      * @return flagged reason prefixed with {@code "split_"} if a violation occurred across fragments
      */
     public Optional<String> recordAndCheck(
             UUID player,
             String message,
-            OfflineModerationSettings settings
+            OfflineModerationSettings settings,
+            String speaker
     ) {
-        return recordAndCheck(player, message, settings, System.currentTimeMillis());
+        return recordAndCheck(player, message, settings, speaker, System.currentTimeMillis());
     }
 
     /**
      * Records a chat fragment at an explicit timestamp and evaluates the joined window.
      *
      * @param player   the player sending the message
-     * @param message  the raw chat message
+     * @param message  the raw chat message, which on its own broke no rule
      * @param settings current offline moderation settings
+     * @param speaker  the player's game language, or {@code null}
      * @param nowMs    current epoch milliseconds
      * @return flagged reason prefixed with {@code "split_"} if a violation occurred across fragments
      */
@@ -61,6 +64,7 @@ public final class SplitMessageWindow {
             UUID player,
             String message,
             OfflineModerationSettings settings,
+            String speaker,
             long nowMs
     ) {
         if (settings == null || !settings.enabled() || player == null || message == null) {
@@ -89,12 +93,6 @@ public final class SplitMessageWindow {
                 deque.pollFirst();
             }
 
-            OfflineModerationResult singleResult = OfflineModerationEngine.evaluate(message, settings);
-            if (singleResult.flagged()) {
-                deque.clear();
-                return Optional.empty();
-            }
-
             if (deque.size() < 2) {
                 return Optional.empty();
             }
@@ -107,10 +105,11 @@ public final class SplitMessageWindow {
                 joined.append(entry.fragment());
             }
 
-            OfflineModerationResult joinedResult = OfflineModerationEngine.evaluate(joined.toString(), settings);
+            OfflineModerationResult joinedResult = OfflineModerationEngine.evaluate(joined.toString(), settings, speaker);
             if (joinedResult.flagged()) {
                 deque.clear();
-                return Optional.of("split_" + joinedResult.reason());
+                // Messages are always read across a space here; "split_" already says so.
+                return Optional.of("split_" + joinedResult.reason().replaceFirst("^spaced_", ""));
             }
 
             return Optional.empty();

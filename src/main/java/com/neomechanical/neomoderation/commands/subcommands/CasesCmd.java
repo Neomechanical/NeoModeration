@@ -65,7 +65,9 @@ public class CasesCmd implements SubCommand {
         }
         String first = args.length >= 2 ? args[1].trim() : "";
         String action = first.toLowerCase(Locale.ROOT);
-        if (action.equals("resolve") || action.equals("dismiss")) {
+        // "resolve page 1" lists the cases of a player named Resolve, as the [More from] button writes it.
+        boolean listingAPlayer = args.length >= 3 && "page".equalsIgnoreCase(args[2]);
+        if ((action.equals("resolve") || action.equals("dismiss")) && !listingAPlayer) {
             Long id = args.length >= 3 ? parseLong(args[2]) : null;
             if (id == null) {
                 messages.send(sender, "cases.not-found", Map.of("id", args.length >= 3 ? args[2] : "?"));

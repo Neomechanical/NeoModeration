@@ -4,6 +4,7 @@ import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.config.BukkitConfigView;
 import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.messages.MessageService;
+import com.neomechanical.neomoderation.testing.TestPlugin;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,7 @@ class PresetCmdTest {
 
         NeoModerationPlugin plugin = mock(NeoModerationPlugin.class);
         when(plugin.getConfig()).thenReturn(config);
+        TestPlugin.editsConfigInMemory(plugin);
         when(plugin.settings()).thenAnswer(ignored -> ModerationSettings.from(new BukkitConfigView(config)));
         when(plugin.messages()).thenReturn(mock(MessageService.class));
 

@@ -106,9 +106,22 @@ class MapArtListenerTest {
     }
 
     @Test
+    void eachPlayerHasAnHourlyAllowanceOfNewPictures() {
+        try (Fixture f = new Fixture(ModerationMode.ENFORCE, ModerationApiResult.clear(), 1)) {
+            f.listener.onItemHeld(f.heldEvent);
+            f.pixels[0] = 12;
+            f.listener.onItemHeld(f.heldEvent);
+
+            verify(f.client, times(1)).moderateImage(anyString(), anyString(), anyString(), any(), any());
+        }
+    }
+
+    @Test
     void aFlaggedMapFoundInAFrameIsTakenDownWithoutBlamingTheFinder() {
         try (Fixture f = new Fixture(ModerationMode.ENFORCE, ModerationApiResult.flagged("sexual"))) {
             ItemFrame frame = mock(ItemFrame.class);
+            UUID frameId = UUID.randomUUID();
+            when(frame.getUniqueId()).thenReturn(frameId);
             when(frame.getItem()).thenReturn(f.map);
             when(frame.getLocation()).thenReturn(new Location(null, 10, 64, -20));
             when(f.inventory.getItemInHand()).thenReturn(null);
@@ -122,6 +135,8 @@ class MapArtListenerTest {
                     eq(DetectionHandler.Disposition.BLOCK), eq(DetectionHandler.Source.CLOUD));
             verify(f.handler, never()).handle(any(), anyString(), anyString(), anyString(), any(), any());
             verify(frame).setItem(null);
+            // The cloud hears about the frame, not about the player who happened to click it.
+            verify(f.client).moderateImage(eq("item_frame"), eq(frameId.toString()), anyString(), any(), any());
         }
     }
 
@@ -141,7 +156,11 @@ class MapArtListenerTest {
         final MapArtListener listener;
 
         Fixture(ModerationMode cloudMode, ModerationApiResult answer) {
-            ModerationSettings settings = settings(cloudMode);
+            this(cloudMode, answer, 30);
+        }
+
+        Fixture(ModerationMode cloudMode, ModerationApiResult answer, int checksPerPlayerPerHour) {
+            ModerationSettings settings = settings(cloudMode, checksPerPlayerPerHour);
             when(plugin.settings()).thenReturn(settings);
             when(plugin.messages()).thenReturn(messages);
             when(plugin.detectionHandler()).thenReturn(handler);
@@ -183,7 +202,7 @@ class MapArtListenerTest {
         }
     }
 
-    private static ModerationSettings settings(ModerationMode cloudMode) {
+    private static ModerationSettings settings(ModerationMode cloudMode, int checksPerPlayerPerHour) {
         return new ModerationSettings(
                 true,
                 ModerationMode.ENFORCE,
@@ -191,7 +210,7 @@ class MapArtListenerTest {
                 new ModerationApiSettings("https://api.neomechanical.com/v1/events", "test-key", 100, 100),
                 new OfflineModerationSettings(true, false, true, List.of(), List.of(), List.of(), List.of()),
                 new ModerationCategorySettings(Map.of()),
-                new MapArtSettings(true, true, true, true, 1000),
+                new MapArtSettings(true, true, true, true, 1000, checksPerPlayerPerHour),
                 List.of(),
                 true,
                 true,

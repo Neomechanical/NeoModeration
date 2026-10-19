@@ -1,5 +1,6 @@
 package com.neomechanical.neomoderation.messages;
 
+import com.neomechanical.neomoderation.testing.TestPlugin;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -128,10 +129,14 @@ class LocaleStoreTest {
         String broken = "toggle:\n  \"on\": \"{prefix} Moderación: activa\n  sin cerrar: [\n";
         Files.writeString(locale.resolve("es_ES.yml"), broken);
         JavaPlugin plugin = plugin(folder);
+        java.util.logging.Logger logger = mock(java.util.logging.Logger.class);
+        org.mockito.Mockito.when(plugin.getLogger()).thenReturn(logger);
 
         Set<String> edited = LocaleStore.prepare(plugin);
 
         assertEquals(broken, Files.readString(locale.resolve("es_ES.yml")), "a broken file is never overwritten");
+        org.mockito.Mockito.verify(logger).warning(org.mockito.ArgumentMatchers.<String>argThat(text ->
+                text.startsWith("Could not read locale/es_ES.yml (line ") && text.contains(", column ")));
         assertTrue(edited.contains("es_ES"), "a file that cannot be read counts as the server's own");
         MessageService messages = MessageService.load(plugin, "es_ES", false);
         assertEquals("[NeoMod] La moderación está activada.",
@@ -152,6 +157,23 @@ class LocaleStoreTest {
         YamlConfiguration onDisk = YamlConfiguration.loadConfiguration(locale.resolve("en_US.yml").toFile());
         assertEquals("{prefix} Our filter is on.", onDisk.getString("toggle.on"));
         assertTrue(onDisk.isSet("toggle.off"), "missing keys are still added around the server's own text");
+    }
+
+    @Test
+    void anEditedPrefixInTheServersLanguageReachesEveryLanguageThatKeptTheBundledOne(@TempDir Path folder)
+            throws Exception {
+        Path locale = Files.createDirectories(folder.resolve("locale"));
+        Files.writeString(locale.resolve("en_US.yml"), "prefix: \"&6[MyServer]\"\n");
+        Files.writeString(locale.resolve("de_DE.yml"), "prefix: \"&2[MeinServer]\"\n");
+        JavaPlugin plugin = plugin(folder);
+        LocaleStore.prepare(plugin);
+
+        MessageService messages = MessageService.load(plugin, "en_US", true);
+
+        assertTrue(MessageService.plain(messages.text(TestPlugin.player("Ana", "es_es"), "toggle.on"))
+                .startsWith("[MyServer] "), "a Spanish player sees the server's prefix");
+        assertTrue(MessageService.plain(messages.text(TestPlugin.player("Jan", "de_de"), "toggle.on"))
+                .startsWith("[MeinServer] "), "a language with its own prefix keeps it");
     }
 
     private static JavaPlugin plugin(Path folder) {

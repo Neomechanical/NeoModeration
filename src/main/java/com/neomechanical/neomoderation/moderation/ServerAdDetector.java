@@ -18,8 +18,12 @@ import java.util.regex.Pattern;
  * subdomain of a free Minecraft host, or a host written straight after "join",
  * "ip:" or "server is". A private address such as {@code 192.168.1.1} is not
  * reachable from outside, so it counts only with a port, and a well-known public
- * DNS resolver ({@code 1.1.1.1}, {@code 8.8.8.8} ...) only with a port. An address
- * followed by a path ({@code kick.com/streamer}) is a web page, never a server.</p>
+ * DNS resolver ({@code 1.1.1.1}, {@code 8.8.8.8} ...) only with a port. An
+ * ordinary domain after "join" that goes on to a page ({@code example.net/watch})
+ * is a link, not a server; a path never clears an address with a server signal,
+ * so {@code play.evil.net/} is still an ad. A two-label host whose ending is also
+ * a word ({@code spawn.it is fun}, a missing space after a full stop) needs a
+ * server signal too.</p>
  *
  * <p>Works on lower-cased text. Every {@code allowedUrls} entry is masked first,
  * so a server's own address can be shared.</p>
@@ -40,7 +44,7 @@ final class ServerAdDetector {
     /** Words that, right before an address, make it an invitation to another server. */
     private static final Pattern AD_INTENT_BEFORE = Pattern.compile(
             "(?:^|[^a-z])(?:join(?:\\s+(?:us|me|my\\s+server|our\\s+server))?|ip(?:\\s+address)?|server\\s+ip|address"
-                    + "|server|connect(?:\\s+to)?|play\\s+on|hop\\s+on|come\\s+(?:to|on|play\\s+on))"
+                    + "|server|connect(?:\\s+to)?|play(?:\\s+on)?|hop\\s+on|come\\s+(?:to|on|play\\s+on))"
                     + "\\s*(?:is|at|on|to|:|=|-|>)?\\s*(?:is|at|on|to|:)?\\s*$");
 
     /** First labels that mark a game-server address (play.example.net). */
@@ -85,6 +89,12 @@ final class ServerAdDetector {
             "cl", "pe", "mc", "info", "biz", "one", "top", "dev", "app", "gs", "ly", "to", "space",
             "today", "rocks", "city", "zone", "icu", "shop", "store", "vip", "win", "ovh", "cloud", "tech");
 
+    /**
+     * Endings that are also everyday words, so "spawn.it is fun" (a missing space
+     * after a full stop) reads as a sentence unless the host has a server signal.
+     */
+    private static final Set<String> WORD_TLDS = Set.of("it", "in", "to", "at", "be", "no", "my", "us");
+
     private static final int MAX_REPORTED_ADDRESS = 64;
 
     private ServerAdDetector() {
@@ -119,7 +129,7 @@ final class ServerAdDetector {
         }
         Matcher ip = IP_PATTERN.matcher(lowerText);
         while (ip.find()) {
-            if (isAdvertisedIp(ip) && !isWebPath(lowerText, ip.end())) {
+            if (isAdvertisedIp(ip)) {
                 spans.add(new int[]{ip.start(), ip.end()});
             }
         }
@@ -161,7 +171,7 @@ final class ServerAdDetector {
         }
         Matcher ip = IP_PATTERN.matcher(text);
         while (ip.find()) {
-            if (isAdvertisedIp(ip) && !isWebPath(text, ip.end())) {
+            if (isAdvertisedIp(ip)) {
                 return Optional.of(report(ip.group()));
             }
         }
@@ -174,9 +184,14 @@ final class ServerAdDetector {
         return Optional.empty();
     }
 
-    /** A server address never has a path; "kick.com/streamer" is a web page. */
-    private static boolean isWebPath(String text, int end) {
-        return end < text.length() && text.charAt(end) == '/';
+    /** Whether an address goes on to a page, as in "example.net/watch"; a bare trailing "/" is no page. */
+    private static boolean isWebPage(String text, int end) {
+        return end + 1 < text.length() && text.charAt(end) == '/' && !Character.isWhitespace(text.charAt(end + 1));
+    }
+
+    /** Whether the text goes on as a sentence after the host: a space, then a word. */
+    private static boolean sentenceContinues(String text, int end) {
+        return end + 1 < text.length() && text.charAt(end) == ' ' && Character.isLetter(text.charAt(end + 1));
     }
 
     private static boolean isAdvertisedIp(Matcher ip) {
@@ -207,7 +222,7 @@ final class ServerAdDetector {
         String port = host.group(3);
         String[] labels = hostname.split("\\.");
         String registrable = labels[labels.length - 2] + "." + labels[labels.length - 1];
-        if (NEVER_SERVER_AD_DOMAINS.contains(registrable) || isWebPath(text, host.end())) {
+        if (NEVER_SERVER_AD_DOMAINS.contains(registrable)) {
             return false;
         }
         for (String serverHost : SERVER_HOST_DOMAINS) {
@@ -220,6 +235,11 @@ final class ServerAdDetector {
         }
         if (port != null || (labels.length >= 3 && SERVER_LABELS.contains(labels[0]))) {
             return true;
+        }
+        // Without a server signal, only an invitation makes an ordinary domain an ad.
+        if (isWebPage(text, host.end())
+                || (labels.length == 2 && WORD_TLDS.contains(tld) && sentenceContinues(text, host.end()))) {
+            return false;
         }
         String before = text.substring(Math.max(0, host.start() - 32), host.start());
         return AD_INTENT_BEFORE.matcher(before).find();

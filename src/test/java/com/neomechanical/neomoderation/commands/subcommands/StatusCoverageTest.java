@@ -1,5 +1,6 @@
 package com.neomechanical.neomoderation.commands.subcommands;
 
+import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.testing.TestPlugin;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -10,6 +11,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class StatusCoverageTest {
     @Test
@@ -56,8 +58,23 @@ class StatusCoverageTest {
         assertFalse(transcript.contains("label."), transcript);
     }
 
+    @Test
+    void aModeratorIsNotPointedAtTheTrialOnlyAdminsCanStart() {
+        YamlConfiguration local = new YamlConfiguration();
+        local.set("moderation.enabled", true);
+        CommandSender moderator = mock(CommandSender.class);
+        when(moderator.hasPermission(Permissions.MODERATE)).thenReturn(true);
+
+        new StatusCmd(TestPlugin.with(local)).execute(moderator, "nmod", new String[0]);
+
+        List<String> lines = TestPlugin.lines(moderator);
+        assertTrue(lines.contains("Cloud: no key."), String.join("\n", lines));
+        assertFalse(String.join("\n", lines).contains("/nmod trial"), String.join("\n", lines));
+    }
+
     private static List<String> status(YamlConfiguration config) {
         CommandSender sender = mock(CommandSender.class);
+        when(sender.hasPermission(Permissions.ADMIN)).thenReturn(true);
         new StatusCmd(TestPlugin.with(config)).execute(sender, "nmod", new String[0]);
         return TestPlugin.lines(sender);
     }

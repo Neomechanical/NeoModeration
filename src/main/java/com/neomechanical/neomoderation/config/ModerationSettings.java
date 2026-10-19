@@ -30,7 +30,7 @@ public record ModerationSettings(
         }
 
         public static AlertSettings from(ConfigView config) {
-            String rawWebhook = config.getString("moderation.alerts.discordWebhookUrl", "");
+            String rawWebhook = config.getString(ConfigPaths.DISCORD_WEBHOOK, "");
             return new AlertSettings(
                     config.getBoolean("moderation.alerts.enabled", true),
                     config.getBoolean("moderation.alerts.includeMessage", true),
@@ -45,8 +45,8 @@ public record ModerationSettings(
 
     public static ModerationSettings from(ConfigView config, Logger logger) {
         return new ModerationSettings(
-                config.getBoolean("moderation.enabled", false),
-                ModerationMode.parse(config.getString("moderation.mode", "enforce")),
+                config.getBoolean(ConfigPaths.ENABLED, false),
+                ModerationMode.parse(config.getString(ConfigPaths.MODE, "enforce")),
                 parseCloudMode(config),
                 ModerationApiSettings.from(config),
                 OfflineModerationSettings.from(config),
@@ -78,16 +78,16 @@ public record ModerationSettings(
      * nothing.
      */
     private static ModerationMode parseCloudMode(ConfigView config) {
-        Object raw = config.get("moderation.cloudMode");
+        Object raw = config.get(ConfigPaths.CLOUD_MODE);
         if (raw == null) {
-            return ModerationMode.parse(config.getString("moderation.mode", "enforce"));
+            return ModerationMode.parse(config.getString(ConfigPaths.MODE, "enforce"));
         }
         return ModerationMode.parse(String.valueOf(raw));
     }
 
     private static List<ModerationAction> loadActions(ConfigView config, Logger logger) {
         List<ModerationAction> loaded = new ArrayList<>();
-        List<Map<?, ?>> rawActions = config.getMapList("moderation.actions");
+        List<Map<?, ?>> rawActions = config.getMapList(ConfigPaths.ACTIONS);
         for (Map<?, ?> rawAction : rawActions) {
             ModerationAction.tryFrom(rawAction).ifPresentOrElse(
                     loaded::add,

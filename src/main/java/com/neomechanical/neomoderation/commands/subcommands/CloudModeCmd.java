@@ -2,6 +2,7 @@ package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.commands.ModeSubCommand;
+import com.neomechanical.neomoderation.config.ConfigPaths;
 import org.bukkit.command.CommandSender;
 
 import java.util.Map;
@@ -17,7 +18,7 @@ import java.util.Map;
  */
 public class CloudModeCmd extends ModeSubCommand {
     public CloudModeCmd(NeoModerationPlugin plugin) {
-        super(plugin, "moderation.cloudMode", "cloudmode");
+        super(plugin, ConfigPaths.CLOUD_MODE, "cloudmode");
     }
 
     @Override

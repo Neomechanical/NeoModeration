@@ -5,12 +5,19 @@ import com.neomechanical.neomoderation.moderation.OfflineRuleCompiler.CompiledRu
 import com.neomechanical.neomoderation.moderation.OfflineRuleCompiler.CompiledUrl;
 import com.neomechanical.neomoderation.moderation.OfflineRuleCompiler.CompiledWord;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
  * Local word/URL filtering and censoring for the hot chat path, backed by
  * {@link OfflineRuleCompiler} and {@link TextNormalizer}.
+ *
+ * <p>{@code speaker} is the game language of whoever wrote the text, such as
+ * {@code fr_fr}, or {@code null}: words that language uses every day although
+ * another language's list bans them pass for that speaker. A word matched across
+ * a space is reported as {@code spaced_blocked_word:<word>}.</p>
  */
 public final class OfflineModerationEngine {
 
@@ -18,6 +25,11 @@ public final class OfflineModerationEngine {
     }
 
     public static OfflineModerationResult evaluate(String message, OfflineModerationSettings settings) {
+        return evaluate(message, settings, null);
+    }
+
+    public static OfflineModerationResult evaluate(String message, OfflineModerationSettings settings,
+                                                   String speaker) {
         if (!settings.enabled()) {
             return OfflineModerationResult.clear();
         }
@@ -60,18 +72,33 @@ public final class OfflineModerationEngine {
         if (text.length() == 0) {
             return OfflineModerationResult.clear();
         }
-        boolean[] masked = OfflineRuleCompiler.maskAllowedPhrases(text, rules.allowedPhrases());
+        boolean[] masked = OfflineRuleCompiler.maskAllowedPhrases(text, allowedFor(rules, speaker));
+        boolean[] crossing = OfflineRuleCompiler.crossingBlocked(text);
 
         for (CompiledWord word : rules.words()) {
             if (!text.collapsed().contains(word.collapsed())) {
                 continue;
             }
-            if (OfflineRuleCompiler.findMatch(text, word, masked, 0) != null) {
-                return OfflineModerationResult.flagged("blocked_word:" + word.original());
+            int[] match = OfflineRuleCompiler.findMatch(text, word, masked, crossing, 0);
+            if (match != null) {
+                String spaced = OfflineRuleCompiler.crossesSpace(text, match[0], match[1]) ? "spaced_" : "";
+                return OfflineModerationResult.flagged(spaced + "blocked_word:" + word.original());
             }
         }
 
         return OfflineModerationResult.clear();
+    }
+
+    /** Everyone's allowed phrases, plus the words the speaker's language may use. */
+    private static List<String[]> allowedFor(CompiledRules rules, String speaker) {
+        List<String[]> spoken = rules.speakerPhrases(speaker);
+        if (spoken.isEmpty()) {
+            return rules.allowedPhrases();
+        }
+        List<String[]> merged = new ArrayList<>(rules.allowedPhrases().size() + spoken.size());
+        merged.addAll(rules.allowedPhrases());
+        merged.addAll(spoken);
+        return merged;
     }
 
     /**
@@ -79,6 +106,10 @@ public final class OfflineModerationEngine {
      * while allowed phrases/URLs and the safe remainder stay intact.
      */
     public static String censor(String message, OfflineModerationSettings settings) {
+        return censor(message, settings, null);
+    }
+
+    public static String censor(String message, OfflineModerationSettings settings, String speaker) {
         if (!settings.enabled() || message.isEmpty()) {
             return message;
         }
@@ -112,14 +143,15 @@ public final class OfflineModerationEngine {
             TextNormalizer.Normalized text =
                     TextNormalizer.normalize(new String(raw), settings.normalizeLeetspeak());
             if (text.length() > 0) {
-                boolean[] masked = OfflineRuleCompiler.maskAllowedPhrases(text, rules.allowedPhrases());
+                boolean[] masked = OfflineRuleCompiler.maskAllowedPhrases(text, allowedFor(rules, speaker));
+                boolean[] crossing = OfflineRuleCompiler.crossingBlocked(text);
                 for (CompiledWord word : rules.words()) {
                     if (!text.collapsed().contains(word.collapsed())) {
                         continue;
                     }
                     int from = 0;
                     int[] match;
-                    while ((match = OfflineRuleCompiler.findMatch(text, word, masked, from)) != null) {
+                    while ((match = OfflineRuleCompiler.findMatch(text, word, masked, crossing, from)) != null) {
                         star(raw, text.rawIndex()[match[0]], text.rawIndex()[match[1] - 1] + 1);
                         from = match[1];
                     }
@@ -135,8 +167,13 @@ public final class OfflineModerationEngine {
      * caller that gets empty must block the message instead.
      */
     public static Optional<String> censorCompletely(String message, OfflineModerationSettings settings) {
-        String censored = censor(message, settings);
-        if (censored.equals(message) || evaluate(censored, settings).flagged()) {
+        return censorCompletely(message, settings, null);
+    }
+
+    public static Optional<String> censorCompletely(String message, OfflineModerationSettings settings,
+                                                    String speaker) {
+        String censored = censor(message, settings, speaker);
+        if (censored.equals(message) || evaluate(censored, settings, speaker).flagged()) {
             return Optional.empty();
         }
         return Optional.of(censored);

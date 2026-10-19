@@ -5,6 +5,7 @@ import com.neomechanical.neomoderation.config.BukkitConfigView;
 import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.moderation.CloudRecovery;
+import com.neomechanical.neomoderation.testing.TestPlugin;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
@@ -44,6 +45,7 @@ class SetupCmdTest {
         YamlConfiguration config = new YamlConfiguration();
         when(plugin.messages()).thenReturn(messages);
         when(plugin.getConfig()).thenReturn(config);
+        TestPlugin.editsConfigInMemory(plugin);
         CommandSender sender = mock(CommandSender.class);
 
         SetupCmd cmd = new SetupCmd(plugin);
@@ -51,7 +53,7 @@ class SetupCmdTest {
 
         assertEquals(true, config.get("moderation.enabled"));
         assertEquals("nm_live_test_key_12345", config.get("moderation.api.apiKey"));
-        verify(plugin).saveAndReload();
+        verify(plugin).editConfig(any());
         verify(messages).send(eq(sender), eq("setup.done"));
     }
 
@@ -69,6 +71,6 @@ class SetupCmdTest {
         cmd.execute(sender, "nmod", new String[]{"setup", tooLong});
 
         verify(messages).send(eq(sender), eq("error.api-key-too-long"), any());
-        verify(plugin, never()).saveAndReload();
+        verify(plugin, never()).editConfig(any());
     }
 }

@@ -1,17 +1,23 @@
 # Ordinary game chat that must never be blocked by the shipped English list and
 # every language pack together, with server-ad blocking on. One line per message.
+# "# language: xx_yy" names the game language of the players below it.
 #
-# English
+# language: en_us
 go ok
 lets go ok?
+go oks
 put a torch on the wall
 can u put a sign there
 just put a slab on top
 im gonna put a farm here
 put as many as you want
 my dog has a wet back
+the dogs have wet backs
 he called me a bad word
 who re you talking to
+who res me
+the bulls hit the fence
+im at sal op base
 took 5 hits to kill it
 455 diamonds in the chest
 let's hit him from behind
@@ -21,6 +27,7 @@ analysis paralysis
 assassin's creed is great
 Scunthorpe united won
 gg wp everyone
+i found a bastard sword
 version 1.20.4 is out
 coords 120 64 -340
 check config.yml and server.properties
@@ -31,26 +38,51 @@ join kick.com/streamer
 watch me on youtube.com/xyz
 our discord is discord.gg/abc
 the ip is 127.0.0.1
-# French
+# language: fr_fr
 désolé je suis en retard
 le retard du train
+quel retard ce train
+votre retard est excusé
+ce retard me tue
+sans retard svp
+des retards partout
+retard du serveur
+aucun retard aujourd'hui
 j'ai pu te dire la vérité
 la mer de sable est loin
 la mer des caraïbes
+la ville en foire
+passe-moi la tapette à mouches
 re tout le monde
-# Spanish
+# language: es_es
 ni que fuera tonto
 hola kike que tal
 Kike es mi hermano
+vino Mari con su novio
+la Mari con el perro
+Mari con Juan en el server
+mi tia Mari con su hija
+pen dejo aqui
 qué pasa con el mapa
-# Portuguese
+# language: pt_br
+put o vidro ali
+put os blocos aqui
+vem pa ki
 a via do metrô
 pela via dos fundos
 cadê o mapa
-# German
+# language: pt_pt
+os putos estão a jogar
+estou na bicha do pão
+# language: de_de
 jo der ist gut
 das ist doch scheinbar richtig
-# Turkish
+ich habe ein Bastard-Schwert
+# language: sv_se
+det är slut nu
+jag fick en present
+# language: tr_tr
 sıkış tıkış olduk
 kapıda sıkış
 sıkıştım burada
+yar ak

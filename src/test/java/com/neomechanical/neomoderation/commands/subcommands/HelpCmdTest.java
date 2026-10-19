@@ -36,7 +36,7 @@ class HelpCmdTest {
     void pageOneShowsDailyCommandsNotAdmin() {
         List<String> lines = help(Map.of("trial", fake("trial"), "status", fake("status"), "key", fake("key")), true);
 
-        assertTrue(lines.contains("  /nmod trial  start a free 14-day cloud trial"), String.join("\n", lines));
+        assertTrue(lines.contains("  /nmod trial  what a free 14-day cloud trial does"), String.join("\n", lines));
         assertTrue(lines.contains("  /nmod status  what is protected right now"), String.join("\n", lines));
         assertFalse(lines.stream().anyMatch(line -> line.contains("/nmod key")));
         assertTrue(lines.contains("Page 1 of 2. More: /nmod help 2"), String.join("\n", lines));

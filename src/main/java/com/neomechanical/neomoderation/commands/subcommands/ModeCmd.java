@@ -3,6 +3,7 @@ package com.neomechanical.neomoderation.commands.subcommands;
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.commands.DurationParser;
 import com.neomechanical.neomoderation.commands.ModeSubCommand;
+import com.neomechanical.neomoderation.config.ConfigPaths;
 import com.neomechanical.neomoderation.messages.MessageService;
 import org.bukkit.command.CommandSender;
 
@@ -13,7 +14,7 @@ import java.util.Map;
 /** /nmod mode: whether local rules block or only alert staff, and what they caught since startup. */
 public class ModeCmd extends ModeSubCommand {
     public ModeCmd(NeoModerationPlugin plugin) {
-        super(plugin, "moderation.mode", "mode");
+        super(plugin, ConfigPaths.MODE, "mode");
     }
 
     @Override

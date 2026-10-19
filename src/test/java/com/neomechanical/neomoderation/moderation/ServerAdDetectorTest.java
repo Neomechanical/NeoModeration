@@ -48,7 +48,14 @@ class ServerAdDetectorTest {
                 "cool.minefort.com",
                 "x.e4mc.link",
                 "abc.playit.gg",
-                "my server is cool.server.pro")) {
+                "my server is cool.server.pro",
+                "join play.evil.net/",
+                "play.evil.net/ is the best",
+                "mc.hypixel.net/",
+                "join mc.evil.net/discord",
+                "45.67.89.10:25565/",
+                "45.67.89.10/",
+                "play hypixel.net now")) {
             assertTrue(advertised(ad).orElse("").startsWith("server_ad:"), "missed a server ad: " + ad);
         }
     }
@@ -76,6 +83,8 @@ class ServerAdDetectorTest {
                 "join kick.com/streamer",
                 "join twitch.tv/streamer to watch",
                 "server: buycraft.net",
+                "join example.net/watch?v=abc for the video",
+                "come to spawn.it is fun",
                 "привет. как дела")) {
             assertEquals(Optional.empty(), advertised(clean), "flagged ordinary chat: " + clean);
         }

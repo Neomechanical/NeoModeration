@@ -1,6 +1,7 @@
 # French starter list. Severe swearing and slurs only, written without accents
 # (the filter folds accents, so "enculé" matches "encule"). Everyday mild words
-# such as "bordel" are left out on purpose.
+# such as "bordel" are left out on purpose. A phrase is written with its spaces,
+# such as "va te faire foutre", and also matches "vatefairefoutre".
 merde
 merdes
 merdeux
@@ -29,8 +30,8 @@ branleurs
 enfoire
 enfoires
 nique
-niquetamere
+nique ta mere
 ntm
 fdp
-filsdepute
-vatefairefoutre
+fils de pute
+va te faire foutre

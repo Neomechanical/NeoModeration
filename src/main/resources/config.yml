@@ -11,12 +11,13 @@
 locale: "en_US"
 
 # Players read NeoModeration's messages in their own Minecraft language when
-# it is one of the six above. Set to false to use "locale" for everyone.
+# it is English, Spanish, French, German, Portuguese or Turkish. Set to false
+# to use "locale" for everyone.
 perPlayerLanguage: true
 
 # Check GitHub once at startup for a newer NeoModeration, log one line if there
-# is one, and tell each admin once when they join. Sends nothing about your
-# server and never downloads anything.
+# is one, and tell each admin once when they join. The request names only the
+# plugin version and server software, and nothing is ever downloaded.
 updateCheck: true
 
 moderation:
@@ -62,11 +63,12 @@ moderation:
     # A starter English list so a new install blocks real abuse immediately.
     # Review it for your server and change it in-game with /nmod word and
     # /nmod allow. A word only matches from the start of a word to the end of
-    # one, so "assignment" and "Scunthorpe" stay clean, while spelled-apart
-    # forms such as "f uck" are still caught; everyday phrases that spell a
-    # banned word ("put a") are never read as it. Inflections are listed
-    # explicitly. "badword" is kept so the documented check /nmod test
-    # badword works.
+    # one, so "assignment" and "Scunthorpe" stay clean. A word split into
+    # pieces is still caught ("f uck", "ni gger", "k y s"), but two everyday
+    # words are not read as one ("put a" is not "puta"); write a word with a
+    # space, such as "ass hole", to catch it however it is spaced. Inflections
+    # are listed explicitly. "badword" is kept so the documented check
+    # /nmod test badword works.
     bannedWords:
       - "badword"
       - "fuck"
@@ -133,7 +135,10 @@ moderation:
     #   all            every pack, for a server with players from many countries
     # Use [] for none. Ordinary words that look like a swear word in another
     # language ("pic", "cono", "Amina") are left out of every pack. The pt
-    # pack follows Brazilian Portuguese.
+    # pack follows Brazilian Portuguese. A few words are everyday words in one
+    # language and banned in another: French "retard", Spanish "Kike", Swedish
+    # "slut" and "fick", "puto" and "bicha" in Portugal. They pass for players
+    # whose game language is that one, and for everyone when "locale" is.
     languagePacks: [auto]
     bannedUrls:
       - "grabify.link"
@@ -207,6 +212,9 @@ moderation:
     confiscate: true
     # How many map results to remember (safe + flagged) before old ones drop.
     cacheSize: 1000
+    # Most new pictures one player can have checked in an hour, so nobody can
+    # use up the server's cloud credits by drawing maps. 0 means no limit.
+    checksPerPlayerPerHour: 30
 
   # ---- Extra actions after a message is blocked ---------------------------
   # Empty by default: block the matching message, alert staff, log a case,

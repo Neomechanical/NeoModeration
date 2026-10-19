@@ -95,4 +95,25 @@ class MenuRendererTest {
         assertEquals(ClickEvent.Action.OPEN_URL, parts.get(2).getClickEvent().getAction());
         assertEquals("[off] [block] docs", line.console());
     }
+
+    @Test
+    void aLinkAPlayerWroteNeverBecomesAClickOfItsOwnInsideAnAlert() {
+        MenuRenderer.Line line = MenuRenderer.clickableLine("Blocked Steve in chat: grabify.link/abc",
+                "/nmod cases Steve page 1", "Click to see Steve's cases", MenuRenderer.ClickAction.RUN);
+
+        java.util.List<BaseComponent> all = new java.util.ArrayList<>();
+        java.util.Deque<BaseComponent> todo = new java.util.ArrayDeque<>(java.util.List.of(line.player()));
+        while (!todo.isEmpty()) {
+            BaseComponent component = todo.pop();
+            all.add(component);
+            if (component.getExtra() != null) {
+                todo.addAll(component.getExtra());
+            }
+        }
+        for (BaseComponent component : all) {
+            ClickEvent click = component.getClickEvent();
+            assertTrue(click == null || click.getAction() == ClickEvent.Action.RUN_COMMAND,
+                    "a part of the line opens " + (click == null ? "" : click.getValue()));
+        }
+    }
 }

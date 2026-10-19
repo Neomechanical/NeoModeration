@@ -1,18 +1,9 @@
-# Everyday phrases that spell a banned word once their spaces are dropped.
-# The filter joins fragments so that "f uck" is caught; these real phrases are
-# never read as the word they spell, on every server. One phrase per line.
+# Everyday phrases every server allows, where a banned word is also an ordinary
+# word inside the phrase. One phrase per line. Two everyday words written apart
+# ("put a", "Mari con") never read as a banned word in the first place: see
+# common-words.txt.
 #
-# English
-put a
-put as
-go ok
-bad word
-wet back
-who re
-# French: "la mer de", "j'ai pu te dire", and "retard" meaning late
-mer de
-mer des
-pu te
+# French: "retard" means late
 en retard
 du retard
 de retard
@@ -23,8 +14,10 @@ ton retard
 son retard
 au retard
 les retards
-# Spanish, Portuguese and German
-ni que
-via do
-via dos
-jo der
+# French: "tapette à mouches", a fly swatter
+tapette a mouches
+tapettes a mouches
+# Games: the bastard sword
+bastard sword
+bastard swords
+bastard schwert

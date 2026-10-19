@@ -3,12 +3,12 @@ package com.neomechanical.neomoderation.commands.subcommands;
 import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.commands.DurationParser;
 import com.neomechanical.neomoderation.messages.ActionText;
-import com.neomechanical.neomoderation.messages.MenuRenderer;
 import com.neomechanical.neomoderation.messages.MenuRenderer.Button;
+import com.neomechanical.neomoderation.messages.MenuRenderer;
 import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.messages.Reasons;
-import com.neomechanical.neomoderation.moderation.CaseLog;
 import com.neomechanical.neomoderation.moderation.CaseLog.CaseRecord;
+import com.neomechanical.neomoderation.moderation.CaseLog;
 import com.neomechanical.neomoderation.moderation.Outcome;
 import org.bukkit.command.CommandSender;
 
@@ -56,8 +56,10 @@ final class CaseView {
         buttons.add(button(messages, reader, "resolve", ids, "/" + label + " cases resolve " + id));
         buttons.add(button(messages, reader, "dismiss", ids, "/" + label + " cases dismiss " + id));
         Reasons.Parsed reason = Reasons.parse(row.reason());
-        // Allowing a word changes config.yml, which only admins may do.
-        if (reason.kind() == Reasons.Kind.WORD && !reason.detail().isBlank() && reader.hasPermission(Permissions.ADMIN)) {
+        // Allowing a word changes config.yml, which only admins may do. A word read across a space or
+        // across messages is not offered: allowing it would let the word itself through, not what was written.
+        if (reason.kind() == Reasons.Kind.WORD && !reason.split() && !reason.spaced() && !reason.detail().isBlank()
+                && reader.hasPermission(Permissions.ADMIN)) {
             buttons.add(button(messages, reader, "allow", Map.of("word", reason.detail()),
                     "/" + label + " allow word add " + reason.detail()));
         }

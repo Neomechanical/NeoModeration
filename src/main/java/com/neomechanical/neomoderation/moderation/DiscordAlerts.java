@@ -41,6 +41,16 @@ public final class DiscordAlerts implements AutoCloseable {
             "https://ptb.discord.com/api/webhooks/",
             "https://canary.discord.com/api/webhooks/");
 
+    /** Why alerts stopped reaching Discord. */
+    public enum Problem {
+        /** The webhook no longer exists: Discord answered 401, 403 or 404. */
+        GONE,
+        /** Discord turned posts away for coming too fast: 429. */
+        RATE_LIMITED,
+        /** Anything else: no connection, a timeout, an error on Discord's side. */
+        UNREACHABLE
+    }
+
     /** One alert as Discord shows it: a coloured title and ordered fields. */
     public record Alert(String title, int color, Map<String, String> fields) {
         public Alert {
@@ -53,7 +63,7 @@ public final class DiscordAlerts implements AutoCloseable {
     private final Deque<Queued> queue = new ArrayDeque<>();
     private int overflow;
     private String overflowText = "";
-    private volatile String lastProblem;
+    private volatile Problem lastProblem;
 
     private record Queued(String webhookUrl, Alert alert) {
     }
@@ -113,7 +123,7 @@ public final class DiscordAlerts implements AutoCloseable {
     }
 
     /** Why the last post failed, or {@code null} when it worked. */
-    public String lastProblem() {
+    public Problem lastProblem() {
         return lastProblem;
     }
 
@@ -162,17 +172,28 @@ public final class DiscordAlerts implements AutoCloseable {
                     .POST(HttpRequest.BodyPublishers.ofString(payload(alerts), StandardCharsets.UTF_8))
                     .build();
             int status = http.send(request, HttpResponse.BodyHandlers.discarding()).statusCode();
-            lastProblem = status >= 200 && status < 300 ? null : "HTTP " + status;
+            lastProblem = problemOf(status);
             return lastProblem == null;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            lastProblem = "interrupted";
+            lastProblem = Problem.UNREACHABLE;
             return false;
         } catch (Exception e) {
             // A failed alert must never interrupt moderation.
-            lastProblem = e.getClass().getSimpleName();
+            lastProblem = Problem.UNREACHABLE;
             return false;
         }
+    }
+
+    private static Problem problemOf(int status) {
+        if (status >= 200 && status < 300) {
+            return null;
+        }
+        return switch (status) {
+            case 401, 403, 404 -> Problem.GONE;
+            case 429 -> Problem.RATE_LIMITED;
+            default -> Problem.UNREACHABLE;
+        };
     }
 
     static String payload(List<Alert> alerts) {

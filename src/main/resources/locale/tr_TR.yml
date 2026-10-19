@@ -33,9 +33,9 @@ error:
   api-key-too-long: "{prefix} {#risk}Bu anahtar {max} karakterden uzun."
   rule-too-long: "{prefix} {#risk}Bu, {max} karakterden uzun."
   player-unknown: "{prefix} {#risk}{#text}{player}{#risk} adlı bir oyuncu burada hiç oynamadı."
-
   unknown-command: "{prefix} {#risk}/{label} {command} diye bir komut yok. {#muted}Olanlar şunlar:"
   admin-only: "{prefix} {#muted}/{label} {command} komutunu yalnızca yöneticiler kullanabilir."
+
 help:
   section:
     start: "{#text}&lBaşlarken"
@@ -74,7 +74,7 @@ help:
     "on": "/nmod on"
     "off": "/nmod off"
   desc:
-    trial: "ücretsiz 14 günlük bulut denemesini başlat"
+    trial: "ücretsiz 14 günlük bulut denemesi ne yapar"
     setup: "bir bulut anahtarı bağla"
     status: "şu anda neler korunuyor"
     mode: "engelle ya da yalnızca yetkililere bildir"
@@ -110,7 +110,7 @@ key:
 trial:
   pending: "{prefix} {#muted}Bir deneme zaten başlatılıyor. Bitmesini bekleyin."
   explain-title: "{prefix} {#brand}Ücretsiz 14 günlük bulut denemesi{#muted}, hesap gerekmez."
-  explain-sends: "  {#muted}Deneme süresince her sohbet mesajı ve harita resmi, oyuncunun adı ve UUID'siyle birlikte denetlenmek üzere Neomechanical'a gider. Hiçbiri saklanmaz ya da eğitimde kullanılmaz."
+  explain-sends: "  {#muted}Deneme süresince her sohbet mesajı ve harita resmi, oyuncunun adı ve UUID'siyle birlikte denetlenmek üzere Neomechanical'a gider. Mesajlar ve resimler saklanmaz ya da eğitimde kullanılmaz."
   explain-monitor: "  {#muted}Bulut kararları, siz {#brand}/nmod cloudmode enforce{#muted} çalıştırana kadar yalnızca yetkililere bildirilir. Kelime listeleriniz şimdiki gibi çalışmaya devam eder."
   start-button: "  {#brand}[Ücretsiz denemeyi başlat]"
   start-hover: "{#muted}{command} çalıştırır"
@@ -132,12 +132,13 @@ trial:
   status-no-key: "{prefix} {#muted}Henüz bulut anahtarı yok. Ücretsiz 14 günlük deneme için {#brand}/nmod trial{#muted} çalıştırın."
   status-checking: "{prefix} {#muted}Bulut denemesi denetleniyor..."
   status-active: "{prefix} {#safe}Bulut denemesi {#text}{expires}{#safe} tarihine kadar. {#muted}Kalan gün: {#text}{days}"
-  status-caught: "{prefix} {#muted}Başlangıçtan beri bulutun yakaladığı: {#text}{count}"
+  status-caught: "{prefix} {#muted}Deneme boyunca bulutun yakaladığı: {#text}{count}"
+  status-caught-startup: "{prefix} {#muted}Başlangıçtan beri bulutun yakaladığı: {#text}{count}"
   status-expired: "{prefix} {#risk}Bulut denemesi {#text}{expires}{#risk} tarihinde bitti. {#muted}Yerel kurallar çalışmaya devam ediyor."
   status-standard: "{prefix} {#safe}Bu sunucu tam bir Neomechanical anahtarı kullanıyor. {#muted}Krediler için {#brand}/nmod usage{#muted} çalıştırın."
   keep-button: "  {#brand}[Bulut moderasyonunu koru]"
   keep-hover: "{#muted}{url} adresini açar"
-  cta-button: "  {#brand}[Ücretsiz 14 günlük bulut denemesini başlat]"
+  cta-button: "  {#brand}[Ücretsiz 14 günlük bulut denemesi]"
   cta-hover: "{#muted}/nmod trial çalıştırır. Hesap gerekmez."
 
 toggle:
@@ -157,6 +158,7 @@ status:
   discord: "{#muted}Discord uyarıları: {#text}{value}"
   cloud: "{#muted}Bulut: {#text}{value}"
   cloud-no-key: "{#muted}Bulut: {#text}anahtar yok{#muted}. Ücretsiz 14 günlük deneme için {#brand}/nmod trial{#muted} çalıştırın."
+  cloud-no-key-staff: "{#muted}Bulut: {#text}anahtar yok{#muted}."
   cloud-unverified: "{#muted}Son bulut denetimi: {#text}başlangıçtan beri yok{#muted}. {#brand}/nmod test hello{#muted} çalıştırın."
   cloud-ready: "{#muted}Son bulut denetimi: {#safe}çalıştı{#muted}."
   cloud-auth: "{#muted}Son bulut denetimi: {#risk}anahtar reddedildi{#muted}. {#brand}{keysUrl}{#muted} adresinden değiştirin."
@@ -194,8 +196,8 @@ rules:
   removed: "{prefix} {#safe}{kind}: {#text}{value}{#safe} kaldırıldı."
   already-there: "{prefix} {#muted}{kind}: {#text}{value}{#muted} zaten listede."
   not-there: "{prefix} {#muted}{kind}: {#text}{value}{#muted} listede yok."
-
   in-pack: "{prefix} {#muted}{#text}{value}{#muted} bir dil paketinden geliyor, bu yüzden engellemeye devam ediyor. İzin vermek için {#brand}/{label} allow word add {value}{#muted} çalıştırın."
+
 action:
   usage: "{prefix} {#muted}{#brand}/{label} action <list|add|remove|reset>{#muted} kullanın."
   add-usage: "{prefix} {#muted}{#brand}/{label} action add <clear|mute|kick|ban> [süre]{#muted} kullanın."
@@ -219,6 +221,7 @@ action:
     ban: "yasakla"
     command: "/{command} çalıştır"
     nothing: "başka bir şey yok"
+  unsafe-name: "{player} için komut eylemi atlandı: boşluk içeren bir ad komuta kelime ekleyebilir."
 
 usage:
   fetching: "{prefix} {#muted}Neomechanical hesabınız denetleniyor..."
@@ -293,8 +296,8 @@ category:
   spam: "spam"
   illicit: "yasa dışı etkinlik"
   selfHarm: "kendine zarar verme"
-
 # Bulunma ekiyle, çünkü aşağıdaki satırlar "Steve sohbette" ya da "Steve bir tabelada" diye yazar.
+
 surface-name:
   chat: "sohbette"
   sign: "bir tabelada"
@@ -314,6 +317,8 @@ alert:
   then: " {#faint}ardından {#muted}{actions}"
   hidden: "mesaj gizli"
   hover: "{#muted}{player} adlı oyuncunun vakalarını görmek için tıklayın"
+  paused-player: "{prefix} {#text}{player}{#muted} hakkındaki bildirimler {seconds} saniye duraklatıldı. Her şey kaydedilmeye devam ediyor."
+  paused-all: "{prefix} {#muted}Aynı anda çok fazla bildirim geldi, bu yüzden {seconds} saniye duraklatıldı. Her şey kaydedilmeye devam ediyor."
 
 surface:
   title: "{prefix} {#muted}Yerel kuralların geçerli olduğu yerler. Değiştirmek için bir ayara tıklayın."
@@ -383,6 +388,7 @@ test:
   cloud-request-error: "  {#muted}Bulut: {#risk}istek reddedildi{#muted}. {#brand}/nmod doctor{#muted} çalıştırın."
   cloud-skipped-local: "  {#muted}Bulut: {#faint}sorulmadı, yerel kurallar zaten yakaladı"
   cloud-skipped-key: "  {#muted}Bulut: {#faint}anahtar yok. {#muted}Ücretsiz 14 günlük deneme için {#brand}/nmod trial{#muted} çalıştırın."
+  cloud-skipped-key-staff: "  {#muted}Bulut: {#faint}anahtar yok."
   cloud-skipped-categories: "  {#muted}Bulut: {#faint}bütün kategoriler kapalı"
   cloud-skipped-circuit: "  {#muted}Bulut: {#faint}hatalardan sonra duraklatıldı. {#brand}/nmod reload{#muted} hemen yeniden dener."
   would-allowed: "  {#muted}Sonuç: {#safe}izin verilir"
@@ -428,6 +434,7 @@ doctor:
     local-enforce: "engelliyor"
     rules: "yasaklı kelime: {words}, engellenen bağlantı: {urls}, istisna: {exceptions}"
     ads-on: "engelleniyor"
+    ads-on-hint: "engelleniyor; kendi adresinizin geçmesi için /nmod allow url add <adres> çalıştırın"
     ads-off: "serbest; engellemek için moderation.offline.blockServerAds değerini true yapın"
     rules-spam-only: "kelime ya da bağlantı kuralı yok; spam koruması yine de çalışıyor"
     rules-cloud-only: "kelime ya da bağlantı kuralı yok; yalnızca bulut denetliyor"
@@ -446,7 +453,9 @@ doctor:
     cases-missing: "açık, ama bu sunucuda SQLite sürücüsü yok, bu yüzden hiçbir şey kaydedilmiyor"
     discord-on: "açık"
     discord-bad-url: "URL bir Discord webhook'u değil, bu yüzden hiçbir şey gönderilmiyor"
-    discord-failing: "Discord son uyarıyı reddetti ({problem}); webhook'un hâlâ var olup olmadığını denetleyin"
+    discord-gone: "Discord bu webhook'un silindiğini söylüyor; yeni bir tane oluşturup /nmod discord <URL> çalıştırın"
+    discord-rate-limited: "Discord bildirimlerin hızını sınırlıyor, bu yüzden bazıları kayboldu"
+    discord-unreachable: "son bildirim Discord'a ulaşmadı; bu sunucunun discord.com'a erişebildiğini denetleyin"
     fail-open: "sohbet geçer (failOpen: true)"
     fail-closed: "sohbet bekletilir (failOpen: false)"
     timeouts-ok: "bağlanmak için {connect} ms, yanıt için {read} ms"
@@ -570,6 +579,8 @@ welcome:
   surfaces-hover: "{#muted}/nmod surface çalıştırır"
   test-btn: "  {#brand}[Bir mesaj dene]"
   test-hover: "{#muted}/nmod test badword çalıştırır. Hiçbir şey engellenmez."
+  ads-btn: "  {#brand}[Oyuncuların sunucunuzun adresini paylaşmasına izin ver]"
+  ads-hover: "{#muted}Sohbetinize /nmod allow url add yazar. Ardından sunucunuzun adresini yazın."
 
 update:
   available: "{prefix} {#muted}NeoModeration {#text}{latest}{#muted} çıktı; bu sunucuda {current} çalışıyor."

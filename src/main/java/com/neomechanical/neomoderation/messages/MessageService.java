@@ -1,17 +1,18 @@
 package com.neomechanical.neomoderation.messages;
 
+import com.neomechanical.neomoderation.platform.GameLanguage;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
-import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -72,7 +73,28 @@ public final class MessageService {
                 active = fallback;
             }
         }
+        shareServerPrefix(plugin, resolved, active, loaded);
         return new MessageService(fallback, active, resolved, perPlayerLanguage ? Map.copyOf(loaded) : Map.of());
+    }
+
+    /**
+     * An admin who changed the prefix in the server's language changed it for every
+     * player: each language whose own prefix is still the bundled one shows it too.
+     */
+    private static void shareServerPrefix(JavaPlugin plugin, String serverCode, YamlConfiguration server,
+                                          Map<String, YamlConfiguration> loaded) {
+        String prefix = server.getString("prefix");
+        YamlConfiguration shipped = LocaleStore.bundled(plugin, serverCode);
+        if (prefix == null || (shipped != null && prefix.equals(shipped.getString("prefix")))) {
+            return;
+        }
+        for (Map.Entry<String, YamlConfiguration> entry : loaded.entrySet()) {
+            YamlConfiguration own = LocaleStore.bundled(plugin, entry.getKey());
+            if (entry.getValue() != server && own != null
+                    && Objects.equals(entry.getValue().getString("prefix"), own.getString("prefix"))) {
+                entry.getValue().set("prefix", prefix);
+            }
+        }
     }
 
     /**
@@ -188,36 +210,8 @@ public final class MessageService {
         if (playerLocales.isEmpty() || !(reader instanceof Player player)) {
             return activeCode;
         }
-        String clientLocale = PlayerLanguage.of(player);
+        String clientLocale = GameLanguage.of(player);
         String code = clientLocale == null ? null : resolveLocaleCode(clientLocale);
         return code != null && playerLocales.containsKey(code) ? code : activeCode;
-    }
-
-    /** Reads a player's Minecraft language across server versions without a compile-time dependency. */
-    private static final class PlayerLanguage {
-        /** {@code getLocale()} on each server's player class; {@code null} where the server has none. */
-        private static final ClassValue<Method> GET_LOCALE = new ClassValue<>() {
-            @Override
-            protected Method computeValue(Class<?> type) {
-                try {
-                    return type.getMethod("getLocale");
-                } catch (NoSuchMethodException e) {
-                    return null;
-                }
-            }
-        };
-
-        private PlayerLanguage() {
-        }
-
-        static String of(Player player) {
-            try {
-                Method getLocale = GET_LOCALE.get(player.getClass());
-                Object value = getLocale != null ? getLocale.invoke(player) : null;
-                return value instanceof String text && !text.isBlank() ? text : null;
-            } catch (ReflectiveOperationException | RuntimeException e) {
-                return null;
-            }
-        }
     }
 }

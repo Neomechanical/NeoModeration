@@ -145,4 +145,32 @@ class ConfigMigrationsTest {
         assertTrue(ConfigMigrations.apply(config, false).isEmpty());
         assertTrue(config.getBoolean(ConfigMigrations.SERVER_ADS_PATH));
     }
+
+    @Test
+    void aSettingWrittenIntoAnUpgradedFileTakesTheBundledCommentWithIt() throws Exception {
+        CommentedConfiguration bundled = new CommentedConfiguration();
+        bundled.loadFromString(Files.readString(Path.of("src/main/resources/config.yml")));
+        bundled.setComments(ConfigMigrations.SERVER_ADS_PATH, List.of("Block ads for other Minecraft servers."));
+        CommentedConfiguration config = new CommentedConfiguration();
+        config.setDefaults(bundled);
+        config.set("locale", "en_US");
+
+        ConfigMigrations.apply(config, false);
+
+        assertEquals(List.of("Block ads for other Minecraft servers."),
+                config.getComments(ConfigMigrations.SERVER_ADS_PATH));
+    }
+
+    /** Comments as Bukkit 1.18.1 and later keep them; the 1.8 API these tests compile against has none. */
+    public static final class CommentedConfiguration extends YamlConfiguration {
+        private final java.util.Map<String, List<String>> comments = new java.util.HashMap<>();
+
+        public List<String> getComments(String path) {
+            return comments.getOrDefault(path, List.of());
+        }
+
+        public void setComments(String path, List<String> lines) {
+            comments.put(path, lines == null ? List.of() : List.copyOf(lines));
+        }
+    }
 }

@@ -2,6 +2,7 @@ package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.commands.SubCommand;
+import com.neomechanical.neomoderation.config.ConfigPaths;
 import com.neomechanical.neomoderation.config.SurfaceSettings;
 import com.neomechanical.neomoderation.messages.MenuRenderer;
 import com.neomechanical.neomoderation.messages.MessageService;
@@ -19,7 +20,6 @@ import java.util.Map;
  * clickable button for each setting, the current one highlighted.
  */
 public class SurfaceCmd implements SubCommand {
-    private static final String SURFACES_PREFIX = "moderation.surfaces.";
 
     private final NeoModerationPlugin plugin;
 
@@ -51,10 +51,12 @@ public class SurfaceCmd implements SubCommand {
             messages.send(sender, "surface.usage", Map.of("label", label));
             return;
         }
-        for (String surface : "all".equals(target) ? SurfaceSettings.SURFACE_NAMES : List.of(target)) {
-            plugin.getConfig().set(SURFACES_PREFIX + surface, mode);
-        }
-        plugin.saveAndReload();
+        plugin.editConfig(config -> {
+            for (String surface : "all".equals(target) ? SurfaceSettings.SURFACE_NAMES : List.of(target)) {
+                config.set(ConfigPaths.SURFACES + surface, mode);
+            }
+            return true;
+        });
         messages.send(sender, "surface.updated", Map.of(
                 "surface", messages.text(sender, "surface.name." + target),
                 "mode", messages.text(sender, "surface.mode." + mode)));

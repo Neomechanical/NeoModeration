@@ -40,7 +40,8 @@ final class DoctorChecks {
      * Everything that can be said without asking the cloud. {@code discordProblem}
      * is why the last Discord post failed, or {@code null}.
      */
-    static List<Check> local(ModerationSettings settings, boolean caseLogAvailable, String discordProblem) {
+    static List<Check> local(ModerationSettings settings, boolean caseLogAvailable,
+                             DiscordAlerts.Problem discordProblem) {
         ModerationCoverage coverage = ModerationCoverage.from(settings);
         List<Check> checks = new ArrayList<>();
         checks.add(settings.enabled()
@@ -48,7 +49,8 @@ final class DoctorChecks {
                 : Check.of(Level.FAIL, "moderation", "off"));
         checks.add(localMode(settings, coverage));
         checks.add(rules(settings, coverage));
-        checks.add(Check.of(Level.OK, "server-ads", settings.offline().blockServerAds() ? "ads-on" : "ads-off"));
+        checks.add(Check.of(Level.OK, "server-ads", !settings.offline().blockServerAds() ? "ads-off"
+                : settings.offline().allowedUrls().isEmpty() ? "ads-on-hint" : "ads-on"));
         // The action list is put into words when the check is shown, in the reader's language.
         checks.add(Check.of(Level.OK, "actions", settings.actions().isEmpty() ? "actions-none" : "actions-list"));
         checks.add(spam(settings, coverage));
@@ -67,7 +69,11 @@ final class DoctorChecks {
             if (!DiscordAlerts.isWebhookUrl(webhook)) {
                 checks.add(Check.of(Level.FAIL, "discord", "discord-bad-url"));
             } else if (discordProblem != null) {
-                checks.add(new Check(Level.FAIL, "discord", "discord-failing", Map.of("problem", discordProblem)));
+                checks.add(Check.of(Level.FAIL, "discord", switch (discordProblem) {
+                    case GONE -> "discord-gone";
+                    case RATE_LIMITED -> "discord-rate-limited";
+                    case UNREACHABLE -> "discord-unreachable";
+                }));
             } else {
                 checks.add(Check.of(Level.OK, "discord", "discord-on"));
             }

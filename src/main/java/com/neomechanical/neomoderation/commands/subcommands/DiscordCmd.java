@@ -2,6 +2,7 @@ package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.commands.SubCommand;
+import com.neomechanical.neomoderation.config.ConfigPaths;
 import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.moderation.DiscordAlerts;
 import org.bukkit.command.CommandSender;
@@ -12,7 +13,6 @@ import java.util.Map;
 
 /** /nmod discord: set, test or turn off the Discord webhook staff alerts go to. */
 public class DiscordCmd implements SubCommand {
-    private static final String PATH = "moderation.alerts.discordWebhookUrl";
 
     private final NeoModerationPlugin plugin;
 
@@ -35,8 +35,7 @@ public class DiscordCmd implements SubCommand {
         String value = args[1].trim();
         switch (value.toLowerCase(java.util.Locale.ROOT)) {
             case "off" -> {
-                plugin.getConfig().set(PATH, "");
-                plugin.saveAndReload();
+                plugin.setConfig(ConfigPaths.DISCORD_WEBHOOK, "");
                 messages.send(sender, "discord.off");
             }
             case "test" -> sendTest(sender, label);
@@ -45,8 +44,7 @@ public class DiscordCmd implements SubCommand {
                     messages.send(sender, "discord.invalid");
                     return;
                 }
-                plugin.getConfig().set(PATH, value);
-                plugin.saveAndReload();
+                plugin.setConfig(ConfigPaths.DISCORD_WEBHOOK, value);
                 messages.send(sender, "discord.saved", Map.of("label", label));
             }
         }

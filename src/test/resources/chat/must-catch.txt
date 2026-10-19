@@ -1,23 +1,50 @@
 # Abuse that must still be caught with the same lists. One line per message.
+# language: en_us
 f uck you
 fu ck off
+fuc king hell
 sh it happens
 5h1t
 f.u.c.k
 fúck
 n i g g e r
+ni gger
+nig ger
+you fag got
+k y s
+just k y s
+p a k i
 a$$hole
+ass hole
+dick head
+bit ches
+wh ore
+sl ut
 k.y.s
 r3tard
 wh0re
 you re tard
+bas tard
 fvck this
 f*ck this
 phuck you
+dreck sack
+# language: es_es
 puta madre
 eres un puto
+eres un maricon
+hijo de puta
+# language: fr_fr
 va te faire foutre
+vatefairefoutre
+nique ta mere
 fils de pute
+# language: de_de
 du bist ein hurensohn
+fick dich
+# language: pt_br
 vai tomar no cu caralho
+foda se
+# language: tr_tr
 orospu çocuğu
+siktir git

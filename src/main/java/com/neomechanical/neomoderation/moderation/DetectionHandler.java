@@ -2,6 +2,7 @@ package com.neomechanical.neomoderation.moderation;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.config.ModerationAction;
+import com.neomechanical.neomoderation.config.ModerationActionType;
 import com.neomechanical.neomoderation.config.ModerationMode;
 import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.config.StrikeSettings;
@@ -82,12 +83,12 @@ public final class DetectionHandler {
         Disposition effective = alertOnly ? Disposition.ALLOW : requested;
         int strike = 0;
         List<ModerationAction> actions = new ArrayList<>();
-        if (!alertOnly) {
+        // Strikes and actions are for abuse. Spam is only blocked, so a flood of "gg" never mutes or kicks anyone.
+        if (!alertOnly && !"spam".equals(Reasons.bucket(reason))) {
             StrikeService.Result result =
                     strikes.recordStrike(player.getUniqueId(), settings.strikes(), System.currentTimeMillis());
             strike = result.strikes();
-            // Actions are for abuse; spam is only blocked, so a flood of "gg" never mutes anyone.
-            if (effective == Disposition.BLOCK && !"spam".equals(Reasons.bucket(reason))) {
+            if (effective == Disposition.BLOCK) {
                 actions.addAll(settings.actions());
             }
             result.escalation().ifPresent(actions::add);
@@ -125,11 +126,16 @@ public final class DetectionHandler {
         return effective;
     }
 
-    /** Kick and ban reasons the plugin wrote itself read in the player's own language. */
+    /**
+     * Kick and ban reasons the plugin wrote itself read in the player's own language.
+     * A command's {@code %REASON%} stays as configured: another plugin's records,
+     * such as a ban list, keep one language.
+     */
     private List<ModerationAction> inPlayersLanguage(Player player, List<ModerationAction> actions) {
         List<ModerationAction> localized = new ArrayList<>(actions.size());
         for (ModerationAction action : actions) {
-            String key = switch (action.reason() == null ? "" : action.reason()) {
+            boolean shownToPlayer = action.type() == ModerationActionType.KICK || action.type() == ModerationActionType.BAN;
+            String key = !shownToPlayer ? null : switch (action.reason() == null ? "" : action.reason()) {
                 case ModerationAction.DEFAULT_REASON -> "action.default-reason";
                 case StrikeSettings.DEFAULT_REASON -> "action.strike-reason";
                 default -> null;

@@ -15,6 +15,7 @@ import com.neomechanical.neomoderation.moderation.ModerationApiResult;
 import com.neomechanical.neomoderation.moderation.ModerationCoverage;
 import com.neomechanical.neomoderation.moderation.OfflineModerationEngine;
 import com.neomechanical.neomoderation.moderation.OfflineModerationResult;
+import com.neomechanical.neomoderation.platform.GameLanguage;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -74,13 +75,15 @@ public class TestCmd implements SubCommand {
             return;
         }
 
-        OfflineModerationResult local = OfflineModerationEngine.evaluate(message, settings.offline());
+        // Read as the tester's own chat would be: in their game language.
+        String speaker = sender instanceof Player player ? GameLanguage.of(player) : null;
+        OfflineModerationResult local = OfflineModerationEngine.evaluate(message, settings.offline(), speaker);
         if (local.flagged()) {
             messages.send(sender, "test.local-flagged",
                     Map.of("reason", Reasons.describe(messages, sender, local.reason())));
             messages.send(sender, "test.cloud-skipped-local");
             boolean censored = settings.chatCensorLocal()
-                    && OfflineModerationEngine.censorCompletely(message, settings.offline()).isPresent();
+                    && OfflineModerationEngine.censorCompletely(message, settings.offline(), speaker).isPresent();
             sendOutcome(sender, settings, true, DetectionHandler.Source.LOCAL, censored);
             messages.sendFooter(sender);
             return;
@@ -88,7 +91,9 @@ public class TestCmd implements SubCommand {
         messages.send(sender, "test.local-clear");
 
         if (settings.api().apiKey().isBlank()) {
-            messages.send(sender, "test.cloud-skipped-key", Map.of("url", CloudRecovery.SIGNUP_URL));
+            // Only admins can start a trial, so only they are pointed at it.
+            messages.send(sender, sender.hasPermission(Permissions.ADMIN)
+                    ? "test.cloud-skipped-key" : "test.cloud-skipped-key-staff", Map.of("url", CloudRecovery.SIGNUP_URL));
             TrialPromptSupport.sendTrialCtaIfPlayer(plugin, sender);
             sendOutcome(sender, settings, false, DetectionHandler.Source.LOCAL, false);
             messages.sendFooter(sender);

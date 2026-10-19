@@ -153,6 +153,24 @@ public final class CaseLog implements AutoCloseable {
         }
     }
 
+    /** How many cloud detections, chat and map art, were logged at or after {@code sinceMillis}; -1 without SQLite. */
+    public long countCloudSince(long sinceMillis) {
+        if (connection == null) {
+            return -1L;
+        }
+        synchronized (lock) {
+            try (PreparedStatement query = connection.prepareStatement(
+                    "SELECT COUNT(*) FROM cases WHERE ts >= ? AND (reason LIKE 'platform:%' OR reason LIKE 'map_art%')")) {
+                query.setLong(1, sinceMillis);
+                try (ResultSet rows = query.executeQuery()) {
+                    return rows.next() ? rows.getLong(1) : 0L;
+                }
+            } catch (SQLException ignored) {
+                return -1L;
+            }
+        }
+    }
+
     /** How many cases were ever written. Never touches SQLite, so any thread may ask (bStats asks on the server thread). */
     public long totalCount() {
         return total.get();

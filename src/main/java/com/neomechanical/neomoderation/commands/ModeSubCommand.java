@@ -34,8 +34,7 @@ public abstract class ModeSubCommand implements SubCommand {
             plugin.messages().send(sender, localePrefix + ".usage", Map.of("label", label));
             return;
         }
-        plugin.getConfig().set(configPath, requested);
-        plugin.saveAndReload();
+        plugin.setConfig(configPath, requested);
         plugin.messages().send(sender, localePrefix + ("monitor".equals(requested) ? ".set-monitor" : ".set-enforce"));
     }
 

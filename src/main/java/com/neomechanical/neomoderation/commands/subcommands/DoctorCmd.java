@@ -5,6 +5,7 @@ import com.neomechanical.neomoderation.commands.SubCommand;
 import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.messages.ActionText;
 import com.neomechanical.neomoderation.messages.MessageService;
+import com.neomechanical.neomoderation.moderation.DiscordAlerts;
 import com.neomechanical.neomoderation.moderation.NeoMechanicalUsageClient;
 import com.neomechanical.neomoderation.moderation.UsageSummary;
 import org.bukkit.command.CommandSender;
@@ -43,7 +44,7 @@ public class DoctorCmd implements SubCommand {
         MessageService messages = plugin.messages();
         sender.sendMessage(StatusCmd.dashboard(plugin, sender));
         messages.send(sender, "doctor.title");
-        String discordProblem = plugin.discordAlerts() == null ? null : plugin.discordAlerts().lastProblem();
+        DiscordAlerts.Problem discordProblem = plugin.discordAlerts() == null ? null : plugin.discordAlerts().lastProblem();
         DoctorChecks.local(settings, plugin.caseLog().isAvailable(), discordProblem).forEach(check -> render(sender, check));
         List<DoctorChecks.Check> cloud = DoctorChecks.cloudSetup(settings,
                 plugin.coordinator().isRemoteCallAllowed(), plugin.coordinator().lastCloudResultKind());

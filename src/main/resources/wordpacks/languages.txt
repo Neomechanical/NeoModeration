@@ -1,0 +1,14 @@
+# Everyday words in one language that another language's list bans. They pass
+# when the player's game language is the one named, and for everyone on a server
+# whose locale is. "<language>: <word> <word> ..."; a language such as "pt_pt"
+# names one country's form, "sv" every Swedish one.
+#
+# French: "en retard", late
+fr: retard retards
+# Spanish: Kike, short for Enrique
+es: kike
+# Portuguese in Portugal: "os putos", the kids; "a bicha", the queue
+pt_pt: puto putos bicha bichas
+# Swedish and Danish: "slut", the end; Swedish "fick", got
+sv: slut fick
+da: slut

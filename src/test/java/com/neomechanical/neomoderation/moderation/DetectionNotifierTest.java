@@ -1,7 +1,7 @@
 package com.neomechanical.neomoderation.moderation;
 
-import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.NeoModerationPlugin;
+import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.config.ModerationAction;
 import com.neomechanical.neomoderation.config.ModerationActionType;
 import com.neomechanical.neomoderation.config.ModerationSettings;
@@ -110,6 +110,21 @@ class DetectionNotifierTest {
         assertEquals("Blocked", alert.getValue().title());
         assertEquals(Map.of("Player", "Steve", "Where", "chat", "Why", "banned word \"badword\"",
                 "Message", "`this is a badword`", "Then", ""), alert.getValue().fields());
+    }
+
+    @Test
+    void aRaidPausesStaffAlertsButTheConsoleKeepsEveryOne() {
+        NeoModerationPlugin plugin = plugin(new YamlConfiguration());
+        DetectionNotifier notifier = new DetectionNotifier(plugin, discord);
+
+        for (int i = 0; i < 6; i++) {
+            notifier.notifyDetection(blocked(List.of()), plugin.settings());
+        }
+
+        List<String> alerts = TestPlugin.lines(germanStaff);
+        assertEquals(4, alerts.size(), String.join("\n", alerts));
+        assertEquals("[NeoMod] Hinweise zu Steve pausieren 30 Sekunden. Alles wird weiter protokolliert.", alerts.get(3));
+        verify(logger, org.mockito.Mockito.times(6)).info(anyString());
     }
 
     @Test
