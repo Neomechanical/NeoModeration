@@ -196,7 +196,8 @@ public final class SurfaceModerationListener implements Listener {
     private static boolean canCensor(List<String> parts, ModerationSettings settings) {
         String censored = String.join(" ", parts.stream()
                 .map(part -> OfflineModerationEngine.censor(part, settings.offline())).toList());
-        return !OfflineModerationEngine.evaluate(censored, settings.offline()).flagged();
+        return !censored.equals(String.join(" ", parts))
+                && !OfflineModerationEngine.evaluate(censored, settings.offline()).flagged();
     }
 
     /** Spam hits can't be censored, so they escalate CENSOR to BLOCK. */

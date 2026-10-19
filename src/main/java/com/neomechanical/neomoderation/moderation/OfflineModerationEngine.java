@@ -5,6 +5,7 @@ import com.neomechanical.neomoderation.moderation.OfflineRuleCompiler.CompiledRu
 import com.neomechanical.neomoderation.moderation.OfflineRuleCompiler.CompiledUrl;
 import com.neomechanical.neomoderation.moderation.OfflineRuleCompiler.CompiledWord;
 
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
@@ -43,6 +44,12 @@ public final class OfflineModerationEngine {
 
         if (settings.blockAnyUrl() && MinecraftThreatDetector.matchesUrlOrIp(lowerMessage)) {
             return OfflineModerationResult.flagged("blocked_url:any");
+        }
+        if (settings.blockServerAds()) {
+            Optional<String> advertised = ServerAdDetector.find(OfflineRuleCompiler.lower(message), rules.allowedUrls());
+            if (advertised.isPresent()) {
+                return OfflineModerationResult.flagged("server_ad:" + advertised.get());
+            }
         }
 
         if (rules.words().isEmpty()) {
@@ -95,6 +102,11 @@ public final class OfflineModerationEngine {
             starRegexMatches(raw, lowerMirror.toString(), MinecraftThreatDetector.URL_PATTERN);
             starRegexMatches(raw, lowerMirror.toString(), MinecraftThreatDetector.IPV4_PATTERN);
         }
+        if (settings.blockServerAds()) {
+            for (int[] span : ServerAdDetector.literalSpans(lowerMirror.toString())) {
+                star(raw, span[0], span[1]);
+            }
+        }
 
         if (!rules.words().isEmpty()) {
             TextNormalizer.Normalized text =
@@ -115,6 +127,19 @@ public final class OfflineModerationEngine {
             }
         }
         return new String(raw);
+    }
+
+    /**
+     * The censored message, but only when censoring leaves nothing a rule still
+     * flags. A disguised link or address cannot be located to star out, so a
+     * caller that gets empty must block the message instead.
+     */
+    public static Optional<String> censorCompletely(String message, OfflineModerationSettings settings) {
+        String censored = censor(message, settings);
+        if (censored.equals(message) || evaluate(censored, settings).flagged()) {
+            return Optional.empty();
+        }
+        return Optional.of(censored);
     }
 
     private static void star(char[] raw, int start, int end) {

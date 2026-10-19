@@ -147,10 +147,14 @@ class MinecraftAdCoverageTest {
     void cleanMinecraftChatCorpusHasZeroFalsePositivesUnderBothModes() {
         OfflineModerationSettings defaultMode = settings(false, List.of("grabify.link", "discord.gg/free"), List.of());
         OfflineModerationSettings anyUrlMode = settings(true, List.of(), List.of());
+        OfflineModerationSettings serverAdsMode = new OfflineModerationSettings(true, false, true,
+                List.of("badword"), List.of(), List.of(), List.of(), List.of(), List.of(), true);
 
         for (String clean : CLEAN_CHAT_CORPUS) {
             assertFalse(OfflineModerationEngine.evaluate(clean, defaultMode).flagged(),
                     () -> "Clean chat flagged under default mode: " + clean);
+            assertFalse(OfflineModerationEngine.evaluate(clean, serverAdsMode).flagged(),
+                    () -> "Clean chat flagged as a server ad: " + clean);
             assertFalse(OfflineModerationEngine.evaluate(clean, anyUrlMode).flagged(),
                     () -> "Clean chat flagged under blockAnyUrl mode: " + clean);
         }

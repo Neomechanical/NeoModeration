@@ -73,15 +73,12 @@ public final class ChatModerationProcessor {
         OfflineModerationResult offlineResult = OfflineModerationEngine.evaluate(message, settings.offline());
         if (offlineResult.flagged()) {
             splitMessageWindow.clear(player.getUniqueId());
-            String censored = null;
-            DetectionHandler.Disposition requested = DetectionHandler.Disposition.BLOCK;
-            if (settings.chatCensorLocal()) {
-                String masked = OfflineModerationEngine.censor(message, settings.offline());
-                if (!masked.equals(message)) {
-                    censored = masked;
-                    requested = DetectionHandler.Disposition.CENSOR;
-                }
-            }
+            String censored = settings.chatCensorLocal()
+                    ? OfflineModerationEngine.censorCompletely(message, settings.offline()).orElse(null)
+                    : null;
+            DetectionHandler.Disposition requested = censored != null
+                    ? DetectionHandler.Disposition.CENSOR
+                    : DetectionHandler.Disposition.BLOCK;
             return toDecision(
                     handler.handle(player, "chat", offlineResult.reason(), message, requested),
                     censored);
