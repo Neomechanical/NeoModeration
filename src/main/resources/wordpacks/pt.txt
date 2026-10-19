@@ -1,0 +1,36 @@
+# Portuguese starter list. Severe swearing and slurs only, written without
+# accents (the filter folds "desgraçado" to "desgracado"). Common abbreviations
+# such as "vsf" are included because players type them far more than the words.
+merda
+merdas
+porra
+puta
+putas
+puto
+putos
+caralho
+caralhos
+foder
+fodase
+fudido
+fudida
+filhadaputa
+filhodaputa
+filhasdaputa
+filhosdaputa
+fdp
+pqp
+vsf
+vtnc
+viado
+viados
+bicha
+bichas
+buceta
+arrombado
+arrombados
+arrombada
+arrombadas
+cuzao
+desgracado
+desgracados

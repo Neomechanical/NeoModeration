@@ -20,6 +20,11 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class SpamDetector {
     private static final long WINDOW_MS = 10_000L;
+    /**
+     * A repeat counts only when it follows the last message within this gap:
+     * "gg" after each of three games an hour apart is not spam.
+     */
+    private static final long REPEAT_GAP_MS = 30_000L;
     private static final long STALE_MS = 600_000L;
     private static final int CLEANUP_THRESHOLD = 1_000;
 
@@ -46,12 +51,14 @@ public final class SpamDetector {
             if (s.duplicateLimit() > 0) {
                 String normalized = normalize(message);
                 if (state.lastMessage != null
+                        && now - state.lastMessageAt <= REPEAT_GAP_MS
                         && similarity(state.lastMessage, normalized) >= s.similarityThreshold()) {
                     state.repeats++;
                 } else {
                     state.repeats = 1;
                 }
                 state.lastMessage = normalized;
+                state.lastMessageAt = now;
                 if (state.repeats >= s.duplicateLimit()) {
                     return Optional.of("spam:duplicate");
                 }
@@ -88,7 +95,7 @@ public final class SpamDetector {
     static boolean isCapsAbuse(String message, String playerName, SpamSettings s) {
         String sample = playerName == null || playerName.isBlank()
                 ? message
-                : message.replaceAll("(?i)" + java.util.regex.Pattern.quote(playerName), "");
+                : removeIgnoringCase(message, playerName);
         int letters = 0;
         int uppers = 0;
         for (int i = 0; i < sample.length(); i++) {
@@ -101,6 +108,19 @@ public final class SpamDetector {
             }
         }
         return letters >= s.capsMinLength() && uppers * 100 > letters * s.capsPercent();
+    }
+
+    private static String removeIgnoringCase(String text, String needle) {
+        StringBuilder out = new StringBuilder(text.length());
+        int index = 0;
+        while (index < text.length()) {
+            if (text.regionMatches(true, index, needle, 0, needle.length())) {
+                index += needle.length();
+            } else {
+                out.append(text.charAt(index++));
+            }
+        }
+        return out.toString();
     }
 
     static boolean hasCharRun(String message, int maxRun) {
@@ -161,6 +181,7 @@ public final class SpamDetector {
         final Deque<Long> messageTimes = new ArrayDeque<>();
         final Deque<Long> commandTimes = new ArrayDeque<>();
         String lastMessage;
+        long lastMessageAt;
         int repeats;
         long lastSeen;
     }

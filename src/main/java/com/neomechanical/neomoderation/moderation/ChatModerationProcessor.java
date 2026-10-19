@@ -8,6 +8,7 @@ import org.bukkit.entity.Player;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 public final class ChatModerationProcessor {
     private final NeoModerationPlugin plugin;
@@ -110,6 +111,11 @@ public final class ChatModerationProcessor {
                 handler.handle(player, "chat", cloudResult.reason(), message, DetectionHandler.Disposition.BLOCK,
                         DetectionHandler.Source.CLOUD),
                 null);
+    }
+
+    /** Drops what is held for a player who left, such as the fragments of a split message. */
+    public void forget(UUID player) {
+        splitMessageWindow.clear(player);
     }
 
     private static ChatDecision toDecision(DetectionHandler.Disposition effective, String censored) {

@@ -1,0 +1,36 @@
+# Spanish starter list. Severe swearing and slurs only, written without accents
+# (the filter folds accents, so "cabrón" matches "cabron"). A phrase written as one
+# word, such as "hijodeputa", also matches "hijo de puta" and "h i j o de puta".
+mierda
+mierdas
+joder
+jodido
+jodete
+puta
+putas
+puto
+putos
+putero
+cabron
+cabrones
+cojones
+pendejo
+pendejos
+pendeja
+maricon
+maricones
+marica
+culiao
+culiaos
+culero
+gilipollas
+hijodeputa
+hijosdeputa
+hijadeputa
+hdp
+malparido
+malparidos
+chingada
+chingar
+verga
+ctm

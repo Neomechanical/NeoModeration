@@ -41,17 +41,21 @@ moderation:
     enabled: true
     # Block ANY url, not just the ones listed in bannedUrls.
     blockAnyUrl: false
+    # Block messages that advertise another Minecraft server: an IP address, an
+    # address with a port, play./mc./smp. style addresses, free-host addresses
+    # (aternos.me, minehut.gg ...) and "join myserver.net". Ordinary links such
+    # as YouTube or a wiki page are not affected. Add your own server's address
+    # to allowedUrls so players can share it.
+    blockServerAds: true
     # Treat "b4dw0rd" style spellings as their plain-text equivalent.
     normalizeLeetspeak: true
-    # A starter English policy so a new install blocks real abuse immediately.
-    # You should still review and extend it for your server's own standards.
-    # Manage the list in-game with /nmod ban and /nmod allow.
-    # Matching is whole-word, so "assignment" and "Scunthorpe" stay clean;
-    # inflections are listed explicitly rather than matched as prefixes.
-    # "badword" is kept so the documented check /nmod test badword still works.
+    # A starter English list so a new install blocks real abuse immediately.
+    # Review it for your server and change it in-game with /nmod word and
+    # /nmod allow. Matching is whole-word, so "assignment" and "Scunthorpe"
+    # stay clean; inflections are listed explicitly. "badword" is kept so the
+    # documented check /nmod test badword works.
     bannedWords:
       - "badword"
-      - "scam"
       - "fuck"
       - "fucks"
       - "fucked"
@@ -83,11 +87,34 @@ moderation:
       - "niggas"
       - "faggot"
       - "faggots"
+      - "fag"
+      - "fags"
+      - "tranny"
+      - "trannies"
+      - "dyke"
+      - "dykes"
+      - "kike"
+      - "kikes"
+      - "paki"
+      - "pakis"
+      - "gook"
+      - "gooks"
+      - "wetback"
+      - "wetbacks"
+      - "beaner"
+      - "beaners"
       - "retard"
       - "retarded"
       - "wanker"
       - "twat"
       - "kys"
+    # Starter lists in other languages, added to the list above:
+    #   auto           the language of "locale" (English has no extra pack)
+    #   es, fr, de, pt, tr   name the packs you want, for example [auto, es]
+    #   all            every pack, for a server with players from many countries
+    # Use [] for none. Ordinary words that look like a swear word in another
+    # language ("pic", "cono", "Amina") are left out of every pack.
+    languagePacks: [auto]
     bannedUrls:
       - "grabify.link"
       - "iplogger.org"

@@ -44,6 +44,17 @@ class SpamDetectorTest {
     }
 
     @Test
+    void theSameShortMessageAfterEachGameIsNotSpam() {
+        SpamDetector detector = new SpamDetector();
+        long now = 1_000_000L;
+        for (int game = 0; game < 5; game++) {
+            assertEquals(Optional.empty(),
+                    detector.checkMessage(PLAYER, "Tester", "gg", settings(), now + game * 120_000L),
+                    "\"gg\" two minutes after the last one is a new message, not a repeat");
+        }
+    }
+
+    @Test
     void flagsCapsAbuseButExemptsPlayerNames() {
         SpamSettings s = settings();
         assertTrue(SpamDetector.isCapsAbuse("STOP SHOUTING PLEASE", "Tester", s));

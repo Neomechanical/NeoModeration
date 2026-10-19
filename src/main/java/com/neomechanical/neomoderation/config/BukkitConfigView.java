@@ -6,9 +6,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A {@link ConfigView} backed by a Bukkit configuration, so the Bukkit entry
- * point keeps Bukkit's exact parsing and defaulting behaviour while the settings
- * records themselves stay platform-neutral.
+ * A {@link ConfigView} backed by a Bukkit configuration, so the settings records
+ * stay independent of Bukkit and testable without a server.
+ *
+ * <p>{@link #get} reads only what the server's config.yml says. Bukkit's own
+ * {@code get(path)} falls back to the bundled config.yml, which made a removed
+ * {@code moderation.cloudMode} read as the bundled "monitor" instead of following
+ * {@code moderation.mode} as documented.</p>
  */
 public final class BukkitConfigView implements ConfigView {
 
@@ -20,7 +24,7 @@ public final class BukkitConfigView implements ConfigView {
 
     @Override
     public Object get(String path) {
-        return config.get(path);
+        return config.get(path, null);
     }
 
     @Override

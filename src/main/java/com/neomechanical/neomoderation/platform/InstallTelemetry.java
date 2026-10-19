@@ -27,8 +27,8 @@ import java.util.Locale;
  *       that never fires has nothing to demonstrate its value.</li>
  *   <li>{@code cloud_state} -- distinguishes never-configured from
  *       configured-then-failing, which are opposite problems.</li>
- *   <li>{@code platform_family} -- tells us whether Folia and proxy support
- *       reached anyone.</li>
+ *   <li>{@code platform_family} -- tells us whether Folia support reached
+ *       anyone.</li>
  * </ul>
  *
  * <p>Nothing here identifies a server, an operator, or a player.
@@ -159,7 +159,7 @@ public final class InstallTelemetry {
         return "extended";
     }
 
-    /** Server family, so Folia and proxy adoption is visible. */
+    /** Server family, so Folia adoption is visible. */
     public static String platformFamily(String platformName, boolean folia) {
         if (folia) {
             return "Folia";

@@ -2,169 +2,107 @@ package com.neomechanical.neomoderation.moderation;
 
 import com.neomechanical.neomoderation.messages.MessageService;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Curated starter banned words for bundled locales.
+ * Starter lists of swear words and slurs in languages other than English, kept
+ * in {@code wordpacks/<code>.txt}. English lives in config.yml's own list.
  *
- * <p>Provides immediate out-of-the-box local profanity and slur protection for
- * servers operating in non-English locales ({@code es_ES}, {@code fr_FR},
- * {@code de_DE}, {@code pt_BR}, {@code tr_TR}) as well as {@code en_US}.
- * Every starter word is lowercase, normalized, and at least 4 characters long
- * to prevent false positives on common short words or game terms.</p>
+ * <p>A server picks packs with {@code moderation.offline.languagePacks}:
+ * {@code auto} adds the pack for the language of {@code locale}, a code such as
+ * {@code es} adds that pack, and {@code all} adds every one.</p>
  */
 public final class BundledWordPacks {
 
-    private static final List<String> EN_WORDS = List.of(
-            "fuck", "fucks", "fucked", "fucking", "fucker", "fuckers",
-            "motherfucker", "motherfuckers",
-            "bitch", "bitches",
-            "cunt", "cunts",
-            "asshole", "assholes",
-            "bastard", "bastards",
-            "dickhead", "dickheads",
-            "whore", "whores",
-            "slut", "sluts",
-            "nigger", "niggers",
-            "nigga", "niggas",
-            "faggot", "faggots",
-            "retard", "retarded"
-    );
+    /** Every bundled pack, by the language code a server names it with. */
+    public static final List<String> CODES = List.of("es", "fr", "de", "pt", "tr");
+    public static final String AUTO = "auto";
+    public static final String ALL = "all";
 
-    private static final List<String> ES_WORDS = List.of(
-            "mierda", "mierdas",
-            "puta", "putas", "puto", "putos", "putero",
-            "cabron", "cabrones",
-            "cojon", "cojones",
-            "pendejo", "pendejos", "pendejada",
-            "maricon", "maricones", "marica",
-            "culiao", "culiaos",
-            "gilipollas",
-            "hijodeputa", "hijosdeputa", "hijadeputa",
-            "malparido", "malparidos",
-            "chinga", "chingada", "chingar"
-    );
-
-    private static final List<String> FR_WORDS = List.of(
-            "merde", "merdes", "merdeux",
-            "putain", "putains",
-            "salope", "salopes", "salop",
-            "connard", "connards", "connasse", "connasses",
-            "encule", "encules", "enculeur",
-            "batard", "batards",
-            "pouffiasse", "pouffiasses",
-            "foutre", "bordel",
-            "tarlouze", "tarlouzes",
-            "tapette", "tapettes",
-            "branleur", "branleurs"
-    );
-
-    private static final List<String> DE_WORDS = List.of(
-            "arschloch", "arschlocher",
-            "hurensohn", "hurensohne",
-            "fotze", "fotzen",
-            "schlampe", "schlampen",
-            "wichser", "wichsers",
-            "scheisse", "scheisser",
-            "bastard", "bastarde",
-            "spast", "spasti", "spastiker",
-            "missgeburt", "missgeburten",
-            "hure", "huren",
-            "drecksack", "kacke", "kackbratze",
-            "vollidiot", "vollidioten"
-    );
-
-    private static final List<String> PT_WORDS = List.of(
-            "merda", "merdas",
-            "puta", "putas", "puto", "putos",
-            "caralho", "caralhos",
-            "foder", "fodase", "fudido", "fudida",
-            "filhadaputa", "filhodaputa", "filhasdaputa", "filhosdaputa",
-            "viado", "viados",
-            "bicha", "bichas",
-            "arrombado", "arrombados", "arrombada", "arrombadas",
-            "babaca", "babacas",
-            "desgracado", "desgracados"
-    );
-
-    private static final List<String> TR_WORDS = List.of(
-            "orospu", "orospular", "orospucocugu",
-            "sikis", "sikmek", "sikerim", "sikik", "sikeyim",
-            "yarak", "yarrak", "yarraklar",
-            "gotveren", "amcik", "amcuk",
-            "amina", "aminakoyayim", "aminakoyim",
-            "ibne", "ibneler",
-            "pezevenk", "pezevenkler",
-            "kahpe", "kahpeler",
-            "gotlek", "dalyarak", "picler"
-    );
+    private static final Map<String, List<String>> LOADED = new ConcurrentHashMap<>();
 
     private BundledWordPacks() {
     }
 
-    /**
-     * Returns an unmodifiable list of curated starter banned words for the given
-     * locale code. Resolves short codes, country variants, and hyphens via
-     * {@link MessageService#resolveLocaleCode(String)}.
-     *
-     * @param localeCode locale code such as {@code "en_US"}, {@code "es"}, {@code "pt-br"}
-     * @return unmodifiable list of starter banned words, or empty list for unknown locales
-     */
-    public static List<String> starterWordsForLocale(String localeCode) {
-        if (localeCode == null || localeCode.isBlank()) {
-            return EN_WORDS;
+    /** The words of one pack, or an empty list for a code with no pack. */
+    public static List<String> words(String code) {
+        String normalized = code == null ? "" : code.trim().toLowerCase(Locale.ROOT);
+        if (!CODES.contains(normalized)) {
+            return List.of();
         }
-        String resolved = MessageService.resolveLocaleCode(localeCode);
-        return switch (resolved) {
-            case "en_US" -> EN_WORDS;
-            case "es_ES" -> ES_WORDS;
-            case "fr_FR" -> FR_WORDS;
-            case "de_DE" -> DE_WORDS;
-            case "pt_BR" -> PT_WORDS;
-            case "tr_TR" -> TR_WORDS;
-            default -> {
-                String lower = resolved.trim().toLowerCase(Locale.ROOT).replace('-', '_');
-                if (lower.startsWith("en")) yield EN_WORDS;
-                if (lower.startsWith("es")) yield ES_WORDS;
-                if (lower.startsWith("fr")) yield FR_WORDS;
-                if (lower.startsWith("de")) yield DE_WORDS;
-                if (lower.startsWith("pt")) yield PT_WORDS;
-                if (lower.startsWith("tr")) yield TR_WORDS;
-                yield List.of();
-            }
-        };
+        return LOADED.computeIfAbsent(normalized, BundledWordPacks::load);
     }
 
     /**
-     * Merges configured banned words with starter words for the specified locale.
-     *
-     * <p>If {@code includeLocalePack} is false or {@code configuredWords} is null or
-     * empty, returns the configured words without adding the starter pack (respecting
-     * an operator who deliberately emptied the word list).</p>
-     *
-     * @param configuredWords   the operator-configured banned words
-     * @param localeCode         the active server locale code
-     * @param includeLocalePack whether to merge the locale pack
-     * @return deduplicated unmodifiable list of words
+     * The packs a server's settings select, in a stable order and without
+     * duplicates. {@code auto} only counts when {@code autoAllowed}: an operator
+     * who emptied the English list has switched word filtering off.
      */
-    public static List<String> mergeWithLocalePack(
-            List<String> configuredWords,
-            String localeCode,
-            boolean includeLocalePack
-    ) {
-        if (!includeLocalePack || configuredWords == null || configuredWords.isEmpty()) {
-            return configuredWords == null ? List.of() : List.copyOf(configuredWords);
+    public static List<String> select(List<String> requested, String locale, boolean autoAllowed) {
+        Set<String> selected = new LinkedHashSet<>();
+        for (String raw : requested == null ? List.<String>of() : requested) {
+            String entry = raw == null ? "" : raw.trim().toLowerCase(Locale.ROOT);
+            if (ALL.equals(entry)) {
+                selected.addAll(CODES);
+            } else if (AUTO.equals(entry)) {
+                String language = languageOf(locale);
+                if (autoAllowed && CODES.contains(language)) {
+                    selected.add(language);
+                }
+            } else if (CODES.contains(entry)) {
+                selected.add(entry);
+            }
         }
-        List<String> starter = starterWordsForLocale(localeCode);
-        if (starter.isEmpty()) {
-            return List.copyOf(configuredWords);
+        return List.copyOf(selected);
+    }
+
+    /** All words of the given packs, de-duplicated, in pack order. */
+    public static List<String> wordsOf(List<String> packs) {
+        Set<String> merged = new LinkedHashSet<>();
+        for (String pack : packs) {
+            merged.addAll(words(pack));
         }
-        Set<String> merged = new LinkedHashSet<>(configuredWords.size() + starter.size());
-        merged.addAll(configuredWords);
-        merged.addAll(starter);
         return List.copyOf(merged);
+    }
+
+    /** The two-letter language of a locale code such as {@code pt-br} or {@code de_AT}. */
+    static String languageOf(String locale) {
+        String resolved = MessageService.resolveLocaleCode(locale);
+        int separator = resolved.indexOf('_');
+        return (separator > 0 ? resolved.substring(0, separator) : resolved).toLowerCase(Locale.ROOT);
+    }
+
+    private static List<String> load(String code) {
+        String path = "/wordpacks/" + code + ".txt";
+        try (InputStream stream = BundledWordPacks.class.getResourceAsStream(path)) {
+            if (stream == null) {
+                return List.of();
+            }
+            List<String> words = new ArrayList<>();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    String word = line.trim();
+                    if (!word.isEmpty() && !word.startsWith("#")) {
+                        words.add(word);
+                    }
+                }
+            }
+            return List.copyOf(words);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Bundled word pack " + path + " is unreadable", e);
+        }
     }
 }

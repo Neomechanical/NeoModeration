@@ -5,17 +5,10 @@ import java.util.Map;
 
 /**
  * The whole configuration surface the settings records need, expressed without
- * naming a server platform.
- *
- * <p>NeoModeration runs on Bukkit/Paper/Folia, on Velocity, and on BungeeCord.
- * Only Bukkit has {@code FileConfiguration}, so binding the settings records to
- * it made the entire policy layer unusable on a proxy -- which is why a network
- * could not filter cross-server chat at all. Everything here is deliberately
- * small: seven accessors, path-addressed with dots, each with the caller's
- * default. {@link BukkitConfigView} wraps a Bukkit config and
- * {@link MapConfigView} wraps parsed YAML for the proxies.
- *
- * <p>A useful side effect: settings parsing is now testable with no server.
+ * naming a server platform: seven accessors, path-addressed with dots, each with
+ * the caller's default. {@link BukkitConfigView} wraps the server's config.yml
+ * and {@link MapConfigView} wraps parsed YAML, so settings parsing is testable
+ * with no server.
  */
 public interface ConfigView {
 

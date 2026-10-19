@@ -2,11 +2,13 @@ package com.neomechanical.neomoderation;
 
 import com.neomechanical.neomoderation.commands.NeoModerationCommand;
 import com.neomechanical.neomoderation.config.BukkitConfigView;
+import com.neomechanical.neomoderation.config.ConfigMigrations;
 import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.listener.AdminWelcomeListener;
 import com.neomechanical.neomoderation.listener.ChatModerationListener;
 import com.neomechanical.neomoderation.listener.MapArtListener;
 import com.neomechanical.neomoderation.listener.PaperAsyncChatBridge;
+import com.neomechanical.neomoderation.listener.PlayerQuitListener;
 import com.neomechanical.neomoderation.listener.SurfaceModerationListener;
 import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.moderation.CaseLog;
@@ -26,14 +28,14 @@ import com.neomechanical.neomoderation.moderation.UpdateChecker;
 import com.neomechanical.neomoderation.platform.MetricsRegistrar;
 import com.neomechanical.neomoderation.platform.PlatformScheduler;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.configuration.Configuration;
 import org.bukkit.entity.Entity;
 import org.bukkit.plugin.java.JavaPlugin;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class NeoModerationPlugin extends JavaPlugin {
     private static final int BSTATS_PLUGIN_ID = 32542;
-    /** Size of the word list shipped in config.yml, used to tell default from customised. */
-    private static final int BUNDLED_WORD_COUNT = 38;
 
     private ChatModerationCoordinator coordinator;
     private ModerationSettings settings;
@@ -84,6 +86,7 @@ public final class NeoModerationPlugin extends JavaPlugin {
                     this
             );
         }
+        getServer().getPluginManager().registerEvents(new PlayerQuitListener(processor), this);
         getServer().getPluginManager().registerEvents(new MapArtListener(this), this);
         getServer().getPluginManager().registerEvents(new SurfaceModerationListener(this, detectionHandler), this);
         getServer().getPluginManager().registerEvents(new AdminWelcomeListener(this), this);
@@ -94,7 +97,7 @@ public final class NeoModerationPlugin extends JavaPlugin {
             command.setTabCompleter(executor);
         }
         ClientIdentity.configure(getDescription().getVersion(), scheduler.platformName());
-        MetricsRegistrar.register(this, BSTATS_PLUGIN_ID, BUNDLED_WORD_COUNT);
+        MetricsRegistrar.register(this, BSTATS_PLUGIN_ID, bundledWordCount());
         checkForUpdates();
         // A fresh install blocks bundled local-rule matches without punishing
         // players, while cloud judgements start in monitor mode. The startup
@@ -127,11 +130,22 @@ public final class NeoModerationPlugin extends JavaPlugin {
 
     public void reloadModerationConfig() {
         reloadConfig();
+        List<String> migrated = ConfigMigrations.apply(getConfig());
+        if (!migrated.isEmpty()) {
+            saveConfig();
+            migrated.forEach(getLogger()::info);
+        }
         settings = ModerationSettings.from(new BukkitConfigView(getConfig()), getLogger());
         messages = MessageService.load(this, getConfig().getString("locale", "en_US"));
         if (coordinator != null) {
             coordinator.resetCircuit();
         }
+    }
+
+    /** Size of the word list in the bundled config.yml, which tells a default list from a customised one. */
+    private int bundledWordCount() {
+        Configuration bundled = getConfig().getDefaults();
+        return bundled == null ? 0 : bundled.getStringList("moderation.offline.bannedWords").size();
     }
 
     /** Persist in-memory config edits and re-apply them atomically. */

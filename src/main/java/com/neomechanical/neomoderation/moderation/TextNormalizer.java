@@ -1,6 +1,7 @@
 package com.neomechanical.neomoderation.moderation;
 
 import java.text.Normalizer;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,9 +21,15 @@ import java.util.Map;
  *
  * <p>Separators are dropped rather than preserved, and each character records
  * whether it began or ended a token in the raw text. A banned word may then be
- * matched across separators — catching {@code f uck} — while still requiring
+ * matched across separators, catching {@code f uck}, while still requiring
  * the match to start and end on token boundaries, which is what keeps
  * {@code scampi}, {@code assignment} and {@code Scunthorpe} clean.</p>
+ *
+ * <p>Two kinds of token are never treated as fragments of a disguised word. A
+ * token after an apostrophe inside a word ({@code let's}, {@code who're}) is the
+ * end of a contraction, so "let's hit" is not "s hit". A token made only of
+ * digits is a number, so "5 hits" and "455 diamonds" keep their digits; a lone
+ * digit inside a spaced-out run such as {@code 5 h 1 t} still reads as a letter.</p>
  */
 final class TextNormalizer {
 
@@ -32,6 +39,8 @@ final class TextNormalizer {
      * chat with, so folding them cannot change the reading of genuine
      * non-Latin chat: a real Cyrillic word is not spelled entirely from Latin
      * lookalikes, and a mixed-script token is the signature of the evasion.
+     * Turkish dotless {@code ı} folds to {@code i} so the Turkish starter list,
+     * written without it, matches what Turkish players type.
      */
     private static final Map<Character, Character> CONFUSABLES = new HashMap<>();
 
@@ -40,8 +49,8 @@ final class TextNormalizer {
         String cyrillicLatin = "abcehkmopstxyijdvq";
         String greek = "αβεζηικνορτυχγ";
         String greekLatin = "abeznikvoptuxy";
-        String other = "օոսցԁԝѡ";
-        String otherLatin = "onugdww";
+        String other = "օոսցԁԝѡı";
+        String otherLatin = "onugdwwi";
         put(cyrillic, cyrillicLatin);
         put(greek, greekLatin);
         put(other, otherLatin);
@@ -57,18 +66,21 @@ final class TextNormalizer {
      * A message reduced to letters and digits, with the provenance needed to
      * map any match back onto the raw text.
      *
-     * @param chars      normalised letters/digits, separators removed
-     * @param rawIndex   for each char, the index it came from in the raw message
-     * @param tokenStart whether each char began a whitespace/punctuation-delimited token
-     * @param tokenEnd   whether each char ended one
-     * @param collapsed  {@code chars} with runs of the same character reduced to
-     *                   one, used only as a cheap necessary-condition prefilter
+     * @param chars        normalised letters/digits, separators removed
+     * @param rawIndex     for each char, the index it came from in the raw message
+     * @param tokenStart   whether each char began a whitespace/punctuation-delimited token
+     * @param tokenEnd     whether each char ended one
+     * @param joinBlocked  whether each char began a token that follows an apostrophe
+     *                     inside a word; a match may neither start there nor run into it
+     * @param collapsed    {@code chars} with runs of the same character reduced to
+     *                     one, used only as a cheap necessary-condition prefilter
      */
     record Normalized(
             char[] chars,
             int[] rawIndex,
             boolean[] tokenStart,
             boolean[] tokenEnd,
+            boolean[] joinBlocked,
             String collapsed
     ) {
         int length() {
@@ -80,18 +92,14 @@ final class TextNormalizer {
     }
 
     static Normalized normalize(String value, boolean normalizeLeetspeak) {
-        int capacity = Math.max(16, value.length() + 8);
-        char[] chars = new char[capacity];
-        int[] rawIndex = new int[capacity];
-        boolean[] startsToken = new boolean[capacity];
-        int count = 0;
+        Builder out = new Builder(value.length());
         boolean atTokenStart = true;
+        boolean afterInWordApostrophe = false;
 
         for (int i = 0; i < value.length(); ) {
             int codePoint = value.codePointAt(i);
-            int width = Character.charCount(codePoint);
             int rawAt = i;
-            i += width;
+            i += Character.charCount(codePoint);
 
             // Zero-width joiners, soft hyphens, byte-order marks: invisible to a
             // reader, so they must be invisible to the filter too. Dropping them
@@ -101,10 +109,16 @@ final class TextNormalizer {
                     || Character.isIdentifierIgnorable(codePoint)) {
                 continue;
             }
+            if (isApostrophe(codePoint)) {
+                afterInWordApostrophe = !atTokenStart
+                        && i < value.length()
+                        && Character.isLetter(value.codePointAt(i));
+                atTokenStart = true;
+                continue;
+            }
 
             String decomposed = Normalizer.normalize(
                     new String(Character.toChars(codePoint)), Normalizer.Form.NFKD);
-
             for (int k = 0; k < decomposed.length(); k++) {
                 char raw = decomposed.charAt(k);
                 if (Character.getType(raw) == Character.NON_SPACING_MARK) {
@@ -115,6 +129,7 @@ final class TextNormalizer {
                 if (folded != null) {
                     c = folded;
                 }
+                char digit = c >= '0' && c <= '9' ? c : 0;
                 if (normalizeLeetspeak) {
                     // '!' is a leetspeak 'i' inside a word ("b!tch") but ordinary
                     // punctuation at a boundary; converting it unconditionally
@@ -123,43 +138,33 @@ final class TextNormalizer {
                         c = normalizeLeet(c);
                     }
                 }
-                if (Character.isLetterOrDigit(c)) {
-                    if (count == chars.length) {
-                        chars = java.util.Arrays.copyOf(chars, count * 2);
-                        rawIndex = java.util.Arrays.copyOf(rawIndex, count * 2);
-                        startsToken = java.util.Arrays.copyOf(startsToken, count * 2);
-                    }
-                    chars[count] = c;
-                    rawIndex[count] = rawAt;
-                    startsToken[count] = atTokenStart;
-                    count++;
+                if (c == 'ß') {
+                    // German sharp s is spelled "ss" in every word list.
+                    out.add('s', rawAt, atTokenStart, atTokenStart && afterInWordApostrophe, (char) 0);
+                    out.add('s', rawAt, false, false, (char) 0);
                     atTokenStart = false;
+                    afterInWordApostrophe = false;
+                } else if (Character.isLetterOrDigit(c)) {
+                    out.add(c, rawAt, atTokenStart, atTokenStart && afterInWordApostrophe, digit);
+                    atTokenStart = false;
+                    afterInWordApostrophe = false;
                 } else {
                     atTokenStart = true;
+                    afterInWordApostrophe = false;
                 }
             }
         }
-
-        char[] finalChars = java.util.Arrays.copyOf(chars, count);
-        int[] finalRaw = java.util.Arrays.copyOf(rawIndex, count);
-        boolean[] finalStart = java.util.Arrays.copyOf(startsToken, count);
-        boolean[] finalEnd = new boolean[count];
-        for (int i = 0; i < count; i++) {
-            finalEnd[i] = (i == count - 1) || finalStart[i + 1];
-        }
-
-        StringBuilder collapsed = new StringBuilder(count);
-        for (int i = 0; i < count; i++) {
-            if (i == 0 || finalChars[i] != finalChars[i - 1]) {
-                collapsed.append(finalChars[i]);
-            }
-        }
-        return new Normalized(finalChars, finalRaw, finalStart, finalEnd, collapsed.toString());
+        return out.build();
     }
 
     /** The separator-free, run-collapsed spelling of a configured rule. */
     static String collapsedForm(String value, boolean normalizeLeetspeak) {
         return normalize(value, normalizeLeetspeak).collapsed();
+    }
+
+    private static boolean isApostrophe(int codePoint) {
+        return codePoint == '\'' || codePoint == '’' || codePoint == '‘'
+                || codePoint == 'ʼ' || codePoint == '`';
     }
 
     private static boolean isBetweenWordCharacters(String value, int index) {
@@ -180,5 +185,98 @@ final class TextNormalizer {
             case '7' -> 't';
             default -> c;
         };
+    }
+
+    /** Collects normalised characters, then derives token ends and restores numbers. */
+    private static final class Builder {
+        private char[] chars;
+        private int[] rawIndex;
+        private boolean[] tokenStart;
+        private boolean[] joinBlocked;
+        private char[] digits;
+        private int count;
+
+        Builder(int rawLength) {
+            int capacity = Math.max(16, rawLength + 8);
+            chars = new char[capacity];
+            rawIndex = new int[capacity];
+            tokenStart = new boolean[capacity];
+            joinBlocked = new boolean[capacity];
+            digits = new char[capacity];
+        }
+
+        void add(char c, int rawAt, boolean startsToken, boolean blocked, char digit) {
+            if (count == chars.length) {
+                int capacity = count * 2;
+                chars = Arrays.copyOf(chars, capacity);
+                rawIndex = Arrays.copyOf(rawIndex, capacity);
+                tokenStart = Arrays.copyOf(tokenStart, capacity);
+                joinBlocked = Arrays.copyOf(joinBlocked, capacity);
+                digits = Arrays.copyOf(digits, capacity);
+            }
+            chars[count] = c;
+            rawIndex[count] = rawAt;
+            tokenStart[count] = startsToken;
+            joinBlocked[count] = blocked;
+            digits[count] = digit;
+            count++;
+        }
+
+        Normalized build() {
+            char[] finalChars = Arrays.copyOf(chars, count);
+            boolean[] finalStart = Arrays.copyOf(tokenStart, count);
+            boolean[] finalEnd = new boolean[count];
+            for (int i = 0; i < count; i++) {
+                finalEnd[i] = (i == count - 1) || finalStart[i + 1];
+            }
+            restoreNumbers(finalChars, finalStart, finalEnd);
+
+            StringBuilder collapsed = new StringBuilder(count);
+            for (int i = 0; i < count; i++) {
+                if (i == 0 || finalChars[i] != finalChars[i - 1]) {
+                    collapsed.append(finalChars[i]);
+                }
+            }
+            return new Normalized(finalChars, Arrays.copyOf(rawIndex, count), finalStart, finalEnd,
+                    Arrays.copyOf(joinBlocked, count), collapsed.toString());
+        }
+
+        /**
+         * Puts the digits back in every all-digit token, except a single digit
+         * standing between single characters, which is how "5 h 1 t" is typed.
+         */
+        private void restoreNumbers(char[] out, boolean[] starts, boolean[] ends) {
+            int begin = 0;
+            while (begin < count) {
+                int end = begin;
+                while (!ends[end]) {
+                    end++;
+                }
+                if (allDigits(begin, end) && !inSpacedRun(begin, end, starts, ends)) {
+                    for (int i = begin; i <= end; i++) {
+                        out[i] = digits[i];
+                    }
+                }
+                begin = end + 1;
+            }
+        }
+
+        private boolean allDigits(int begin, int end) {
+            for (int i = begin; i <= end; i++) {
+                if (digits[i] == 0) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private boolean inSpacedRun(int begin, int end, boolean[] starts, boolean[] ends) {
+            if (begin != end) {
+                return false;
+            }
+            boolean singleBefore = begin > 0 && starts[begin - 1];
+            boolean singleAfter = end + 1 < count && ends[end + 1];
+            return singleBefore || singleAfter;
+        }
     }
 }

@@ -1,0 +1,36 @@
+# French starter list. Severe swearing and slurs only, written without accents
+# (the filter folds accents, so "enculé" matches "encule"). Everyday mild words
+# such as "bordel" are left out on purpose.
+merde
+merdes
+merdeux
+putain
+putains
+pute
+putes
+salope
+salopes
+salop
+connard
+connards
+connasse
+connasses
+encule
+encules
+enculeur
+batard
+batards
+pouffiasse
+tarlouze
+tarlouzes
+tapette
+branleur
+branleurs
+enfoire
+enfoires
+nique
+niquetamere
+ntm
+fdp
+filsdepute
+vatefairefoutre

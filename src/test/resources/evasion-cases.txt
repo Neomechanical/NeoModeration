@@ -70,6 +70,12 @@ FLAG	f4ggot is not on the list but n1gger is
 FLAG	b4dw0rd
 FLAG	sh1t
 FLAG	b1tch
+FLAG	5h1t
+FLAG	a55
+#
+# --- spaced letters with digits standing in for letters ---------------------
+FLAG	5 h 1 t
+FLAG	b 1 t c h
 #
 # --- combined -------------------------------------------------------------
 FLAG	ｆ　ú　ｃｋ
@@ -93,6 +99,18 @@ PASS	mass production of glass
 PASS	basshunter played at the party
 PASS	this is a masterpiece
 PASS	assess the damage first
+#
+# --- contractions: an apostrophe inside a word is not a gap to bridge -------
+PASS	let's hit him before he runs
+PASS	he's hit by a creeper again
+PASS	that's hit or miss
+PASS	it's hit the wall
+#
+# --- numbers stay numbers ----------------------------------------------------
+PASS	it took 5 hits to kill the warden
+PASS	only 5 hit points left
+PASS	i have 455 diamonds in the chest
+PASS	sold 55 stacks of iron
 #
 # --- ordinary Minecraft chat: must stay clean ------------------------------
 PASS	anyone got spare cobblestone

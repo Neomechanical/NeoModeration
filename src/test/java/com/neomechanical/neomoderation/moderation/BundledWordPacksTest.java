@@ -1,146 +1,127 @@
 package com.neomechanical.neomoderation.moderation;
 
+import com.neomechanical.neomoderation.config.MapConfigView;
 import com.neomechanical.neomoderation.config.OfflineModerationSettings;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BundledWordPacksTest {
 
-    private static OfflineModerationSettings settingsFor(List<String> words) {
-        return new OfflineModerationSettings(
-                true, false, true, words, List.of(), List.of(), List.of());
+    private static OfflineModerationSettings withPacks(String... packs) {
+        List<String> codes = List.of(packs);
+        return new OfflineModerationSettings(true, false, true, List.of("badword"), List.of(), List.of(), List.of(),
+                codes, BundledWordPacks.wordsOf(codes), false);
+    }
+
+    private static boolean flags(OfflineModerationSettings settings, String message) {
+        return OfflineModerationEngine.evaluate(message, settings).flagged();
     }
 
     @Test
-    void starterWordsForBundledLocalesAreCuratedAndMeetLengthRequirements() {
-        List<String> locales = List.of("en_US", "es_ES", "fr_FR", "de_DE", "pt_BR", "tr_TR");
-
-        for (String locale : locales) {
-            List<String> words = BundledWordPacks.starterWordsForLocale(locale);
-            assertFalse(words.isEmpty(), "Starter words must not be empty for " + locale);
-            assertTrue(words.size() >= 20 && words.size() <= 35,
-                    "Expected 20-35 curated words for " + locale + ", but found " + words.size());
-
+    void everyPackLoadsAsLowercaseAsciiWithoutDuplicates() {
+        for (String code : BundledWordPacks.CODES) {
+            List<String> words = BundledWordPacks.words(code);
+            assertTrue(words.size() >= 20, code + " pack has only " + words.size() + " words");
+            Set<String> seen = new HashSet<>();
             for (String word : words) {
-                assertTrue(word.length() >= 4,
-                        "Starter word '" + word + "' in " + locale + " must be at least 4 characters long to avoid false positives");
-                assertEquals(word.toLowerCase(Locale.ROOT), word,
-                        "Starter word '" + word + "' in " + locale + " must be lowercase");
+                assertTrue(word.matches("[a-z]{3,}"), code + " pack entry '" + word + "' must be 3+ lowercase ASCII letters");
+                assertTrue(seen.add(word), code + " pack repeats '" + word + "'");
             }
-
-            assertThrows(UnsupportedOperationException.class, () -> words.add("extra"),
-                    "Starter words list must be unmodifiable for " + locale);
         }
+        assertTrue(BundledWordPacks.words("en").isEmpty(), "English lives in config.yml's own list");
+        assertTrue(BundledWordPacks.words("ja").isEmpty());
     }
 
     @Test
-    void starterWordsResolvesShortAndVariantCodes() {
-        List<String> esExpected = BundledWordPacks.starterWordsForLocale("es_ES");
-        assertEquals(esExpected, BundledWordPacks.starterWordsForLocale("es"));
-        assertEquals(esExpected, BundledWordPacks.starterWordsForLocale("es-ES"));
-        assertEquals(esExpected, BundledWordPacks.starterWordsForLocale("es_mx"));
-
-        List<String> ptExpected = BundledWordPacks.starterWordsForLocale("pt_BR");
-        assertEquals(ptExpected, BundledWordPacks.starterWordsForLocale("pt-br"));
-        assertEquals(ptExpected, BundledWordPacks.starterWordsForLocale("pt"));
-        assertEquals(ptExpected, BundledWordPacks.starterWordsForLocale("pt_pt"));
-
-        List<String> frExpected = BundledWordPacks.starterWordsForLocale("fr_FR");
-        assertEquals(frExpected, BundledWordPacks.starterWordsForLocale("fr"));
-        assertEquals(frExpected, BundledWordPacks.starterWordsForLocale("fr-ca"));
-
-        List<String> deExpected = BundledWordPacks.starterWordsForLocale("de_DE");
-        assertEquals(deExpected, BundledWordPacks.starterWordsForLocale("de"));
-        assertEquals(deExpected, BundledWordPacks.starterWordsForLocale("de-AT"));
-
-        List<String> trExpected = BundledWordPacks.starterWordsForLocale("tr_TR");
-        assertEquals(trExpected, BundledWordPacks.starterWordsForLocale("tr"));
-        assertEquals(trExpected, BundledWordPacks.starterWordsForLocale("tr-TR"));
-
-        List<String> enExpected = BundledWordPacks.starterWordsForLocale("en_US");
-        assertEquals(enExpected, BundledWordPacks.starterWordsForLocale("en"));
-        assertEquals(enExpected, BundledWordPacks.starterWordsForLocale(null));
-        assertEquals(enExpected, BundledWordPacks.starterWordsForLocale(""));
-
-        assertTrue(BundledWordPacks.starterWordsForLocale("ja_JP").isEmpty(),
-                "Unknown locale should return an empty list");
+    void autoPicksTheLanguageOfTheLocale() {
+        assertEquals(List.of("es"), BundledWordPacks.select(List.of("auto"), "es_ES", true));
+        assertEquals(List.of("pt"), BundledWordPacks.select(List.of("auto"), "pt-br", true));
+        assertEquals(List.of("de"), BundledWordPacks.select(List.of("auto"), "de_AT", true));
+        assertEquals(List.of(), BundledWordPacks.select(List.of("auto"), "en_US", true));
+        assertEquals(List.of(), BundledWordPacks.select(List.of("auto"), "es_ES", false),
+                "an operator who emptied the word list has switched word filtering off");
     }
 
     @Test
-    void mergeWithLocalePackRespectsOperatorEmptyingAndDisabledFlag() {
-        List<String> initial = List.of("customword", "scam");
-
-        // Disabled includeLocalePack flag
-        List<String> flagDisabled = BundledWordPacks.mergeWithLocalePack(initial, "es_ES", false);
-        assertEquals(initial, flagDisabled);
-
-        // Null configured words
-        assertEquals(List.of(), BundledWordPacks.mergeWithLocalePack(null, "es_ES", true));
-
-        // Operator deliberately emptied the list -> must return empty list without adding defaults
-        List<String> operatorEmpty = BundledWordPacks.mergeWithLocalePack(List.of(), "es_ES", true);
-        assertTrue(operatorEmpty.isEmpty(),
-                "Operator intentionally emptied word list; mergeWithLocalePack must not force starter words");
-
-        // Successful merge with custom word
-        List<String> merged = BundledWordPacks.mergeWithLocalePack(List.of("badword"), "es_ES", true);
-        assertEquals("badword", merged.get(0));
-        assertTrue(merged.contains("mierda"));
-        assertTrue(merged.contains("cabron"));
-        assertEquals(merged.size(), List.copyOf(merged).size());
-
-        // Deduplication
-        List<String> duplicated = BundledWordPacks.mergeWithLocalePack(List.of("mierda", "custom"), "es_ES", true);
-        assertEquals(1, duplicated.stream().filter(w -> w.equals("mierda")).count());
-
-        // Unmodifiable
-        assertThrows(UnsupportedOperationException.class, () -> merged.add("another"));
+    void namedPacksAndAllAddTheirListsWhateverTheLocale() {
+        assertEquals(List.of("es", "tr"), BundledWordPacks.select(List.of("ES", "tr", "es", "xx"), "en_US", false));
+        assertEquals(BundledWordPacks.CODES, BundledWordPacks.select(List.of("all"), "en_US", true));
+        assertEquals(List.of("fr", "de"), BundledWordPacks.select(List.of("auto", "de"), "fr_FR", true));
     }
 
     @Test
-    void offlineModerationEngineCatchesObfuscatedNonEnglishWordsWhenMerged() {
-        // Spanish
-        List<String> esWords = BundledWordPacks.mergeWithLocalePack(List.of("badword"), "es_ES", true);
-        OfflineModerationSettings esSettings = settingsFor(esWords);
-        assertTrue(OfflineModerationEngine.evaluate("m i e r d a", esSettings).flagged());
-        assertTrue(OfflineModerationEngine.evaluate("eres un c.a.b.r.o.n", esSettings).flagged());
-        assertTrue(OfflineModerationEngine.evaluate("que pendejo eres", esSettings).flagged());
-        assertFalse(OfflineModerationEngine.evaluate("vamos a la mina a buscar diamantes", esSettings).flagged());
+    void settingsReadLanguagePacksFromConfig() {
+        OfflineModerationSettings spanish = OfflineModerationSettings.from(new MapConfigView(Map.of(
+                "locale", "es_ES",
+                "moderation", Map.of("offline", Map.of("bannedWords", List.of("badword"))))));
+        assertEquals(List.of("es"), spanish.languagePacks());
+        assertTrue(spanish.effectiveWords().contains("mierda"));
+        assertEquals(List.of("badword"), spanish.bannedWords(), "the configured list stays the operator's own");
 
-        // French
-        List<String> frWords = BundledWordPacks.mergeWithLocalePack(List.of("badword"), "fr_FR", true);
-        OfflineModerationSettings frSettings = settingsFor(frWords);
-        assertTrue(OfflineModerationEngine.evaluate("c'est de la m e r d e", frSettings).flagged());
-        assertTrue(OfflineModerationEngine.evaluate("quel p u t a i n de jeu", frSettings).flagged());
-        assertTrue(OfflineModerationEngine.evaluate("sale c o n n a r d", frSettings).flagged());
-        assertFalse(OfflineModerationEngine.evaluate("bonjour tout le monde", frSettings).flagged());
+        OfflineModerationSettings none = OfflineModerationSettings.from(new MapConfigView(Map.of(
+                "locale", "es_ES",
+                "moderation", Map.of("offline", Map.of("bannedWords", List.of("badword"), "languagePacks", List.of())))));
+        assertTrue(none.languagePacks().isEmpty());
+        assertEquals(List.of("badword"), none.effectiveWords());
+    }
 
-        // German
-        List<String> deWords = BundledWordPacks.mergeWithLocalePack(List.of("badword"), "de_DE", true);
-        OfflineModerationSettings deSettings = settingsFor(deWords);
-        assertTrue(OfflineModerationEngine.evaluate("du a r s c h l o c h", deSettings).flagged());
-        assertTrue(OfflineModerationEngine.evaluate("du s c h l a m p e", deSettings).flagged());
-        assertFalse(OfflineModerationEngine.evaluate("hallo zusammen wie gehts", deSettings).flagged());
+    @Test
+    void packsCatchDisguisedWordsAndFoldLocalLetters() {
+        OfflineModerationSettings es = withPacks("es");
+        assertTrue(flags(es, "m i e r d a"));
+        assertTrue(flags(es, "eres un c.a.b.r.o.n"));
+        assertTrue(flags(es, "que cabrón eres"));
+        assertTrue(flags(es, "hijo de puta"));
+        assertTrue(flags(es, "joder tio"));
 
-        // Portuguese
-        List<String> ptWords = BundledWordPacks.mergeWithLocalePack(List.of("badword"), "pt_BR", true);
-        OfflineModerationSettings ptSettings = settingsFor(ptWords);
-        assertTrue(OfflineModerationEngine.evaluate("que c a r a l h o", ptSettings).flagged());
-        assertTrue(OfflineModerationEngine.evaluate("seu v i a d o", ptSettings).flagged());
-        assertFalse(OfflineModerationEngine.evaluate("ola galera vamos jogar", ptSettings).flagged());
+        OfflineModerationSettings fr = withPacks("fr");
+        assertTrue(flags(fr, "c'est de la m e r d e"));
+        assertTrue(flags(fr, "va te faire foutre"));
+        assertTrue(flags(fr, "sale enculé"));
 
-        // Turkish
-        List<String> trWords = BundledWordPacks.mergeWithLocalePack(List.of("badword"), "tr_TR", true);
-        OfflineModerationSettings trSettings = settingsFor(trWords);
-        assertTrue(OfflineModerationEngine.evaluate("sen o r o s p u", trSettings).flagged());
-        assertTrue(OfflineModerationEngine.evaluate("y a r r a k kafali", trSettings).flagged());
-        assertFalse(OfflineModerationEngine.evaluate("merhaba arkadaslar nasilsiniz", trSettings).flagged());
+        OfflineModerationSettings de = withPacks("de");
+        assertTrue(flags(de, "Scheiße, der Creeper"));
+        assertTrue(flags(de, "du A r s c h l o c h"));
+        assertTrue(flags(de, "ihr Arschlöcher"));
+
+        OfflineModerationSettings pt = withPacks("pt");
+        assertTrue(flags(pt, "que c a r a l h o"));
+        assertTrue(flags(pt, "seu desgraçado"));
+        assertTrue(flags(pt, "porra mano"));
+
+        OfflineModerationSettings tr = withPacks("tr");
+        assertTrue(flags(tr, "amına koyayım"));
+        assertTrue(flags(tr, "amk ya"));
+        assertTrue(flags(tr, "y a r r a k kafali"));
+        assertTrue(flags(tr, "orospu çocuğu"));
+    }
+
+    @Test
+    void packsLeaveOrdinaryChatInTheirLanguageAlone() {
+        OfflineModerationSettings all = withPacks(BundledWordPacks.CODES.toArray(String[]::new));
+        for (String clean : List.of(
+                "vamos a la mina a buscar diamantes",
+                "un cono de helado en la tienda",
+                "quel bordel dans ma base",
+                "c'est unique comme build",
+                "je m'en fous de la pluie",
+                "hallo zusammen wie gehts",
+                "die kacke ist am dampfen ist kein Spiel",
+                "ola galera vamos jogar",
+                "merhaba arkadaslar nasilsiniz",
+                "sık sık buraya geliyorum",
+                "Amina is my friend",
+                "send a pic of your base",
+                "hi amina, want to trade?")) {
+            assertFalse(flags(all, clean), "a language pack flagged ordinary chat: " + clean);
+        }
     }
 }

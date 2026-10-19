@@ -92,7 +92,7 @@ public final class MetricsRegistrar {
         metrics.addCustomChart(new SimplePie("locale_state",
                 () -> InstallTelemetry.localeState(plugin.getConfig().getString("locale", "en_US"))));
 
-        // Did Folia and proxy support reach anyone?
+        // Did Folia support reach anyone?
         metrics.addCustomChart(new SimplePie("platform_family",
                 () -> InstallTelemetry.platformFamily(
                         plugin.getServer().getName(),

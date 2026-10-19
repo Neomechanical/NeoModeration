@@ -152,10 +152,14 @@ public final class SurfaceModerationListener implements Listener {
             return;
         }
 
-        if (parts.length < 2) {
+        // "/msg Notch hello": the recipient is a player name, not something the
+        // sender wrote, so it is neither checked nor censored.
+        int firstChecked = parts.length > 2 && plugin.getServer().getPlayerExact(parts[1]) != null ? 2 : 1;
+        if (parts.length <= firstChecked) {
             return;
         }
-        String args = String.join(" ", java.util.Arrays.copyOfRange(parts, 1, parts.length));
+        String kept = String.join(" ", Arrays.copyOfRange(parts, 0, firstChecked));
+        String args = String.join(" ", Arrays.copyOfRange(parts, firstChecked, parts.length));
         OfflineModerationResult result = OfflineModerationEngine.evaluate(args, settings.offline());
         if (!result.flagged()) {
             return;
@@ -167,7 +171,7 @@ public final class SurfaceModerationListener implements Listener {
             event.setCancelled(true);
             plugin.messages().send(player, "surface.blocked");
         } else if (effective == DetectionHandler.Disposition.CENSOR) {
-            event.setMessage(parts[0] + " " + OfflineModerationEngine.censor(args, settings.offline()));
+            event.setMessage(kept + " " + OfflineModerationEngine.censor(args, settings.offline()));
         }
     }
 

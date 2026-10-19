@@ -31,7 +31,7 @@ public record StrikeSettings(boolean enabled, int decayMinutes, List<Escalation>
         }
         ladder.sort(java.util.Comparator.comparingInt(Escalation::atStrikes));
         return new StrikeSettings(
-                config.getBoolean("moderation.strikes.enabled", true),
+                config.getBoolean("moderation.strikes.enabled", false),
                 Math.max(1, config.getInt("moderation.strikes.decayMinutes", 30)),
                 List.copyOf(ladder)
         );

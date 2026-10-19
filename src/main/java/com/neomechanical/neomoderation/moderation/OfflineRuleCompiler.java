@@ -44,7 +44,8 @@ final class OfflineRuleCompiler {
     /**
      * Finds the first match of {@code word} at or after normalised index
      * {@code from}, or {@code null}. A match must start where a token starts and
-     * finish where one finishes; between those points separators are ignored.
+     * finish where one finishes; between those points separators are ignored,
+     * except the apostrophe inside a contraction, which a match never crosses.
      */
     static int[] findMatch(
             TextNormalizer.Normalized text,
@@ -55,25 +56,27 @@ final class OfflineRuleCompiler {
         char[] chars = text.chars();
         boolean[] tokenStart = text.tokenStart();
         boolean[] tokenEnd = text.tokenEnd();
+        boolean[] joinBlocked = text.joinBlocked();
         char[] runChars = word.runChars();
         int[] runLengths = word.runLengths();
         int length = chars.length;
 
         for (int start = from; start < length; start++) {
-            if (!tokenStart[start] || masked[start]) {
+            if (!tokenStart[start] || masked[start] || joinBlocked[start]) {
                 continue;
             }
             int position = start;
             int firstRunEnd = start + 1;
             boolean matched = true;
             for (int run = 0; run < runChars.length; run++) {
-                if (position >= length || chars[position] != runChars[run]) {
+                if (position >= length || chars[position] != runChars[run]
+                        || (position > start && joinBlocked[position])) {
                     matched = false;
                     break;
                 }
                 int runLength = 0;
                 while (position + runLength < length && chars[position + runLength] == runChars[run]) {
-                    if (masked[position + runLength]) {
+                    if (masked[position + runLength] || (runLength > 0 && joinBlocked[position + runLength])) {
                         break;
                     }
                     if (run == runChars.length - 1
@@ -164,8 +167,9 @@ final class OfflineRuleCompiler {
     }
 
     private static CompiledRules compile(OfflineModerationSettings settings) {
-        List<CompiledWord> words = new ArrayList<>(settings.bannedWords().size());
-        for (String bannedWord : settings.bannedWords()) {
+        List<String> bannedWords = settings.effectiveWords();
+        List<CompiledWord> words = new ArrayList<>(bannedWords.size());
+        for (String bannedWord : bannedWords) {
             CompiledWord compiled = compileWord(bannedWord, settings.normalizeLeetspeak());
             if (compiled != null) {
                 words.add(compiled);
