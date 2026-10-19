@@ -28,9 +28,11 @@ alert.found	4d03b9afda2d75f4
 alert.hidden	90a7d47619f006f1
 alert.hover	89124e8bf91f264c
 alert.line	0a4ef2ad7d71a26f
+alert.missed-all	25d62ab3ea37d3ee
+alert.missed-player	27ed6e9b921e738a
 alert.monitor	0e6b063e96bff794,33827df00331298b,fe5cba77e191e84a
-alert.paused-all	5666ff3768a014b5
-alert.paused-player	3d60d8f9ef9f0499
+alert.paused-all	08f8067e977f1aeb,5666ff3768a014b5
+alert.paused-player	3d60d8f9ef9f0499,b3d195ab922064c5
 alert.then	3de0d138518cbeb1
 alert.verdict.blocked	ce1efc5fb4e9abfa
 alert.verdict.censored	9f7e6f095835910d
@@ -65,6 +67,7 @@ cases.status.dismissed	759fe9667e48446f
 cases.status.open	e3b0c44298fc1c14
 cases.status.resolved	7f2d547402764140
 cases.title	731ae4519d7ac51c,7b208f2259e106bb,cf4466fd273fbae8
+cases.title-console	5378f87109b5647e
 cases.title-player	53be23fc75125ca7
 cases.unavailable	2f69840831ea01ad,4ff7aaffddb74c20
 cases.updated	a658685b915e74af
@@ -164,7 +167,7 @@ doctor.detail.discord-rate-limited	1ef4c48fe8fb5950
 doctor.detail.discord-unreachable	98f01eb70f296874
 doctor.detail.endpoint-bad	78589b5736b07941
 doctor.detail.events-auth	7c00230ea7a3c035
-doctor.detail.events-busy	9cd2f1fc2a1a4465
+doctor.detail.events-busy	4ad31c5c2dcf2a7b,9cd2f1fc2a1a4465
 doctor.detail.events-credits	dc98366b5995700f
 doctor.detail.events-none	1a45de7a710aeccb
 doctor.detail.events-ok	ba0f95091e1972cc
@@ -187,6 +190,7 @@ doctor.detail.rules-spam-only	6e65b202aede9dee
 doctor.detail.spam-commands	014e04ef15cb8bcc,88237902b0bc714b
 doctor.detail.spam-idle	35f373a3afb45e46
 doctor.detail.spam-on	8538ea6a8bf5d54e,9c92222bf3458fca
+doctor.detail.strikes-off	b4dc66dde806261b
 doctor.detail.strikes-on	11fa1008942018e8,41e5ec7c3a15989a
 doctor.detail.surfaces-none	c96d400e74a46dbc
 doctor.detail.surfaces-some	2d122aa7eb604e4e
@@ -245,6 +249,7 @@ help.entry-hover	9eef20069aedf572
 help.entry-usage	acded8b7ee84b020
 help.footer	08ced042544daf2e,63e1be82ff037479
 help.hint	20df23520b0d4f11,30d2fbd6be68464d,3d02517ea2a41502,61d95960cef932b8
+help.hint-console	7d43846d5e600bdd
 help.key	cb6eb0b800e878c0
 help.on-off	7a31794b2cea7bf7
 help.page	15eb842a6888a0cc,c8100870f667605e,fe4c436737cb9e7a
@@ -294,8 +299,10 @@ label.not-armed	0ecaaba57f9d6a7a
 label.off	b4dc66dde806261b
 label.on	b8d31e852725afb1
 mapart.blocked	0ffd53ce6420c3a6,3f0fe8a071df1824,98838d955782c775
+mapart.capped	a3ce059b74408cc8
 mapart.confiscated	97284c1f42348ebd,b3d2bbe2eb53b4d4,e0027e46955220e3
 migrated.language-packs	2dbe72e41035e9d3
+migrated.map-art-cap	134cecd87342fa16
 migrated.per-player-off	ac6a34f49593f9f1
 migrated.per-player-on	c100b02fa1220a8f
 migrated.server-ads	d951a02600270ef8
@@ -304,7 +311,7 @@ migrated.words	4799317f7d7b3ef5,7fa452e30c63dd36
 mode.current	2c13f8f0d1e4c13c,320c2d76ca824183,afd2aa729899879a
 mode.set-enforce	8a861a6f84546397,9b49c9a6a7fd2610,e68154c364506afa
 mode.set-monitor	2251f4721e6d026c,39e2eee0a36eb652,925d21d3454a7bdc,956c12c96d24a202
-mode.stats	193fbb2785ed283e,7b409c76e529997a,a99dc28da25ac0e0,f1f9e9c32b04405e,fef8df6eaf8cc1eb
+mode.stats	193fbb2785ed283e,7b409c76e529997a,a99dc28da25ac0e0,d302dc5f1db2c2d7,f1f9e9c32b04405e,fef8df6eaf8cc1eb
 mode.stats-line	228804bb9e98988e,5f6d7482a41f9dc0
 mode.usage	27ecc050d6f712e2,7aa6497156ddbe92,e9039a826a74f589
 mute.blocked	6dc69b9dbffa63c2,e34fbbb6753f6adc
@@ -328,6 +335,7 @@ preset.family	c2a63db53e19cdfd
 preset.list-hover	ea3eb61c2be7c70d
 preset.list-item	1871ba6d0ebdb76a,b8cd1424286b536e
 preset.list-title	01ef46794c98aa7c,899df97759bc4478,b4a27dba963d8dd2,e11bf164f54aaed9
+preset.list-title-console	691885f66e70c5f9
 preset.minimal	0cf4b69402a04393
 preset.usage	0f8f0b6b707f80c7,abc4b506e4828895,b84e807cf082384d
 privacy.cases	1592d142531818f5
@@ -369,7 +377,7 @@ reason.word-split	63fac836b6dcc983
 reload.done	4aceb4ac5aaca4d8,4ba63a1ed0c12ec0,4fae3f4210021f4a,5741b89f40bef68b,b9f67c0ed8f19965
 rules.added	275e4943245135ca
 rules.already-there	a9460a412050a3e6
-rules.in-pack	deaed27e8dc7b198
+rules.in-pack	89358f7db587db11,deaed27e8dc7b198
 rules.kind.allowed-url	b6ff75e490c56b0e
 rules.kind.allowed-word	d250f967dccb3ba3
 rules.kind.url	7620c0092b93d0a9
@@ -425,6 +433,7 @@ status.checks	778ebb2fcb72b850
 status.circuit	60aded9ad4c5fdc8
 status.cloud	20fda3e93fbd3cc3,57d8a111c171d9a3,dbfa1c96cd175af4,f6a1585bac2d1932
 status.cloud-auth	ca9a47de9addd9c3,ffd68c35f9f8aad0
+status.cloud-busy	843cc20bc9c5dd91
 status.cloud-credits	1c3dbfcb2770f281,edd17f582080a0af
 status.cloud-no-key	0116d511a4468e38,101e42596a93834d,dd6a6b8279d3945c,f5e55b96838dc564
 status.cloud-no-key-staff	7f28e5825e79b765
@@ -484,6 +493,7 @@ surface.name.command	b269dc4e81a528a4
 surface.name.sign	9cb5654b55401601
 surface.row	71ea691527879dbd,fa36b93a4efa053e
 surface.title	37c61d18c1282e44,7cb0bb5a21187150
+surface.title-console	e751246bc08e7afd
 surface.updated	0c74c9b76ac38962,a801e3a7eed4ec20
 surface.usage	bafec5e7d8347709,e9d842b745d63ef7
 test.chat-disabled	6e438010af3a2b56,93b2a07c49a285f3

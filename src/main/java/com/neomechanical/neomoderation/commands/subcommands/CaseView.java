@@ -45,7 +45,8 @@ final class CaseView {
         if (row.preview() != null && !row.preview().isBlank()) {
             lines.add(MenuRenderer.text(messages.format(reader, "cases.preview", Map.of("value", row.preview()))));
         }
-        lines.add(MenuRenderer.buttons(buttons(messages, reader, row, label)));
+        List<Button> buttons = buttons(messages, reader, row, label);
+        lines.add(MenuRenderer.buttons(buttons).forConsole(MenuRenderer.withCommands(buttons)));
         return lines;
     }
 

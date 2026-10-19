@@ -35,7 +35,7 @@ The free 14-day trial runs on your own chat, and while it runs its decisions onl
 
 ## What runs without a key
 
-- Starter lists of swear words and slurs in English, plus the Spanish, French, German, Portuguese or Turkish list that matches `locale` in `config.yml`. `moderation.offline.languagePacks` takes `[auto, es]`, `[all]` or `[]`. A word only matches from the start of a word to the end of one, so "assignment" and "Scunthorpe" stay clean. Matching sees through spacing ("f uck", "k y s"), accents, look-alike letters, leetspeak and words split across rapid short messages, but two everyday words are never read as one ("put a" is not a slur). Write a word with a space, such as "ass hole", to catch it however it is spaced. A word one language uses every day and another bans, such as French "retard" (late) or the Spanish name Kike, passes for players whose game language it is, and for everyone when `locale` is that language.
+- Starter lists of swear words and slurs in English, plus the Spanish, French, German, Portuguese or Turkish list that matches `locale` in `config.yml`. `moderation.offline.languagePacks` takes `[auto, es]`, `[all]` or `[]`. A word only matches from the start of a word to the end of one, so "assignment" and "Scunthorpe" stay clean. Matching sees through spacing ("f uck", "k y s"), accents, look-alike letters, leetspeak and words split across rapid short messages. Everyday words of English, the server's language or the player's own stay clean when together they spell a listed word, so "put a torch here" passes. Write a word with a space, such as "ass hole", to catch it however it is spaced. A word one language uses every day and another bans, such as French "retard" (late) or the Spanish name Kike, passes on a server whose `locale` is that language, and for a player whose game language it is when the message is written in that language.
 - Ads for other servers are blocked on a new install: public IP addresses, addresses with a port, `play.` and `mc.` style addresses, free hosts such as `aternos.me`, and "join myserver.net". Ordinary links are not affected. Let your own address through with `/nmod allow url add <address>`. An upgraded server keeps this off until you set `moderation.offline.blockServerAds: true`.
 - IP grabbers and fake giveaway links from a starter list are blocked, including ones written with `(dot)` or `[.]`.
 - Anti-spam blocks message floods, the same message again, character floods and command floods, and lets messages in capitals through in lower case. Spam is only blocked; your actions stay for abuse. Tune it under `moderation.spam`.
@@ -49,7 +49,7 @@ The free 14-day trial runs on your own chat, and while it runs its decisions onl
 
 - Players with `neomoderation.notify` see each detection in chat. Those who may open cases can click it for that player's history. During a raid, alerts about one player pause after three in 30 seconds, and all alerts after a dozen in 10 seconds; the console and case history still get every one. `moderation.alerts.includeMessage: false` hides the message text.
 - `/nmod discord <webhook URL>` sends the same alerts to a Discord channel, batched so a raid cannot flood it, with mentions turned off. `/nmod discord test` checks it, and `/nmod doctor` says when Discord refuses alerts.
-- `/nmod mute <player> [duration]` and `/nmod unmute <player>` mute a player by hand. A mute covers public chat and every message command (`/msg`, `/tell`, `/r`, `/me`, `/mail`, `/teammsg`, the rest of `scannedCommands`, and any alias the server has for them, such as EssentialsX's `/m`), with no other plugin.
+- `/nmod mute <player> [duration]` and `/nmod unmute <player>` mute a player by hand, with no other plugin. A mute covers public chat, private messages (`/msg`, `/tell`, `/r` and any alias the server has for them, such as EssentialsX's `/m`), `/me`, sending `/mail`, `/teammsg`, mcMMO party chat and the rest of `scannedCommands`. Channel chat other plugins add, such as TownyChat's, is not covered.
 - `/nmod allow word|url add <value>` fixes a false positive at once. Allowed phrases and links always win.
 - `/nmod preset family|community|minimal` sets how strict the cloud is without touching local rules or actions. Each category also takes its own threshold (0.05 to 0.99) in `config.yml`.
 - `/nmod doctor` lists every setting that needs attention.
@@ -108,8 +108,8 @@ Messages ship in English (`en_US`), Spanish (`es_ES`), French (`fr_FR`), German 
 
 ## Compatibility
 
-Supports Bukkit, Spigot, Paper, Purpur and Folia on Minecraft 1.18.2 through
-the current Paper releases, 26.2 and 26.3. Before each release, every check
+Supports Spigot, Paper and Purpur on Minecraft 1.18.2 through the current
+Paper releases, 26.2 and 26.3, and Folia from 1.19.4. Before each release, every check
 runs on Paper 1.18.2, 1.19.4, 1.20.6, 1.21.11, 26.1.2, 26.2 and 26.3 and on
 Folia 1.21.11. On each, a real player joins, chats, is blocked and leaves a
 case, and an operator's menus arrive. On 26.2 and 26.3 the test player joins

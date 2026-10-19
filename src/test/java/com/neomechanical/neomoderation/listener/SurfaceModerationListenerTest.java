@@ -117,6 +117,38 @@ class SurfaceModerationListenerTest {
         verify(warpTo, never()).setCancelled(true);
     }
 
+    @Test
+    void aMuteGoesByTheCommandTheServerRunsNotTheNameTyped() {
+        NeoModerationPlugin plugin = pluginWith("off");
+        Server server = mock(Server.class, withSettings().extraInterfaces(CommandMapHolder.class));
+        CommandMap map = mock(CommandMap.class);
+        when(((CommandMapHolder) server).getCommandMap()).thenReturn(map);
+        Map<String, String> commands = Map.of("t", "town", "towny:t", "town", "dm", "deluxemenus",
+                "m", "msg", "mail", "mail", "memo", "mail");
+        commands.forEach((label, name) -> {
+            Command command = mock(Command.class);
+            when(command.getName()).thenReturn(name);
+            when(map.getCommand(label)).thenReturn(command);
+        });
+        when(plugin.getServer()).thenReturn(server);
+        Player player = mock(Player.class);
+        UUID id = UUID.randomUUID();
+        when(player.getUniqueId()).thenReturn(id);
+        when(plugin.muteService().isMuted(id)).thenReturn(true);
+        SurfaceModerationListener listener = new SurfaceModerationListener(plugin, mock(DetectionHandler.class));
+
+        for (String text : List.of("/t spawn", "/towny:t spawn", "/dm open shop", "/mail read", "/memo clear")) {
+            PlayerCommandPreprocessEvent event = command(player, text);
+            listener.onCommand(event);
+            verify(event, never()).setCancelled(true);
+        }
+        for (String text : List.of("/m Notch hi", "/mail send Notch hi", "/memo sendall hi everyone")) {
+            PlayerCommandPreprocessEvent event = command(player, text);
+            listener.onCommand(event);
+            verify(event).setCancelled(true);
+        }
+    }
+
     /** {@code Server#getCommandMap()}, which the 1.8 API the plugin compiles against does not have. */
     public interface CommandMapHolder {
         CommandMap getCommandMap();

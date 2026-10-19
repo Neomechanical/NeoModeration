@@ -23,8 +23,12 @@ public final class MenuRenderer {
         NONE
     }
 
-    /** Both renderings of one line: components for players, plain text for the console. */
+    /** Both renderings of one line: components for players, plain text for the console; {@code null} leaves one out. */
     public record Line(BaseComponent[] player, String console) {
+        /** The same line, reading {@code text} on the console, which cannot click; {@code null} for none. */
+        public Line forConsole(String text) {
+            return new Line(player, text);
+        }
     }
 
     /** One clickable part of a line, such as a [Resolve] button. */
@@ -32,6 +36,24 @@ public final class MenuRenderer {
     }
 
     private MenuRenderer() {
+    }
+
+    /** A line only the console reads, such as the command a player would have clicked. */
+    public static Line consoleOnly(String formatted) {
+        return new Line(null, formatted);
+    }
+
+    /** Each button's text with the command it runs, one per line, for the console. */
+    public static String withCommands(List<Button> parts) {
+        StringBuilder text = new StringBuilder();
+        for (Button part : parts) {
+            if (part.target() == null || part.target().isBlank() || part.action() == ClickAction.NONE) {
+                continue;
+            }
+            text.append(text.isEmpty() ? "" : "\n").append("  ").append(part.text().stripTrailing())
+                    .append(' ').append(part.target().strip());
+        }
+        return text.toString();
     }
 
     /** Static line (header, divider, hint): same text both forms. */

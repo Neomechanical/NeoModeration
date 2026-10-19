@@ -110,7 +110,7 @@ public class CasesCmd implements SubCommand {
                 String who = player == null ? ""
                         : messages.format(sender, "cases.title-player", Map.of("player", player));
                 List<MenuRenderer.Line> lines = new ArrayList<>();
-                lines.add(MenuRenderer.text(messages.format(sender, "cases.title", Map.of("who", who))));
+                lines.add(MenuRenderer.text(messages.format(sender, "cases.title", Map.of("who", who, "label", label))));
                 rows.forEach(row -> lines.add(CaseView.row(messages, sender, row, label)));
                 if (older) {
                     String next = "/" + label + " cases " + (player == null ? "" : player + " ") + "page " + (page + 1);

@@ -12,6 +12,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
@@ -22,25 +23,31 @@ import java.util.logging.Logger;
  * through at once and is checked in the background. Requests run on a few
  * workers with a short queue, so a burst of chat waits its turn instead of
  * skipping the cloud; when the queue is full, or a message's wait runs out while
- * it is still queued, it goes through unchecked as an overload.
+ * it is still queued, it goes through unchecked as an overload, which
+ * {@link #busySkipped()} counts.
  *
- * <p>Only what the cloud itself did counts towards pausing it: each worker
- * records its own call's result, and a call that answered too slowly for chat
- * counts as a failure. Time a message spent waiting for a free worker is the
- * server's load, never the cloud's fault.</p>
+ * <p>Only what the cloud itself did counts towards pausing it, or shows as the
+ * last cloud result: each worker records its own call's result, and a call that
+ * answered too slowly for chat counts as a failure. Time a message spent waiting
+ * for a free worker is the server's load, never the cloud's fault.</p>
  */
 public final class ChatModerationCoordinator implements AutoCloseable {
     private static final int WORKERS = 8;
     private static final int QUEUED = 32;
     private static final long MAX_WAIT_MS = 2500L;
+    /** The console hears about a busy server at most this often. */
+    private static final long BUSY_WARNING_NANOS = TimeUnit.MINUTES.toNanos(10);
 
     private final AtomicInteger workerSeq = new AtomicInteger();
+    private final AtomicLong busySkipped = new AtomicLong();
+    private final AtomicLong lastBusyWarning = new AtomicLong();
+    private final Logger logger;
     private final ModerationCircuitBreaker circuit;
     private final ModerationApiClient apiClient;
     private final ThreadPoolExecutor workers;
 
     public ChatModerationCoordinator(Logger logger) {
-        this(new ModerationCircuitBreaker(logger), new ModerationApiClient());
+        this(new ModerationCircuitBreaker(logger), new ModerationApiClient(), WORKERS, QUEUED, logger);
     }
 
     ChatModerationCoordinator(ModerationCircuitBreaker circuit, ModerationApiClient apiClient) {
@@ -49,6 +56,12 @@ public final class ChatModerationCoordinator implements AutoCloseable {
 
     ChatModerationCoordinator(ModerationCircuitBreaker circuit, ModerationApiClient apiClient,
                               int workerCount, int queueCapacity) {
+        this(circuit, apiClient, workerCount, queueCapacity, Logger.getLogger("NeoModeration"));
+    }
+
+    private ChatModerationCoordinator(ModerationCircuitBreaker circuit, ModerationApiClient apiClient,
+                                      int workerCount, int queueCapacity, Logger logger) {
+        this.logger = logger;
         this.circuit = circuit;
         this.apiClient = apiClient;
         ThreadPoolExecutor pool = new ThreadPoolExecutor(workerCount, workerCount, 30L, TimeUnit.SECONDS,
@@ -87,6 +100,23 @@ public final class ChatModerationCoordinator implements AutoCloseable {
         return circuit.lastResultKind();
     }
 
+    /** How many messages went without a cloud check since startup because every worker was busy. */
+    public long busySkipped() {
+        return busySkipped.get();
+    }
+
+    /** A message skipped the cloud because every worker was busy: counted, and told to the console now and then. */
+    private ModerationApiResult skippedWhileBusy() {
+        busySkipped.incrementAndGet();
+        long now = System.nanoTime();
+        long last = lastBusyWarning.get();
+        if ((last == 0L || now - last >= BUSY_WARNING_NANOS) && lastBusyWarning.compareAndSet(last, now)) {
+            logger.warning("Chat came faster than the cloud workers could check it, so some messages had only "
+                    + "the local rules. /nmod status counts them.");
+        }
+        return ModerationApiResult.overloaded();
+    }
+
     /**
      * Records moderation-event calls made outside the normal chat path, such as
      * /nmod test and map-art scans. Account/usage calls must not enter this state.
@@ -115,7 +145,7 @@ public final class ChatModerationCoordinator implements AutoCloseable {
         try {
             workers.execute(() -> onResult.accept(ask(name, uuid, message, settings, Long.MAX_VALUE)));
         } catch (RejectedExecutionException busy) {
-            circuit.record(ModerationApiResult.overloaded());
+            skippedWhileBusy();
         }
     }
 
@@ -142,39 +172,46 @@ public final class ChatModerationCoordinator implements AutoCloseable {
         ));
         String name = player.getName();
         String uuid = player.getUniqueId().toString();
-        // Whoever gets here first decides: the worker with an answer, or the chat thread giving up.
-        AtomicReference<Waiter> waiter = new AtomicReference<>(Waiter.WAITING);
+        // Whoever gets here first decides: the worker starting or answering, or the chat thread giving up.
+        AtomicReference<Waiter> waiter = new AtomicReference<>(Waiter.QUEUED);
         Future<ModerationApiResult> future;
         try {
             future = workers.submit(() -> {
+                if (!waiter.compareAndSet(Waiter.QUEUED, Waiter.ASKING)) {
+                    return null;  // The message went on without the cloud while it waited for a worker.
+                }
                 ModerationApiResult result = ask(name, uuid, message, settings, waitMs);
-                if (!waiter.compareAndSet(Waiter.WAITING, Waiter.ANSWERED)) {
+                if (!waiter.compareAndSet(Waiter.ASKING, Waiter.ANSWERED)) {
                     late.accept(result);
                 }
                 return result;
             });
         } catch (RejectedExecutionException error) {
-            ModerationApiResult result = ModerationApiResult.overloaded();
-            circuit.record(result);
-            return result;
+            return skippedWhileBusy();
         }
 
         try {
             return future.get(waitMs, TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
-            if (!waiter.compareAndSet(Waiter.WAITING, Waiter.GAVE_UP)) {
-                // The answer arrived just now.
-                return answerOf(future);
+            if (waiter.compareAndSet(Waiter.QUEUED, Waiter.SKIPPED)) {
+                // Still queued: it never reaches the cloud.
+                future.cancel(false);
+                workers.purge();
+                return skippedWhileBusy();
             }
-            // Still queued, it never reaches the cloud; already asking, its worker records what the cloud did.
-            future.cancel(false);
-            workers.purge();
-            ModerationApiResult result = ModerationApiResult.overloaded();
-            circuit.record(result);
-            return result;
+            if (waiter.compareAndSet(Waiter.ASKING, Waiter.LATE)) {
+                // Already asking: its worker records what the cloud did, and passes a late answer on.
+                return ModerationApiResult.transientTransport();
+            }
+            // The answer arrived just now.
+            return answerOf(future);
         } catch (InterruptedException e) {
-            future.cancel(false);
             Thread.currentThread().interrupt();
+            if (waiter.compareAndSet(Waiter.QUEUED, Waiter.SKIPPED)) {
+                future.cancel(false);
+            } else {
+                waiter.compareAndSet(Waiter.ASKING, Waiter.LATE);
+            }
             return ModerationApiResult.transientTransport();
         } catch (ExecutionException e) {
             ModerationApiResult result = ModerationApiResult.transientTransport();
@@ -183,10 +220,18 @@ public final class ChatModerationCoordinator implements AutoCloseable {
         }
     }
 
+    /** Where one message's cloud check stands, between its worker and the chat thread waiting for it. */
     private enum Waiter {
-        WAITING,
+        /** Waiting for a free worker. */
+        QUEUED,
+        /** A worker is asking the cloud. */
+        ASKING,
+        /** The cloud answered while chat still waited. */
         ANSWERED,
-        GAVE_UP
+        /** Chat went on before a worker was free; the cloud is never asked. */
+        SKIPPED,
+        /** Chat went on while the cloud was being asked; the answer goes to the late consumer. */
+        LATE
     }
 
     private static ModerationApiResult answerOf(Future<ModerationApiResult> answered) {

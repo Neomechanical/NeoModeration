@@ -47,7 +47,8 @@ public class DoctorCmd implements SubCommand {
         DiscordAlerts.Problem discordProblem = plugin.discordAlerts() == null ? null : plugin.discordAlerts().lastProblem();
         DoctorChecks.local(settings, plugin.caseLog().isAvailable(), discordProblem).forEach(check -> render(sender, check));
         List<DoctorChecks.Check> cloud = DoctorChecks.cloudSetup(settings,
-                plugin.coordinator().isRemoteCallAllowed(), plugin.coordinator().lastCloudResultKind());
+                plugin.coordinator().isRemoteCallAllowed(), plugin.coordinator().lastCloudResultKind(),
+                plugin.coordinator().busySkipped());
         cloud.forEach(check -> render(sender, check));
         if (!DoctorChecks.readyForAccountCheck(cloud)) {
             messages.sendFooter(sender);

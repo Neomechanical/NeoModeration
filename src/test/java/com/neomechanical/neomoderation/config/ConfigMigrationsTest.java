@@ -117,6 +117,21 @@ class ConfigMigrationsTest {
     }
 
     @Test
+    void anUpgradedServerSeesTheMapArtLimitAndIsToldWhenItHasACloudKey() throws Exception {
+        YamlConfiguration keyless = upgradedFrom166("en_US");
+        assertFalse(keys(ConfigMigrations.apply(keyless, false)).contains("migrated.map-art-cap"),
+                "without a key no map is checked, so the limit is no news");
+        assertEquals(30, keyless.getInt(ConfigMigrations.MAP_ART_CAP_PATH));
+
+        YamlConfiguration keyed = upgradedFrom166("en_US");
+        keyed.set("moderation.api.apiKey", "nmk_test");
+        List<ConfigMigrations.Change> changes = ConfigMigrations.apply(keyed, false);
+
+        assertTrue(changes.contains(new ConfigMigrations.Change("migrated.map-art-cap", java.util.Map.of("count", "30"))));
+        assertFalse(keys(ConfigMigrations.apply(keyed, false)).contains("migrated.map-art-cap"), "said once");
+    }
+
+    @Test
     void anEnglishServerHasNoPackToKeepOffSoItIsNotToldAboutOne() throws Exception {
         YamlConfiguration config = upgradedFrom166("en_US");
 

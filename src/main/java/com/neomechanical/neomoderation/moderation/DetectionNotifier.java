@@ -10,14 +10,16 @@ import com.neomechanical.neomoderation.messages.Reasons;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.LongSupplier;
 
 /**
  * Tells people about a detection: one line in the console, an alert to every
  * online player holding {@code neomoderation.notify} in their own language
- * (click it for the player's cases; paused during a raid, see
+ * (click it for the player's cases; paused while a raid lasts, see
  * {@link AlertThrottle}), and a post to the Discord webhook if one is set. Runs
  * on the offender's thread.
  */
@@ -29,10 +31,16 @@ public final class DetectionNotifier {
     private final NeoModerationPlugin plugin;
     private final DiscordAlerts discord;
     private final AlertThrottle throttle = new AlertThrottle();
+    private final LongSupplier clock;
 
     public DetectionNotifier(NeoModerationPlugin plugin, DiscordAlerts discord) {
+        this(plugin, discord, System::currentTimeMillis);
+    }
+
+    DetectionNotifier(NeoModerationPlugin plugin, DiscordAlerts discord, LongSupplier clock) {
         this.plugin = plugin;
         this.discord = discord;
+        this.clock = clock;
     }
 
     /** A detection as alerts describe it. */
@@ -50,28 +58,13 @@ public final class DetectionNotifier {
         plugin.getLogger().info(MessageService.plain(line(messages, console, detection, preview, "")).trim());
 
         AlertThrottle.Decision shown = settings.alerts().enabled()
-                ? throttle.admit(detection.player(), System.currentTimeMillis())
+                ? throttle.admit(detection.player(), clock.getAsLong())
                 : AlertThrottle.Decision.QUIET;
-        if (shown != AlertThrottle.Decision.QUIET) {
-            String casesCommand = CaseLog.historyCommand("nmod", detection.player());
+        if (shown.kind() != AlertThrottle.Kind.QUIET || shown.missed() != null) {
             for (Player staff : plugin.getServer().getOnlinePlayers()) {
-                if (!staff.hasPermission(Permissions.NOTIFY)) {
-                    continue;
+                if (staff.hasPermission(Permissions.NOTIFY)) {
+                    messages.sendMenu(staff, staffLines(messages, staff, detection, preview, shown));
                 }
-                String line = switch (shown) {
-                    case PAUSE_PLAYER -> messages.format(staff, "alert.paused-player", Map.of("player",
-                            detection.player(), "seconds", String.valueOf(AlertThrottle.PLAYER_WINDOW_MS / 1000)));
-                    case PAUSE_ALL -> messages.format(staff, "alert.paused-all",
-                            Map.of("seconds", String.valueOf(AlertThrottle.OVERALL_WINDOW_MS / 1000)));
-                    default -> line(messages, staff, detection, preview, null);
-                };
-                // The click opens the player's cases, so it is only offered to staff who may open them.
-                messages.sendMenu(staff, List.of(staff.hasPermission(Permissions.MODERATE)
-                        && shown != AlertThrottle.Decision.PAUSE_ALL
-                        ? MenuRenderer.clickableLine(line, casesCommand,
-                                messages.format(staff, "alert.hover", Map.of("player", detection.player())),
-                                MenuRenderer.ClickAction.RUN)
-                        : MenuRenderer.text(line)));
             }
         }
 
@@ -80,6 +73,43 @@ public final class DetectionNotifier {
             discord.submit(webhook, discordAlert(messages, console, detection, preview),
                     MessageService.plain(messages.format(console, "discord.more", Map.of("count", "{count}"))));
         }
+    }
+
+    /** What one staff member sees for a detection: the line about a pause it ends, then the alert or a pause line. */
+    private static List<MenuRenderer.Line> staffLines(MessageService messages, Player staff, Detection detection,
+                                                      String preview, AlertThrottle.Decision shown) {
+        // The click opens cases, so it is only offered to staff who may open them.
+        boolean mayOpen = staff.hasPermission(Permissions.MODERATE);
+        List<MenuRenderer.Line> lines = new ArrayList<>(2);
+        AlertThrottle.Missed missed = shown.missed();
+        if (missed != null && missed.player() != null) {
+            String line = messages.format(staff, "alert.missed-player",
+                    Map.of("player", missed.player(), "count", String.valueOf(missed.alerts())));
+            lines.add(casesLine(messages, staff, line, missed.player(), mayOpen));
+        } else if (missed != null) {
+            lines.add(MenuRenderer.text(messages.format(staff, "alert.missed-all", Map.of(
+                    "count", String.valueOf(missed.alerts()), "players", String.valueOf(missed.players())))));
+        }
+        switch (shown.kind()) {
+            case SHOW -> lines.add(casesLine(messages, staff, line(messages, staff, detection, preview, null),
+                    detection.player(), mayOpen));
+            case PAUSE_PLAYER -> lines.add(casesLine(messages, staff,
+                    messages.format(staff, "alert.paused-player", Map.of("player", detection.player())),
+                    detection.player(), mayOpen));
+            case PAUSE_ALL -> lines.add(MenuRenderer.text(messages.format(staff, "alert.paused-all", Map.of())));
+            case QUIET -> {
+            }
+        }
+        return lines;
+    }
+
+    /** A line that opens {@code player}'s cases when clicked, for staff who may open them. */
+    private static MenuRenderer.Line casesLine(MessageService messages, Player staff, String line, String player,
+                                               boolean mayOpen) {
+        return mayOpen
+                ? MenuRenderer.clickableLine(line, CaseLog.historyCommand("nmod", player),
+                        messages.format(staff, "alert.hover", Map.of("player", player)), MenuRenderer.ClickAction.RUN)
+                : MenuRenderer.text(line);
     }
 
     /**

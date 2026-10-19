@@ -46,6 +46,7 @@ help:
   dashboard: "{#brand}&lNeoModeration{#faint} {version}{#muted}. Yerel kurallar: {#text}{mode}{#muted}, bulut: {#text}{cloud}{#muted}, başlangıçtan beri {#text}{total}{#muted} yakalama"
   page: "{#faint}Sayfa {page}/2. {#muted}Devamı: {#brand}/nmod help {next}"
   hint: "{#faint}Çalıştırmak ya da sohbet kutunuza koymak için bir komuta tıklayın. Ne yaptığını görmek için üzerine gelin."
+  hint-console: "{#faint}Çalıştırmak için aşağıdaki komutlardan birini yazın."
   entry-usage: "  {#brand}{usage}"
   entry-desc: "  {#muted}{desc}"
   entry-hover: "{#brand}{usage}\n{#muted}{desc}"
@@ -165,6 +166,7 @@ status:
   cloud-credits: "{#muted}Son bulut denetimi: {#risk}kredi bitti{#muted}. {#brand}{billingUrl}{#muted} adresinden ekleyin."
   cloud-request-error: "{#muted}Son bulut denetimi: {#risk}istek reddedildi{#muted}. {#brand}/nmod doctor{#muted} çalıştırın."
   cloud-transient: "{#muted}Son bulut denetimi: {#review}yanıt yok{#muted}. Yerel kurallar çalışmaya devam ediyor; {#brand}/nmod reload{#muted} hemen yeniden dener."
+  cloud-busy: "{#muted}Başlangıçtan beri bulutun denetlemeye vakit bulamadığı mesajlar (sohbet çok hızlıydı): {#text}{count}"
   value:
     alerts-preview: "açık, mesajla birlikte"
     alerts-hidden: "açık, mesaj gizli"
@@ -196,7 +198,7 @@ rules:
   removed: "{prefix} {#safe}{kind}: {#text}{value}{#safe} kaldırıldı."
   already-there: "{prefix} {#muted}{kind}: {#text}{value}{#muted} zaten listede."
   not-there: "{prefix} {#muted}{kind}: {#text}{value}{#muted} listede yok."
-  in-pack: "{prefix} {#muted}{#text}{value}{#muted} bir dil paketinden geliyor, bu yüzden engellemeye devam ediyor. İzin vermek için {#brand}/{label} allow word add {value}{#muted} çalıştırın."
+  in-pack: "{prefix} {#muted}{#text}{value}{#muted} bir dil paketinden geliyor, bu yüzden engellemeye devam ediyor. {#brand}/{label} allow word add {value}{#muted} ona her oyuncunun her mesajında izin verir."
 
 action:
   usage: "{prefix} {#muted}{#brand}/{label} action <list|add|remove|reset>{#muted} kullanın."
@@ -240,6 +242,7 @@ usage:
 mapart:
   confiscated: "{prefix} {#risk}Bu harita kaldırıldı: resmine burada izin verilmiyor."
   blocked: "{prefix} {#risk}Bu haritanın resmine burada izin verilmiyor."
+  capped: "{prefix} {#text}{player}{#muted} oyuncusunun resimleri saatin geri kalanında buluta gönderilmiyor: moderation.mapArt.checksPerPlayerPerHour sınırına ({#text}{limit}{#muted}) ulaşıldı."
 
 mute:
   blocked: "{prefix} {#muted}{#text}{duration}{#muted} süreyle susturuldunuz."
@@ -317,11 +320,14 @@ alert:
   then: " {#faint}ardından {#muted}{actions}"
   hidden: "mesaj gizli"
   hover: "{#muted}{player} adlı oyuncunun vakalarını görmek için tıklayın"
-  paused-player: "{prefix} {#text}{player}{#muted} hakkındaki bildirimler {seconds} saniye duraklatıldı. Her şey kaydedilmeye devam ediyor."
-  paused-all: "{prefix} {#muted}Aynı anda çok fazla bildirim geldi, bu yüzden {seconds} saniye duraklatıldı. Her şey kaydedilmeye devam ediyor."
+  paused-player: "{prefix} {#text}{player}{#muted} hakkındaki bildirimler bu devam ettiği sürece duraklatılır. Her şey kaydedilmeye devam ediyor."
+  paused-all: "{prefix} {#muted}Aynı anda çok fazla bildirim geldi, bu yüzden ortalık sakinleşene kadar duraklatılır. Her şey kaydedilmeye devam ediyor."
+  missed-player: "{prefix} {#text}{player}{#muted} hakkındaki bildirimler yeniden gösteriliyor. Duraklatma sırasında kaçırılan: {#text}{count}"
+  missed-all: "{prefix} {#muted}Bildirimler yeniden gösteriliyor. Duraklatma sırasında kaçırılan: {#text}{count}{#muted}, oyuncu sayısı: {#text}{players}"
 
 surface:
   title: "{prefix} {#muted}Yerel kuralların geçerli olduğu yerler. Değiştirmek için bir ayara tıklayın."
+  title-console: "{prefix} {#muted}Yerel kuralların geçerli olduğu yerler."
   chat-row: "  {#text}Sohbet{#muted}: her zaman denetlenir"
   chat-row-off: "  {#text}Sohbet{#muted}: denetlenmiyor (moderation.chat.scanAsyncChat)"
   row: "  {#text}{surface}{#muted}: "
@@ -350,7 +356,7 @@ allow:
 mode:
   usage: "{prefix} {#muted}{#brand}/{label} mode <monitor|enforce>{#muted} kullanın."
   current: "{prefix} {#muted}Yerel kurallar: {#text}{value}"
-  stats: "{prefix} {#muted}{#text}{since}{#muted} önceki başlangıçtan beri yakalanan: {#text}{total}"
+  stats: "{prefix} {#muted}Sunucu {#text}{since}{#muted} önce başladığından beri yakalanan: {#text}{total}"
   stats-line: "  {#faint}{count} {#muted}{what}"
   set-monitor: "{prefix} {#review}Yerel kurallar artık yalnızca yetkililere bildiriyor. {#muted}{#brand}/nmod mode enforce{#muted} çalıştırılana kadar hiçbir şey engellenmez."
   set-enforce: "{prefix} {#safe}Yerel kurallar artık engelliyor. {#muted}{#brand}/nmod action{#muted} ile ayarlanan eylemler de çalışır."
@@ -439,9 +445,10 @@ doctor:
     rules-spam-only: "kelime ya da bağlantı kuralı yok; spam koruması yine de çalışıyor"
     rules-cloud-only: "kelime ya da bağlantı kuralı yok; yalnızca bulut denetliyor"
     rules-none: "hiçbir kelime, bağlantı, spam ya da bulut denetimi açık değil"
-    actions-none: "yalnızca engelle; kimse susturulmaz, atılmaz ya da yasaklanmaz"
+    actions-none: "yalnızca engellenir; kimse susturulmaz, atılmaz ya da yasaklanmaz"
     actions-list: "{actions}"
     off-plain: "kapalı"
+    strikes-off: "kapalı"
     spam-on: "10 sn'de mesaj: {rate}, tekrar: {repeats}, büyük harf: %{caps}"
     spam-commands: "10 sn'de komut: {rate}"
     spam-idle: "açık, ama bütün sınırlar 0"
@@ -473,7 +480,7 @@ doctor:
     events-credits: "kredi bitti"
     events-request: "reddedildi; moderation.api.endpoint değerini denetleyin"
     events-transient: "buluttan yanıt yok"
-    events-busy: "bulut meşguldü; yerel kurallar yine de çalıştı"
+    events-busy: "sohbet, bulutun denetleyebileceğinden hızlı geldiği için başlangıçtan beri {count} mesaj yalnızca yerel kurallardan geçti"
     account-ok: "{ms} ms, çalışma alanı {workspace}, plan {plan}"
     account-auth: "anahtar reddedildi ({ms} ms). {url} adresinden değiştirip /nmod setup <anahtar> çalıştırın"
     account-credits: "kredi bitti ({ms} ms). {url} adresinden ekleyin"
@@ -504,6 +511,7 @@ privacy:
 
 cases:
   title: "{prefix} {#muted}Vakalar{who}. Açmak için birine tıklayın."
+  title-console: "{prefix} {#muted}Vakalar{who}. Birini açmak için {#brand}/{label} case <numara>{#muted} çalıştırın."
   title-player: ": {#text}{player}{#muted}"
   line: "  {#faint}#{id} {verdict} {#text}{player}{#faint} {surface}{#muted}: {reason} {#faint}{ago} önce{status}"
   status:
@@ -542,6 +550,7 @@ cases:
 preset:
   usage: "{prefix} {#muted}{#brand}/{label} preset <family|community|minimal>{#muted} kullanın."
   list-title: "{prefix} {#muted}Bulutun ne kadar katı olduğu. Kullanmak için birine tıklayın."
+  list-title-console: "{prefix} {#muted}Bulutun ne kadar katı olduğu. Birini kullanmak için {#brand}/{label} preset <ad>{#muted} çalıştırın."
   list-item: "  {#brand}{name}{#muted}: {summary}"
   list-hover: "{#muted}{name} ön ayarını kullan"
   family: "bütün kategoriler, en katı (0,55)"
@@ -579,7 +588,7 @@ welcome:
   surfaces-hover: "{#muted}/nmod surface çalıştırır"
   test-btn: "  {#brand}[Bir mesaj dene]"
   test-hover: "{#muted}/nmod test badword çalıştırır. Hiçbir şey engellenmez."
-  ads-btn: "  {#brand}[Oyuncuların sunucunuzun adresini paylaşmasına izin ver]"
+  ads-btn: "  {#brand}[Oyuncuların sunucunun adresini paylaşmasına izin ver]"
   ads-hover: "{#muted}Sohbetinize /nmod allow url add yazar. Ardından sunucunuzun adresini yazın."
 
 update:
@@ -619,3 +628,4 @@ migrated:
   tell-players: "Oyunculara artık bir mesajın neden durdurulduğu söyleniyor (moderation.tellPlayers: true). Sessizce engellemek için false yapın."
   per-player-on: "Her oyuncu artık NeoModeration metinlerini kendi oyun dilinde okuyor (perPlayerLanguage: true)."
   per-player-off: "Bütün oyuncular düzenlediğiniz {locale} metinlerini okumaya devam ediyor (perPlayerLanguage: false). Herkesin kendi oyun dilini görmesi için true yapın."
+  map-art-cap: "Bulut artık oyuncu başına saatte en fazla {count} yeni harita resmini denetliyor (moderation.mapArt.checksPerPlayerPerHour: {count}); böylece kimse harita çizerek kredilerinizi tüketemez. Sınır olmaması için 0 yapın."

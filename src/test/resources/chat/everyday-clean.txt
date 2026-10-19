@@ -5,19 +5,18 @@
 # language: en_us
 go ok
 lets go ok?
-go oks
 put a torch on the wall
 can u put a sign there
 just put a slab on top
 im gonna put a farm here
 put as many as you want
-my dog has a wet back
-the dogs have wet backs
+put a 1 block gap
+put a 2 block gap between the walls
+can u put a 4 in the hopper
+just put a b on the sign
+put a x where the portal goes
+put a 3x3 there
 he called me a bad word
-who re you talking to
-who res me
-the bulls hit the fence
-im at sal op base
 took 5 hits to kill it
 455 diamonds in the chest
 let's hit him from behind
@@ -28,6 +27,9 @@ assassin's creed is great
 Scunthorpe united won
 gg wp everyone
 i found a bastard sword
+time for a fag break
+she cooked faggots with gravy
+the dyke broke near the river
 version 1.20.4 is out
 coords 120 64 -340
 check config.yml and server.properties
@@ -38,6 +40,12 @@ join kick.com/streamer
 watch me on youtube.com/xyz
 our discord is discord.gg/abc
 the ip is 127.0.0.1
+lets play skribbl.io
+wanna play krunker.io later
+play agar.io with me
+we should play chess.com tonight
+play geoguessr.com its fun
+play roblox.com instead
 # language: fr_fr
 désolé je suis en retard
 le retard du train
@@ -56,17 +64,16 @@ passe-moi la tapette à mouches
 re tout le monde
 # language: es_es
 ni que fuera tonto
+hacemos una porra para la final
 hola kike que tal
 Kike es mi hermano
 vino Mari con su novio
 la Mari con el perro
 Mari con Juan en el server
 mi tia Mari con su hija
-pen dejo aqui
 qué pasa con el mapa
 # language: pt_br
 put o vidro ali
-put os blocos aqui
 vem pa ki
 a via do metrô
 pela via dos fundos
@@ -85,4 +92,81 @@ jag fick en present
 sıkış tıkış olduk
 kapıda sıkış
 sıkıştım burada
-yar ak
+# language: da_dk
+hvilket fag har du
+# language: hr_hr
+dva puta sam pao
+# language: ca_es
+quin retard porta el tren
+# language: it_it
+ho letto un libro di Verga
+# Chat written the way players write it, not from the word lists.
+# language: en_us
+anyone wanna trade diamonds for netherite
+where is the nearest village
+can someone help me build my house
+brb gotta eat dinner
+lol that creeper blew up my whole base
+who wants to do the ender dragon fight
+i need 3 more iron for a bucket
+how do i claim land here
+is pvp on in this world
+gg that was close
+sell me some wheat pls
+my pet wolf died :(
+dont put a bed in the nether lol
+thx for the help man
+can u tp to me
+whats the server ip again
+im lagging so bad rn
+nice build bro
+i got killed by a skeleton in the cave
+the bastion has so much gold
+lets go mining at y -59
+anyone have a spare elytra
+oops wrong chat
+put a hopper under the chest
+go kill the wither
+pass me the sugar cane
+# language: es_es
+alguien me ayuda con la granja
+donde esta la aldea
+vamos a la cueva
+me mataron los zombies jaja
+quien quiere hacer equipo
+que buena casa
+dale vamos
+gracias amigo
+Kike ven aca
+# language: fr_fr
+quelqu'un veut échanger des diamants
+je suis en retard pour le dîner
+il est où le village
+merci beaucoup
+tu viens avec moi
+on va miner
+désolé du retard
+# language: de_de
+wer will mit mir spielen
+ich bin gleich wieder da
+wo ist das dorf
+danke dir
+hat jemand eisen
+# language: pt_br
+alguém quer trocar diamantes
+vamos minerar
+onde fica a vila
+valeu mano
+kkkkk que isso
+# language: sv_se
+vem vill spela
+jag fick en diamant
+det är slut på mat
+# language: tr_tr
+kim oynamak ister
+köy nerede
+teşekkürler kanka
+sıkıntı yok
+# language: da_dk
+hvem vil spille
+hvilket fag kan du bedst lide

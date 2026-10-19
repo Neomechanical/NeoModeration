@@ -16,14 +16,16 @@ import java.util.regex.Pattern;
  * public IPv4 address, any address with a port, a host whose first label is a
  * server-style prefix ({@code play.}, {@code mc.}, {@code smp.} ...), a
  * subdomain of a free Minecraft host, or a host written straight after "join",
- * "ip:" or "server is". A private address such as {@code 192.168.1.1} is not
- * reachable from outside, so it counts only with a port, and a well-known public
- * DNS resolver ({@code 1.1.1.1}, {@code 8.8.8.8} ...) only with a port. An
- * ordinary domain after "join" that goes on to a page ({@code example.net/watch})
- * is a link, not a server; a path never clears an address with a server signal,
- * so {@code play.evil.net/} is still an ad. A two-label host whose ending is also
- * a word ({@code spawn.it is fun}, a missing space after a full stop) needs a
- * server signal too.</p>
+ * "ip:", "server is" or "play on". "play" alone is not enough, because players
+ * invite each other to browser games ("lets play skribbl.io"). A private address
+ * such as {@code 192.168.1.1} is not reachable from outside, so it counts only
+ * with a port, and a well-known public DNS resolver ({@code 1.1.1.1},
+ * {@code 8.8.8.8} ...) only with a port. An ordinary domain after "join" that
+ * goes on to a page ({@code example.net/watch}) is a link, not a server; a path
+ * never clears an address with a server signal, so {@code play.evil.net/} is
+ * still an ad. A two-label host whose ending is also a word
+ * ({@code spawn.it is fun}, a missing space after a full stop) counts only after
+ * a word that can mean nothing but an invitation, such as "join" or "ip".</p>
  *
  * <p>Works on lower-cased text. Every {@code allowedUrls} entry is masked first,
  * so a server's own address can be shared.</p>
@@ -41,11 +43,14 @@ final class ServerAdDetector {
     /** "play . server . net": a dot with spaces on both sides, between letters/digits. */
     private static final Pattern SPACED_DOT_PATTERN = Pattern.compile("(?<=[a-z0-9]) +\\. +(?=[a-z0-9])");
 
-    /** Words that, right before an address, make it an invitation to another server. */
-    private static final Pattern AD_INTENT_BEFORE = Pattern.compile(
-            "(?:^|[^a-z])(?:join(?:\\s+(?:us|me|my\\s+server|our\\s+server))?|ip(?:\\s+address)?|server\\s+ip|address"
-                    + "|server|connect(?:\\s+to)?|play(?:\\s+on)?|hop\\s+on|come\\s+(?:to|on|play\\s+on))"
-                    + "\\s*(?:is|at|on|to|:|=|-|>)?\\s*(?:is|at|on|to|:)?\\s*$");
+    /** Words that, right before an address, can only mean an invitation to another server. */
+    private static final String INVITATIONS =
+            "join(?:\\s+(?:us|me|my\\s+server|our\\s+server))?|ip(?:\\s+address)?|server\\s+ip|address|connect(?:\\s+to)?";
+    private static final Pattern INVITATION_BEFORE = intentBefore(INVITATIONS);
+
+    /** Words that, right before an address, make it an invitation, though they also begin sentences. */
+    private static final Pattern AD_INTENT_BEFORE = intentBefore(
+            INVITATIONS + "|server|play\\s+(?:on|at)|hop\\s+on|come\\s+(?:to|on|play\\s+on)");
 
     /** First labels that mark a game-server address (play.example.net). */
     private static final Set<String> SERVER_LABELS = Set.of(
@@ -77,7 +82,10 @@ final class ServerAdDetector {
             "wikipedia.org", "minecraft.net", "mojang.com", "microsoft.com", "xbox.com",
             "modrinth.com", "spigotmc.org", "papermc.io", "curseforge.com", "planetminecraft.com",
             "namemc.com", "twitter.com", "x.com", "tiktok.com", "instagram.com", "facebook.com",
-            "fandom.com", "neomechanical.com", "kick.com", "buycraft.net", "tebex.io");
+            "fandom.com", "neomechanical.com", "kick.com", "buycraft.net", "tebex.io",
+            // Browser games players invite each other to between rounds.
+            "skribbl.io", "krunker.io", "agar.io", "slither.io", "diep.io", "gartic.io", "chess.com",
+            "lichess.org", "geoguessr.com", "roblox.com", "poki.com", "crazygames.com", "itch.io");
 
     /** TLDs that server addresses actually use; keeps config.yml and server.properties clean. */
     private static final Set<String> COMMON_TLDS = Set.of(
@@ -98,6 +106,11 @@ final class ServerAdDetector {
     private static final int MAX_REPORTED_ADDRESS = 64;
 
     private ServerAdDetector() {
+    }
+
+    private static Pattern intentBefore(String words) {
+        return Pattern.compile("(?:^|[^a-z])(?:" + words + ")"
+                + "\\s*(?:is|at|on|to|:|=|-|>)?\\s*(?:is|at|on|to|:)?\\s*$");
     }
 
     /**
@@ -237,11 +250,13 @@ final class ServerAdDetector {
             return true;
         }
         // Without a server signal, only an invitation makes an ordinary domain an ad.
-        if (isWebPage(text, host.end())
-                || (labels.length == 2 && WORD_TLDS.contains(tld) && sentenceContinues(text, host.end()))) {
+        if (isWebPage(text, host.end())) {
             return false;
         }
         String before = text.substring(Math.max(0, host.start() - 32), host.start());
+        if (labels.length == 2 && WORD_TLDS.contains(tld) && sentenceContinues(text, host.end())) {
+            return INVITATION_BEFORE.matcher(before).find();
+        }
         return AD_INTENT_BEFORE.matcher(before).find();
     }
 

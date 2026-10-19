@@ -22,25 +22,54 @@ import static org.mockito.Mockito.when;
 class SurfaceCmdTest {
 
     @Test
-    void listsEverySurfaceWithItsSettingHighlighted() {
+    void theConsoleReadsEachSurfaceSettingInWords() {
+        NeoModerationPlugin plugin = TestPlugin.with(configuredSurfaces());
+        CommandSender console = mock(CommandSender.class);
+
+        new SurfaceCmd(plugin).execute(console, "nmod", new String[]{"surface"});
+
+        List<String> lines = TestPlugin.lines(console);
+        assertEquals(List.of(
+                "[NeoMod] Where local rules apply.",
+                "  Chat: always checked",
+                "  Signs: block",
+                "  Books: off",
+                "  Item names: star out",
+                "  Commands: alert only",
+                "  Commands checked: msg, tell",
+                "[NeoMod] Use /nmod surface <sign|book|anvil|command|all> <off|monitor|censor|block>."), lines);
+    }
+
+    @Test
+    void aPlayerClicksButtonsWithTheCurrentSettingHighlighted() {
+        NeoModerationPlugin plugin = TestPlugin.with(configuredSurfaces());
+        org.bukkit.entity.Player player = TestPlugin.player("Ana", "en_us");
+        org.bukkit.entity.Player.Spigot spigot = mock(org.bukkit.entity.Player.Spigot.class);
+        when(player.spigot()).thenReturn(spigot);
+
+        new SurfaceCmd(plugin).execute(player, "nmod", new String[]{"surface"});
+
+        org.mockito.ArgumentCaptor<net.md_5.bungee.api.chat.BaseComponent[]> sent =
+                org.mockito.ArgumentCaptor.forClass(net.md_5.bungee.api.chat.BaseComponent[].class);
+        verify(spigot, org.mockito.Mockito.atLeastOnce()).sendMessage(sent.capture());
+        MessageService messages = plugin.messages();
+        String signs = sent.getAllValues().stream()
+                .map(net.md_5.bungee.api.chat.TextComponent::toLegacyText)
+                .filter(line -> line.contains("Signs")).findFirst().orElseThrow();
+        assertTrue(signs.contains(messages.format(player, "surface.button-current", Map.of("mode", "block"))), signs);
+        assertTrue(signs.contains(messages.format(player, "surface.button", Map.of("mode", "off"))), signs);
+        assertTrue(sent.getAllValues().stream().map(net.md_5.bungee.api.chat.TextComponent::toLegacyText)
+                .noneMatch(line -> line.contains("Use /nmod surface")), "the usage line is for the console only");
+    }
+
+    private static YamlConfiguration configuredSurfaces() {
         YamlConfiguration config = new YamlConfiguration();
         config.set("moderation.surfaces.sign", "block");
         config.set("moderation.surfaces.book", "off");
         config.set("moderation.surfaces.anvil", "censor");
         config.set("moderation.surfaces.command", "monitor");
         config.set("moderation.surfaces.scannedCommands", List.of("msg", "tell"));
-        NeoModerationPlugin plugin = TestPlugin.with(config);
-        CommandSender sender = mock(CommandSender.class);
-
-        new SurfaceCmd(plugin).execute(sender, "nmod", new String[]{"surface"});
-
-        List<String> lines = TestPlugin.lines(sender);
-        assertTrue(lines.contains("  Signs: [off] [alert only] [star out] [block] "), String.join("\n", lines));
-        assertTrue(lines.contains("  Commands checked: msg, tell"), String.join("\n", lines));
-        MessageService messages = plugin.messages();
-        String signs = TestPlugin.rawLines(sender).stream().filter(line -> line.contains("Signs")).findFirst().orElseThrow();
-        assertTrue(signs.contains(messages.format(sender, "surface.button-current", Map.of("mode", "block"))), signs);
-        assertTrue(signs.contains(messages.format(sender, "surface.button", Map.of("mode", "off"))), signs);
+        return config;
     }
 
     @Test

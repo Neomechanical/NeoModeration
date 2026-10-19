@@ -46,6 +46,7 @@ help:
   dashboard: "{#brand}&lNeoModeration{#faint} {version}{#muted}. Reglas locales: {#text}{mode}{#muted}, nube: {#text}{cloud}{#muted}, {#text}{total}{#muted} detecciones desde el inicio"
   page: "{#faint}Página {page} de 2. {#muted}Más: {#brand}/nmod help {next}"
   hint: "{#faint}Haz clic en un comando para ejecutarlo o ponerlo en tu chat. Pasa el ratón por encima para ver qué hace."
+  hint-console: "{#faint}Escribe un comando de abajo para ejecutarlo."
   entry-usage: "  {#brand}{usage}"
   entry-desc: "  {#muted}{desc}"
   entry-hover: "{#brand}{usage}\n{#muted}{desc}"
@@ -165,6 +166,7 @@ status:
   cloud-credits: "{#muted}Última comprobación en la nube: {#risk}sin créditos{#muted}. Añade más en {#brand}{billingUrl}{#muted}."
   cloud-request-error: "{#muted}Última comprobación en la nube: {#risk}solicitud rechazada{#muted}. Ejecuta {#brand}/nmod doctor{#muted}."
   cloud-transient: "{#muted}Última comprobación en la nube: {#review}sin respuesta{#muted}. Las reglas locales siguen funcionando; {#brand}/nmod reload{#muted} lo vuelve a intentar ya."
+  cloud-busy: "{#muted}Mensajes que la nube no tuvo tiempo de revisar desde el inicio (el chat iba muy rápido): {#text}{count}"
   value:
     alerts-preview: "activadas, con el mensaje"
     alerts-hidden: "activadas, mensaje oculto"
@@ -196,7 +198,7 @@ rules:
   removed: "{prefix} {#safe}{kind}: se quitó {#text}{value}{#safe}."
   already-there: "{prefix} {#muted}{kind}: {#text}{value}{#muted} ya está en la lista."
   not-there: "{prefix} {#muted}{kind}: {#text}{value}{#muted} no está en la lista."
-  in-pack: "{prefix} {#muted}{#text}{value}{#muted} viene de un paquete de idioma, así que sigue bloqueada. Ejecuta {#brand}/{label} allow word add {value}{#muted} para permitirla."
+  in-pack: "{prefix} {#muted}{#text}{value}{#muted} viene de un paquete de idioma, así que sigue bloqueada. {#brand}/{label} allow word add {value}{#muted} la permite en todos los mensajes, de todos los jugadores."
 
 action:
   usage: "{prefix} {#muted}Usa {#brand}/{label} action <list|add|remove|reset>{#muted}."
@@ -240,6 +242,7 @@ usage:
 mapart:
   confiscated: "{prefix} {#risk}Se quitó ese mapa: su imagen no está permitida aquí."
   blocked: "{prefix} {#risk}La imagen de ese mapa no está permitida aquí."
+  capped: "{prefix} {#muted}Los dibujos de {#text}{player}{#muted} no se envían a la nube durante el resto de la hora: se alcanzó el límite de moderation.mapArt.checksPerPlayerPerHour ({#text}{limit}{#muted})."
 
 mute:
   blocked: "{prefix} {#muted}Estás silenciado durante {#text}{duration}{#muted}."
@@ -316,11 +319,14 @@ alert:
   then: " {#faint}luego {#muted}{actions}"
   hidden: "mensaje oculto"
   hover: "{#muted}Haz clic para ver los casos de {player}"
-  paused-player: "{prefix} {#muted}Las alertas sobre {#text}{player}{#muted} se pausan {seconds} segundos. Todo se sigue registrando."
-  paused-all: "{prefix} {#muted}Demasiadas alertas a la vez, así que se pausan {seconds} segundos. Todo se sigue registrando."
+  paused-player: "{prefix} {#muted}Las alertas sobre {#text}{player}{#muted} se pausan mientras esto siga. Todo se sigue registrando."
+  paused-all: "{prefix} {#muted}Demasiadas alertas a la vez, así que se pausan hasta que se calme. Todo se sigue registrando."
+  missed-player: "{prefix} {#muted}Vuelven las alertas sobre {#text}{player}{#muted}. Perdidas durante la pausa: {#text}{count}"
+  missed-all: "{prefix} {#muted}Vuelven las alertas. Perdidas durante la pausa: {#text}{count}{#muted}, jugadores: {#text}{players}"
 
 surface:
   title: "{prefix} {#muted}Dónde se aplican las reglas locales. Haz clic en una opción para cambiarla."
+  title-console: "{prefix} {#muted}Dónde se aplican las reglas locales."
   chat-row: "  {#text}Chat{#muted}: siempre se revisa"
   chat-row-off: "  {#text}Chat{#muted}: sin revisar (moderation.chat.scanAsyncChat)"
   row: "  {#text}{surface}{#muted}: "
@@ -349,7 +355,7 @@ allow:
 mode:
   usage: "{prefix} {#muted}Usa {#brand}/{label} mode <monitor|enforce>{#muted}."
   current: "{prefix} {#muted}Reglas locales: {#text}{value}"
-  stats: "{prefix} {#muted}Detectado desde el inicio, hace {#text}{since}{#muted}: {#text}{total}"
+  stats: "{prefix} {#muted}Detectado desde que el servidor arrancó hace {#text}{since}{#muted}: {#text}{total}"
   stats-line: "  {#faint}{count} {#muted}{what}"
   set-monitor: "{prefix} {#review}Ahora las reglas locales solo avisan al staff. {#muted}No se bloquea nada hasta que ejecutes {#brand}/nmod mode enforce{#muted}."
   set-enforce: "{prefix} {#safe}Ahora las reglas locales bloquean. {#muted}Las acciones de {#brand}/nmod action{#muted} también se ejecutan."
@@ -441,6 +447,7 @@ doctor:
     actions-none: "solo se bloquea; nadie es silenciado, expulsado ni baneado"
     actions-list: "{actions}"
     off-plain: "desactivado"
+    strikes-off: "desactivadas"
     spam-on: "mensajes cada 10 s: {rate}, repeticiones: {repeats}, mayúsculas: {caps} %"
     spam-commands: "comandos cada 10 s: {rate}"
     spam-idle: "activado, pero todos los límites están en 0"
@@ -472,7 +479,7 @@ doctor:
     events-credits: "sin créditos"
     events-request: "rechazada; revisa moderation.api.endpoint"
     events-transient: "la nube no respondió"
-    events-busy: "la nube estaba ocupada; las reglas locales funcionaron igual"
+    events-busy: "{count} mensajes desde el inicio solo pasaron por las reglas locales porque el chat iba más rápido de lo que la nube podía revisar"
     account-ok: "{ms} ms, espacio de trabajo {workspace}, plan {plan}"
     account-auth: "la clave fue rechazada ({ms} ms). Cámbiala en {url} y luego ejecuta /nmod setup <clave>"
     account-credits: "sin créditos ({ms} ms). Añade más en {url}"
@@ -503,6 +510,7 @@ privacy:
 
 cases:
   title: "{prefix} {#muted}Casos{who}. Haz clic en uno para abrirlo."
+  title-console: "{prefix} {#muted}Casos{who}. Abre uno con {#brand}/{label} case <número>{#muted}."
   title-player: " de {#text}{player}{#muted}"
   line: "  {#faint}#{id} {verdict} {#text}{player}{#faint} en {surface}{#muted}: {reason} {#faint}hace {ago}{status}"
   status:
@@ -541,6 +549,7 @@ cases:
 preset:
   usage: "{prefix} {#muted}Usa {#brand}/{label} preset <family|community|minimal>{#muted}."
   list-title: "{prefix} {#muted}Lo estricta que es la nube. Haz clic en uno para usarlo."
+  list-title-console: "{prefix} {#muted}Lo estricta que es la nube. Usa uno con {#brand}/{label} preset <nombre>{#muted}."
   list-item: "  {#brand}{name}{#muted}: {summary}"
   list-hover: "{#muted}Usar el ajuste {name}"
   family: "todas las categorías, el más estricto (0,55)"
@@ -578,7 +587,7 @@ welcome:
   surfaces-hover: "{#muted}Ejecuta /nmod surface"
   test-btn: "  {#brand}[Probar un mensaje]"
   test-hover: "{#muted}Ejecuta /nmod test badword. No se bloquea nada."
-  ads-btn: "  {#brand}[Dejar que compartan la dirección de tu servidor]"
+  ads-btn: "  {#brand}[Dejar que los jugadores compartan la dirección de tu servidor]"
   ads-hover: "{#muted}Pone /nmod allow url add en tu chat. Escribe después la dirección de tu servidor."
 
 update:
@@ -618,3 +627,4 @@ migrated:
   tell-players: "Ahora se les dice a los jugadores por qué se detuvo un mensaje (moderation.tellPlayers: true). Ponlo en false para bloquear sin aviso."
   per-player-on: "Ahora cada jugador lee los textos de NeoModeration en el idioma de su juego (perPlayerLanguage: true)."
   per-player-off: "Todos los jugadores siguen leyendo tus textos de {locale} editados (perPlayerLanguage: false). Ponlo en true para que cada uno vea el idioma de su juego."
+  map-art-cap: "La nube ahora revisa como máximo {count} imágenes de mapa nuevas por jugador cada hora (moderation.mapArt.checksPerPlayerPerHour: {count}), para que nadie gaste tus créditos dibujando mapas. Ponlo en 0 para no tener límite."

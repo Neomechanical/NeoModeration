@@ -15,9 +15,11 @@ import java.util.regex.Pattern;
  * {@link OfflineRuleCompiler} and {@link TextNormalizer}.
  *
  * <p>{@code speaker} is the game language of whoever wrote the text, such as
- * {@code fr_fr}, or {@code null}: words that language uses every day although
- * another language's list bans them pass for that speaker. A word matched across
- * a space is reported as {@code spaced_blocked_word:<word>}.</p>
+ * {@code fr_fr}, or {@code null}. Everyday words of the speaker's language are
+ * never read as one banned word ({@link EverydayWords}), and words that language
+ * uses every day although another language's list bans them pass for that
+ * speaker when the message reads as that language. A word matched across a
+ * space is reported as {@code spaced_blocked_word:<word>}.</p>
  */
 public final class OfflineModerationEngine {
 
@@ -72,14 +74,14 @@ public final class OfflineModerationEngine {
         if (text.length() == 0) {
             return OfflineModerationResult.clear();
         }
-        boolean[] masked = OfflineRuleCompiler.maskAllowedPhrases(text, allowedFor(rules, speaker));
-        boolean[] crossing = OfflineRuleCompiler.crossingBlocked(text);
+        boolean[] masked = OfflineRuleCompiler.maskAllowedPhrases(text, allowedFor(rules, text, speaker));
+        EverydayWords everyday = new EverydayWords(text, rules.everydayScope(speaker));
 
         for (CompiledWord word : rules.words()) {
             if (!text.collapsed().contains(word.collapsed())) {
                 continue;
             }
-            int[] match = OfflineRuleCompiler.findMatch(text, word, masked, crossing, 0);
+            int[] match = OfflineRuleCompiler.findWord(text, word, masked, everyday, 0);
             if (match != null) {
                 String spaced = OfflineRuleCompiler.crossesSpace(text, match[0], match[1]) ? "spaced_" : "";
                 return OfflineModerationResult.flagged(spaced + "blocked_word:" + word.original());
@@ -89,10 +91,14 @@ public final class OfflineModerationEngine {
         return OfflineModerationResult.clear();
     }
 
-    /** Everyone's allowed phrases, plus the words the speaker's language may use. */
-    private static List<String[]> allowedFor(CompiledRules rules, String speaker) {
+    /**
+     * Everyone's allowed phrases, plus the words the speaker's language may use
+     * when the message reads as that language: "quel retard ce train" for a French
+     * speaker, but not "shut up retard", whatever the speaker's game language.
+     */
+    private static List<String[]> allowedFor(CompiledRules rules, TextNormalizer.Normalized text, String speaker) {
         List<String[]> spoken = rules.speakerPhrases(speaker);
-        if (spoken.isEmpty()) {
+        if (spoken.isEmpty() || !EverydayWords.writtenIn(text, BundledWordPacks.everydayWords(speaker))) {
             return rules.allowedPhrases();
         }
         List<String[]> merged = new ArrayList<>(rules.allowedPhrases().size() + spoken.size());
@@ -143,15 +149,15 @@ public final class OfflineModerationEngine {
             TextNormalizer.Normalized text =
                     TextNormalizer.normalize(new String(raw), settings.normalizeLeetspeak());
             if (text.length() > 0) {
-                boolean[] masked = OfflineRuleCompiler.maskAllowedPhrases(text, allowedFor(rules, speaker));
-                boolean[] crossing = OfflineRuleCompiler.crossingBlocked(text);
+                boolean[] masked = OfflineRuleCompiler.maskAllowedPhrases(text, allowedFor(rules, text, speaker));
+                EverydayWords everyday = new EverydayWords(text, rules.everydayScope(speaker));
                 for (CompiledWord word : rules.words()) {
                     if (!text.collapsed().contains(word.collapsed())) {
                         continue;
                     }
                     int from = 0;
                     int[] match;
-                    while ((match = OfflineRuleCompiler.findMatch(text, word, masked, crossing, from)) != null) {
+                    while ((match = OfflineRuleCompiler.findWord(text, word, masked, everyday, from)) != null) {
                         star(raw, text.rawIndex()[match[0]], text.rawIndex()[match[1] - 1] + 1);
                         from = match[1];
                     }

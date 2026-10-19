@@ -27,6 +27,7 @@ public final class ConfigMigrations {
     static final String PACKS_PATH = "moderation.offline.languagePacks";
     static final String TELL_PLAYERS_PATH = "moderation.tellPlayers";
     static final String PER_PLAYER_PATH = "perPlayerLanguage";
+    static final String MAP_ART_CAP_PATH = "moderation.mapArt.checksPerPlayerPerHour";
 
     /**
      * The starter word list shipped from 1.5.0 to 1.6.6. It blocked "scam", so a
@@ -81,6 +82,14 @@ public final class ConfigMigrations {
         if (!config.isSet(TELL_PLAYERS_PATH)) {
             add(config, TELL_PLAYERS_PATH, true);
             changes.add(new Change("migrated.tell-players", Map.of()));
+        }
+        if (!config.isSet(MAP_ART_CAP_PATH) && bundled.isSet(MAP_ART_CAP_PATH)) {
+            int cap = bundled.getInt(MAP_ART_CAP_PATH);
+            add(config, MAP_ART_CAP_PATH, cap);
+            // Only a server with a cloud key checks map art, so only there is it news.
+            if (!config.getString("moderation.api.apiKey", "").isBlank()) {
+                changes.add(new Change("migrated.map-art-cap", Map.of("count", String.valueOf(cap))));
+            }
         }
         if (!config.isSet(PER_PLAYER_PATH)) {
             // A server that rewrote its messages keeps showing them to everyone.

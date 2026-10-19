@@ -43,7 +43,7 @@ public class PresetCmd implements SubCommand {
         MessageService messages = plugin.messages();
         if (args.length < 2 || "list".equalsIgnoreCase(args[1])) {
             List<MenuRenderer.Line> lines = new ArrayList<>();
-            lines.add(MenuRenderer.text(messages.text(sender, "preset.list-title")));
+            lines.add(MenuRenderer.text(messages.format(sender, "preset.list-title", Map.of("label", label))));
             for (Preset preset : PRESETS) {
                 Map<String, String> values = Map.of("name", preset.name(),
                         "summary", messages.text(sender, "preset." + preset.name()));

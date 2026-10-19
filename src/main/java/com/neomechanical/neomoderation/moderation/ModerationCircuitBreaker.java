@@ -48,14 +48,12 @@ public final class ModerationCircuitBreaker {
     }
 
     public void record(ModerationApiResult result) {
+        if (result.kind() == ModerationApiResult.Kind.OVERLOADED) {
+            // A busy server, not something the cloud did: ChatModerationCoordinator counts it.
+            return;
+        }
         synchronized (lock) {
             lastResultKind = result.kind();
-            if (result.kind() == ModerationApiResult.Kind.OVERLOADED) {
-                if (loggedFailures.add(result.kind())) {
-                    logger.warning("Cloud chat workers are busy. Local rules still run; the configured fail policy applies without player punishments.");
-                }
-                return;
-            }
             if (result.kind() == ModerationApiResult.Kind.CLIENT_AUTH) {
                 transientFailures = 0;
                 if (loggedFailures.add(result.kind())) {

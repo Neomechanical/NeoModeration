@@ -1,29 +1,141 @@
-# Everyday words in the languages players write, used to tell two words from
-# one word split up. A banned word is never read across a space between two of
-# these ("put a" is not "puta", "Mari con" is not "maricon"), while a word split
-# into pieces that are not words is still caught ("f uck", "ni gger", "k y s").
-# A single letter between other single letters is part of a spelled-out word,
-# never one of these. A banned word written with a space ("ass hole") is always
-# read across spaces. Slurs and swear words are never listed here.
+# Everyday words by language, used to tell two words from one word split up.
+# A banned word is never read across a space when every piece of it is an
+# everyday word of one language, and that language is English, the server's
+# "locale" or the player's game language: "put a" is not "puta", and for a
+# Spanish player "Mari con" is not "maricon". Pieces from different languages
+# are still read as one word ("pa ki", "bean er"), and so are pieces that are
+# not words ("f uck", "ni gger", "k y s"). A banned word written with a space
+# ("ass hole") is always read across spaces.
+#
+# "<language>: <word> <word> ...". A language may take several lines, and
+# several languages may share one ("hr sr bs:"). ShippedListsTest names every
+# banned word that everyday words of one language spell, so adding a word here
+# that makes a new one fails the build until someone decides. Slurs and swear
+# words are never listed here, and neither are the words in languages.txt.
 # English, with Minecraft words
-a i o u am an as at be by do go he hi if in is it me my no of oh ok on or so to up us we ya ye yo ah eh uh um hm ha lo ow aw ay ox ex
-the and are can get got had has her him his how its let lets man may not now off old one our out own see she too two was way who why yes yet you all any big bit boy but day did end few for fun god guy hey new nor pay put ran red run sad say set sit six ten top try use war win won ago age air arm art ask ate bag bed bee bet bow box bug bus buy cap car cat cow cry cup cut dad dog dry due ear eat egg eye fan far fat fee fit fix fly fog fox fry gap gas gem gun hat hay hen hid hit hot hug ice ink jam jar job joy key kid kit lab lag lap law lay leg lid lie lip log lot low mad map mat men mix mob mod mom mud net nod nut oak oil one owl pad pan pat paw pen pet pie pig pin pit pop pot pro pub pun rag ram rat raw ray rib rid rim rob rod row rub rug sat saw sea sew shy sir ski sky sly sob son spy sun tab tag tan tap tar tax tea tie tin tip toe ton toy tub tug van vet wax web wet wig wit yak yam yap yaw yen yes zip zoo
-also back backs bad base bean beans bear beat been best bird blue boat body bone book boss both bull bulls burn busy cake call came camp card care cart cave chat chop city clan clay club coal code coin cold come cook cool cops copy core corn cost crew crop cute dark date dead deal dear deep desk dirt done door down draw drop dust duty each easy edge else even ever face fact fail fair fall farm fast fear feel feet fell felt file fill find fine fire firm fish five flag flat food foot form four free from full fund game gate gave gift girl give glad goal goes gold gone good grab gray grew grow guys hair half hall hand hang hard harm hate have head hear heat held hell help here hero hide high hill hold hole home hood hook hope horn host hour huge hunt idea into iron item jail join joke jump just keep kept kick kill kind king kiss knew know lack lady laid lake land lane last late lava lead left less life lift like line link list live load lock long look lord lose loss lost loud love luck made mail main make mall many mark mass meal mean meat meet melt mile milk mind mine miss mode more most move much must name near neck need news next nice nine node none noob nope note okay once only open over pack page paid pain pair park part pass past path peak pick pile pink pipe plan play plot plus poor port post pull pure push quit race rage raid rain rank rare rate read real rest rice rich ride ring rise risk road rock role roll roof room root rope rose ruin rule rush safe said sale salt same sand save seat seed seek seem seen self sell send ship shoe shop shot show shut sick side sign sing sink size skin slab slow snow soft soil sold some song soon sort soul spot star stay step stop such suit sure swim tail take talk tall tank team tell tend test text than that them then they thin this thus tide till time tiny told tone took tool tour town trap tree trip true turn type unit upon used user vast very view vote wait wake walk wall want warm wash wave weak wear week well went were west what when whom wide wife wild will wind wine wing wire wise wish with wolf wood word wore work yard yeah year your zone
-about above after again agree ahead alone along angry apple arrow being below black blaze block blood board boots brain bread break brick bring brown build built burst cable candy chair chest chief child clean clear climb clock close cloud craft creep cross crowd crown dance death drink drive earth empty enemy enter equal error event every extra faith field fight final first flame floor focus force forge found frame fresh front fruit ghast ghost giant glass grass great green group guard guess guest happy heart heavy hello horse hotel house human hurry ideal image items jelly judge knife known large later laugh layer learn least leave level light limit local lucky lunch magic maker match maybe mayor metal might money month mouse mouth music never night noise north ocean offer often order other owner paint panel paper party peace phone piece pilot place plain plane plant plate point power press price pride prize proof quick quiet quite raise range reach ready realm right river robot rough round route royal sauce scale score sense serve seven shape share sharp sheep shelf shell shift shirt short shout sight since skill sleep slime small smart smile smoke snake solid sorry sound south space spawn speed spend spent spoon sport staff stage stand start steam steel stick still stone store storm story straw sugar sweet sword table taken teach teeth thank theme there these thick thing think third those three throw tiger title today token total touch tower track trade train treat trick tried truck trust truth twice uncle under until upper usual value video visit voice waste watch water wheat wheel where which while white whole woman women world worry worth would write wrong young yours zombie
-via ok okay okey oks op
+en: a i o u am an as at be by do go he hi if in is it me my no of oh ok on or so to up us we ya ye
+en: yo ah eh uh um hm ha lo ow aw ay ox ex the and are can get got had has her him his how its let
+en: lets man may not now off old one our out own see she too two was way who why yes yet you all
+en: any big bit boy but day did end few for fun god guy hey new nor pay put ran red run sad say
+en: set sit six ten top try use war win won ago age air arm art ask ate bag bed bee bet bow box
+en: bug bus buy cap car cat cow cry cup cut dad dog dry due ear eat egg eye fan far fat fee fit
+en: fix fly fog fox fry gap gas gem gun hat hay hen hid hit hot hug ice ink jam jar job joy key
+en: kid kit lab lag lap law lay leg lid lie lip log lot low mad map mat men mix mob mod mom mud
+en: net nod nut oak oil owl pad pan pat paw pen pet pie pig pin pit pop pot pro pub pun rag ram
+en: rat raw ray rib rid rim rob rod row rub rug sat saw sea sew shy sir ski sky sly sob son spy
+en: sun tab tag tan tap tar tax tea tie tin tip toe ton toy tub tug van vet wax web wet wig wit
+en: yak yam yap yaw yen zip zoo also back bad base bean beans bear beat been best bird blue boat
+en: body bone book boss both bull burn busy cake call came camp card care cart cave chat chop city
+en: clan clay club coal code coin cold come cook cool cops copy core corn cost crew crop cute dark
+en: date dead deal dear deep desk dirt done door down draw drop dust duty each easy edge else even
+en: ever face fact fail fair fall farm fast fear feel feet fell felt file fill find fine fire firm
+en: fish five flag flat food foot form four free from full fund game gate gave gift girl give glad
+en: goal goes gold gone good grab gray grew grow guys hair half hall hand hang hard harm hate have
+en: head hear heat held hell help here hero hide high hill hold hole home hood hook hope horn host
+en: hour huge hunt idea into iron item jail join joke jump just keep kept kick kill kind king kiss
+en: knew know lack lady laid lake land lane last late lava lead left less life lift like line link
+en: list live load lock long look lord lose loss lost loud love luck made mail main make mall many
+en: mark mass meal mean meat meet melt mile milk mind mine miss mode more most move much must name
+en: near neck need news next nice nine node none noob nope note okay once only open over pack page
+en: paid pain pair park part pass past path peak pick pile pink pipe plan play plot plus poor port
+en: post pull pure push quit race rage raid rain rank rare rate read real rest rice rich ride ring
+en: rise risk road rock role roll roof room root rope rose ruin rule rush safe said sale salt same
+en: sand save seat seed seek seem seen self sell send ship shoe shop shot show shut sick side sign
+en: sing sink size skin slab slow snow soft soil sold some song soon sort soul spot star stay step
+en: stop such suit sure swim tail take talk tall tank team tell tend test text than that them then
+en: they thin this thus tide till time tiny told tone took tool tour town trap tree trip true turn
+en: type unit upon used user vast very view vote wait wake walk wall want warm wash wave weak wear
+en: week well went were west what when whom wide wife wild will wind wine wing wire wise wish with
+en: wolf wood word wore work yard yeah year your zone about above after again agree ahead alone
+en: along angry apple arrow being below black blaze block blood board boots brain bread break
+en: brick bring brown build built burst cable candy chair chest chief child clean clear climb
+en: clock close cloud craft creep cross crowd crown dance death drink drive earth empty enemy
+en: enter equal error event every extra faith field fight final first flame floor focus force
+en: forge found frame fresh front fruit ghast ghost giant glass grass great green group guard
+en: guess guest happy heart heavy hello horse hotel house human hurry ideal image items jelly
+en: judge knife known large later laugh layer learn least leave level light limit local lucky
+en: lunch magic maker match maybe mayor metal might money month mouse mouth music never night
+en: noise north ocean offer often order other owner paint panel paper party peace phone piece
+en: pilot place plain plane plant plate point power press price pride prize proof quick quiet
+en: quite raise range reach ready realm right river robot rough round route royal sauce scale
+en: score sense serve seven shape share sharp sheep shelf shell shift shirt short shout sight
+en: since skill sleep slime small smart smile smoke snake solid sorry sound south space spawn
+en: speed spend spent spoon sport staff stage stand start steam steel stick still stone store
+en: storm story straw sugar sweet sword table taken teach teeth thank theme there these thick
+en: thing think third those three throw tiger title today token total touch tower track trade
+en: train treat trick tried truck trust truth twice uncle under until upper usual value video
+en: visit voice waste watch water wheat wheel where which while white whole woman women world
+en: worry worth would write wrong young yours zombie okey op
 # Spanish
-a e o u y al da de di el en es ha he la le lo me mi ni no os se si su te ti tu un va ve ya yo
-que con por para pero como una uno los las del sus mis tus muy hay ser son soy eres era fue ver voy vas van vamos tengo tiene hace hola bien mal mas aqui alli ahi esto eso este esta ese esa nada todo todos mucho poco casa juan pepe mari dejo deja dejar pues pal pos vale oye mira jaja tio tia amigo amiga perro gato novio novia hijo hija madre padre dos tres res sal cosa algo alguien nunca siempre ahora antes luego tarde noche dia vez ves dime dame toma vino vida mundo juego jugar server agua fuego
+es: a e o u y al da de di el en es ha he la le lo me mi ni no os se si su te ti tu un va ve ya yo
+es: que con por para pero como una uno los las del sus mis tus muy hay ser son soy eres era fue
+es: ver voy vas van vamos tengo tiene hace hola bien mal mas aqui alli ahi esto eso este esta ese
+es: esa nada todo todos mucho poco casa juan pepe mari dejo deja dejar pues pal pos vale oye mira
+es: jaja tio tia amigo amiga perro gato novio novia hijo hija madre padre dos tres res sal cosa
+es: algo alguien nunca siempre ahora antes luego tarde noche dia vez ves dime dame toma vino vida
+es: mundo juego jugar server agua fuego hacemos hacer hago porque cuando donde quien cual tambien
+es: solo gracias claro ven venga bueno buena buenas hoy ayer aca dale jajaja xd mucha muchos
+es: muchas otro otra otros estoy estas estamos tienes tenemos puedo puedes quiero quieres ayuda
+es: granja aldea cueva equipo hambre final
 # French
-a y ce de du en et il je la le ma me ne ni on ou sa se si te tu un va vu ca ai as es eu lu pu mer des les une aux est sont pas plus bas re foire fait mal bon bien oui non qui quoi mais avec pour dans sur sous chez tout tous rien nous vous elle elles ils lui moi toi mon ton son mes tes ses mere pere fils fille chat chien ville train jeu jeux merci salut bonjour peu trop tres encore jamais toujours quand alors donc aussi faire dire voir avoir etre vais vas peut veux sais
+fr: a y ce de du en et il je la le ma me ne ni on ou sa se si te tu un va vu ca ai as es eu lu pu
+fr: mer des les une aux est sont pas plus bas re foire fait mal bon bien oui non qui quoi mais
+fr: avec pour dans sur sous chez tout tous rien nous vous elle elles ils lui moi toi mon ton son
+fr: mes tes ses mere pere fils fille chat chien ville train jeu jeux merci salut bonjour peu trop
+fr: tres encore jamais toujours quand alors donc aussi faire dire voir avoir etre vais vas peut
+fr: veux sais sans svp stp aucun aucune aujourd hui demain hier ici deja vraiment juste comme
+fr: cette ces leur leurs notre votre nos vos quel quelle parce pourquoi comment beaucoup desole
+fr: attends viens allez allons ouais bah mdr village diamants echanger miner diner veut
 # German
-ab am an da du er es im in ja ob so um wo zu je der die das den dem des ein eine einen ist ich sie wir ihr und mit von auf aus bei hat war wie was wer nicht noch nur auch aber oder wenn dann sehr gut mal man mir mich dir dich uns euch hier dort jetzt schon kein keine ganz viel mehr heute morgen haus hund katze spiel sack voll ick jo bin bist sind seid hab habe haben kann kannst will willst geht gehen komm kommt los weg zeit schwert
+de: ab am an da du er es im in ja ob so um wo zu je der die das den dem des ein eine einen ist ich
+de: sie wir ihr und mit von auf aus bei hat war wie was wer nicht noch nur auch aber oder wenn
+de: dann sehr gut mal man mir mich dir dich uns euch hier dort jetzt schon kein keine ganz viel
+de: mehr heute morgen haus hund katze spiel sack voll ick jo bin bist sind seid hab habe haben
+de: kann kannst will willst geht gehen komm kommt los weg zeit schwert nein danke bitte warum
+de: wieso weil gestern gleich kurz echt alles nichts etwas jemand niemand immer nie oft bald genau
+de: stimmt digga alter wieder spielen dorf eisen
 # Portuguese
-a e o as os da de do em eu ja la me na no se si so te tu um ou ai oi vc pq to uma das dos nas nos com por pra para mas mais que nao sim ele ela eles elas voce isso isto esse essa aqui ali tudo nada muito pouco bem mal cara mano vai vem foi ser sou tem tenho alho meu minha seu sua casa jogo jogar
+pt: a e o as os da de do em eu ja la me na no se si so te tu um ou ai oi vc pq to uma das dos nas
+pt: nos com por pra para mas mais que nao sim ele ela eles elas voce isso isto esse essa aqui ali
+pt: tudo nada muito pouco bem mal cara mano vai vem foi ser sou tem tenho alho meu minha seu sua
+pt: casa jogo jogar via pa ki estao estou esta estamos onde quando porque tambem obrigado obrigada
+pt: valeu beleza agora hoje ontem amanha depois antes vamos bora gente kkk kkkk ne tipo entao
+pt: fazer faz sabe sei quero pode posso jogando alguem trocar diamantes minerar fica vila pao
+pt: metro blocos vidro fundos
 # Turkish
-o bu su ve ki mi mu de da ne ya en is at el ev ay bir ben sen biz siz onlar var yok cok ama ile gibi icin daha iyi kotu evet hayir tamam abi kanka oyun sunucu ak al bak gel git ver yar
-# Italian, Dutch, Swedish and Polish
-di da il lo la le un una che non per con mi ti si ci vi ma ho ha io lui lei noi voi
-de het een en je jij we ze is in te van dat die niet wat ja nee met voor
-och att det som en pa ar av for med har jag du han hon vi ni de
-i w z na nie to jest ze sie co jak tak ale po do od za
+tr: o bu su ve ki mi mu de da ne ya en is at el ev ay bir ben sen biz siz onlar var yok cok ama
+tr: ile gibi icin daha iyi kotu evet hayir tamam abi kanka oyun sunucu ak al bak gel git ver neden
+tr: nasil nerede kim tesekkurler sagol merhaba selam oyna yap yapma az simdi sonra once bugun
+tr: yarin dun ister oynamak koy sikinti
+# Italian
+it: di da il lo la le un una che non per con mi ti si ci vi ma ho ha io lui lei noi voi e sono sei
+it: siamo come cosa dove quando perche anche molto bene male ciao grazie gioco giocare casa libro
+it: letto
+# Dutch
+nl: de het een en je jij we ze is in te van dat die niet wat ja nee met voor
+# Swedish
+sv: och att det som en pa ar av for med har jag du han hon vi ni de nu inte men eller ja nej tack
+sv: hej var vad hur nar kan ska vill hade kom vem spela mat diamant present
+# Polish
+pl: i w z na nie to jest ze sie co jak tak ale po do od za
+# Danish
+da: og i at det er en til som på de med han af for ikke der var mig sig men et har om vi min havde
+da: ham hun nu over da fra du ud sin dem os op man hans hvor eller hvad skal selv her alle vil
+da: blev kunne ind når være noget ville jo deres efter ned skulle denne end dette mit også under
+da: have dig hende meget sit vores mod disse hvis din nogle hos blive mange bliver hej ja nej tak
+da: godt spil spille hvilket hvilken hvem hvorfor kom kan
+# Norwegian
+no nb nn: og i jeg det at en et den til er som på de med han av ikke der så var meg seg men har om
+no nb nn: vi min ha hadde hun nå over da fra du ut sin dem oss opp man kan hans hvor eller hva
+no nb nn: skal selv her alle vil bli ble kunne inn når være noen noe ville dere deres etter ned
+no nb nn: denne for deg mot dette disse uten hvordan ingen din blir hvem hvis bare enn fordi før
+no nb nn: mange også hei ja nei takk spill spille hvilket
+# Croatian, Serbian and Bosnian
+hr sr bs: i u je se na da za su od sa kao što to ne ali ili pa jer kad koji koja koje ovo ono taj
+hr sr bs: ta te ti ja mi vi oni ona on bi biti sam si smo ste bio bila bilo ima nema može treba
+hr sr bs: samo još već sve svi kako gdje gde tko ko zašto dva tri jedan jedna dobro hvala bok igra
+hr sr bs: igrati sad sada evo eto
+# Catalan
+ca: el la els les i de que un una per amb no es és com més però molt tot ja jo tu ell ella
+ca: nosaltres vosaltres ells elles aquest aquesta això on quan qui quin quina porta tren hola bon
+ca: dia gràcies si al del pel als dels meu teu seu som són ets era fer anar vaig vas va

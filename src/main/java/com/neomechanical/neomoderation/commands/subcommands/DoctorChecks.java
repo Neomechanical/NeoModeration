@@ -58,7 +58,7 @@ final class DoctorChecks {
                 ? new Check(Level.OK, "strikes", "strikes-on", Map.of(
                         "rungs", String.valueOf(settings.strikes().escalation().size()),
                         "minutes", String.valueOf(settings.strikes().decayMinutes())))
-                : Check.of(Level.OK, "strikes", "off-plain"));
+                : Check.of(Level.OK, "strikes", "strikes-off"));
         checks.add(settings.surfaces().enabledCount() == 0
                 ? Check.of(Level.OK, "surfaces", "surfaces-none")
                 : new Check(Level.OK, "surfaces", "surfaces-some",
@@ -82,7 +82,8 @@ final class DoctorChecks {
     }
 
     /** The cloud checks that need no network: key, mode, endpoint, circuit, last result. */
-    static List<Check> cloudSetup(ModerationSettings settings, boolean callsAllowed, ModerationApiResult.Kind last) {
+    static List<Check> cloudSetup(ModerationSettings settings, boolean callsAllowed, ModerationApiResult.Kind last,
+                                  long busySkipped) {
         ModerationCoverage coverage = ModerationCoverage.from(settings);
         List<Check> checks = new ArrayList<>();
         if (settings.api().apiKey().isBlank()) {
@@ -111,6 +112,9 @@ final class DoctorChecks {
                 ? Check.of(Level.OK, "circuit", "circuit-closed")
                 : Check.of(Level.WARN, "circuit", "circuit-open"));
         checks.add(events(last));
+        if (busySkipped > 0) {
+            checks.add(new Check(Level.WARN, "events", "events-busy", Map.of("count", String.valueOf(busySkipped))));
+        }
         return checks;
     }
 
@@ -205,8 +209,8 @@ final class DoctorChecks {
             case CLIENT_AUTH -> Check.of(Level.FAIL, "events", "events-auth");
             case INSUFFICIENT_CREDITS -> Check.of(Level.FAIL, "events", "events-credits");
             case CLIENT_REQUEST -> Check.of(Level.FAIL, "events", "events-request");
-            case TRANSIENT_TRANSPORT -> Check.of(Level.WARN, "events", "events-transient");
-            case OVERLOADED -> Check.of(Level.WARN, "events", "events-busy");
+            // A busy server is its own check, never recorded as the cloud's result.
+            case TRANSIENT_TRANSPORT, OVERLOADED -> Check.of(Level.WARN, "events", "events-transient");
         };
     }
 

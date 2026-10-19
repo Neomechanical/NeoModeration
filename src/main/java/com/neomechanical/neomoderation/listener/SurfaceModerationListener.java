@@ -40,15 +40,22 @@ import java.util.Set;
  * through {@link DetectionHandler}, so monitor mode, strikes, the player's
  * notice, staff alerts and case history behave exactly as in chat.
  *
- * <p>A muted player cannot use any command that sends a message: those listed,
- * {@code scannedCommands}, and every alias the server knows for them, such as
- * EssentialsX's {@code /m} for {@code /msg}.</p>
+ * <p>A muted player cannot use a command that sends a message: one listed here,
+ * by the command the server actually runs for what they typed (EssentialsX's
+ * {@code /m} is {@code /msg}, Towny's {@code /t} is {@code /town}), sending mail,
+ * and {@code scannedCommands}.</p>
  */
 public final class SurfaceModerationListener implements Listener {
-    /** Commands that send a message, by the name their plugin registers. */
+    /**
+     * Commands that send a message, by the name their plugin registers, and the
+     * aliases to go by when the server's commands cannot be read.
+     */
     private static final Set<String> MESSAGE_COMMANDS = Set.of(
             "msg", "tell", "w", "whisper", "m", "t", "pm", "dm", "message", "emsg", "epm", "etell", "ewhisper",
-            "r", "reply", "er", "ereply", "me", "mail", "email", "teammsg", "tm");
+            "r", "reply", "er", "ereply", "me", "teammsg", "tm", "partychat");
+    /** Mail commands, which send a message only with these first arguments; reading mail is fine. */
+    private static final Set<String> MAIL_COMMANDS = Set.of("mail", "email");
+    private static final Set<String> MAIL_SENDS = Set.of("send", "sendall", "sendtemp");
 
     private final NeoModerationPlugin plugin;
     private final DetectionHandler handler;
@@ -142,7 +149,7 @@ public final class SurfaceModerationListener implements Listener {
         boolean scanned = settings.surfaces().scannedCommands().contains(command)
                 || settings.surfaces().scannedCommands().contains(bareCommand);
         // A mute covers every message command too, whatever the command surface is set to.
-        if ((scanned || sendsMessage(bareCommand)) && plugin.muteService().isMuted(player.getUniqueId())) {
+        if (plugin.muteService().isMuted(player.getUniqueId()) && (scanned || sendsMessage(command, parts))) {
             event.setCancelled(true);
             plugin.messages().send(player, "mute.blocked", Map.of("duration",
                     DurationParser.format(plugin.muteService().remainingSeconds(player.getUniqueId()))));
@@ -191,17 +198,19 @@ public final class SurfaceModerationListener implements Listener {
         }
     }
 
-    /** Whether a command sends a message: by its name, or by the command the server runs for it. */
-    private boolean sendsMessage(String command) {
-        if (MESSAGE_COMMANDS.contains(command)) {
-            return true;
+    /**
+     * Whether a command sends a message, judged by the command the server runs
+     * for {@code label} ("towny:t" or "m"), or by the label itself when the
+     * server's commands cannot be read or do not have it.
+     */
+    private boolean sendsMessage(String label, String[] parts) {
+        Command resolved = resolve(label);
+        String name = resolved == null ? label : resolved.getName().toLowerCase(Locale.ROOT);
+        name = name.substring(name.indexOf(':') + 1);
+        if (MAIL_COMMANDS.contains(name)) {
+            return parts.length > 1 && MAIL_SENDS.contains(parts[1].toLowerCase(Locale.ROOT));
         }
-        Command resolved = resolve(command);
-        if (resolved == null) {
-            return false;
-        }
-        String name = resolved.getName().toLowerCase(Locale.ROOT);
-        return MESSAGE_COMMANDS.contains(name.substring(name.indexOf(':') + 1));
+        return MESSAGE_COMMANDS.contains(name);
     }
 
     /** The command the server runs for a label, through its command map, which the 1.8 API does not expose. */

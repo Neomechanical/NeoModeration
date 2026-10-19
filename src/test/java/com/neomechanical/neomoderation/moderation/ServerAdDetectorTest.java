@@ -55,7 +55,12 @@ class ServerAdDetectorTest {
                 "join mc.evil.net/discord",
                 "45.67.89.10:25565/",
                 "45.67.89.10/",
-                "play hypixel.net now")) {
+                "play on hypixel.net now",
+                "join coolsmp.us now",
+                "join epicmc.it guys",
+                "ip is coolsmp.at for real",
+                "join coolsmp.to now",
+                "server ip coolsmp.be today")) {
             assertTrue(advertised(ad).orElse("").startsWith("server_ad:"), "missed a server ad: " + ad);
         }
     }
@@ -85,6 +90,14 @@ class ServerAdDetectorTest {
                 "server: buycraft.net",
                 "join example.net/watch?v=abc for the video",
                 "come to spawn.it is fun",
+                "lets play skribbl.io",
+                "wanna play krunker.io later",
+                "play agar.io with me",
+                "we should play chess.com tonight",
+                "play geoguessr.com its fun",
+                "play roblox.com instead",
+                "come play on skribbl.io",
+                "i play hypixel.net mostly",
                 "привет. как дела")) {
             assertEquals(Optional.empty(), advertised(clean), "flagged ordinary chat: " + clean);
         }

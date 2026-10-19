@@ -109,6 +109,22 @@ public final class DetectionHandler {
     }
 
     /**
+     * A detection that came after the message went its way, such as a cloud
+     * answer too late to stop it: counted, alerted and logged, with no strike,
+     * action or notice. {@code blocked} says whether the message was stopped
+     * anyway (with no answer in time, fail-closed blocks it).
+     */
+    public void handleAfter(Player player, String surface, String reason, String message, boolean blocked) {
+        ModerationSettings settings = plugin.settings();
+        monitorStats.record(reason);
+        Outcome outcome = new Outcome(blocked ? Outcome.Verdict.BLOCKED : Outcome.Verdict.REVIEW, List.of(), 0);
+        DetectionNotifier.Detection detection =
+                new DetectionNotifier.Detection(player.getName(), surface, reason, message, outcome);
+        plugin.runForEntity(player, () -> notifier.notifyDetection(detection, settings));
+        recordCase(player, detection, settings);
+    }
+
+    /**
      * A detection nobody can be blamed for, such as flagged map art already
      * hanging in an item frame: counted, alerted and logged with where it was,
      * with no strike, action or notice for {@code finder}, who only came across it.

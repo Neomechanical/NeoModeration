@@ -133,9 +133,12 @@ class ChatModerationCoordinatorTest {
                         coordinator.checkMessage(player, "queued", settings).kind());
             }
             assertTrue(coordinator.isRemoteCallAllowed(), "waiting in the queue is not the cloud failing");
+            assertEquals(4, coordinator.busySkipped());
+            assertEquals(null, breaker.lastResultKind(), "a busy server is not a cloud result");
 
             release.countDown();
-            assertEquals(ModerationApiResult.Kind.OVERLOADED, first.get(2, TimeUnit.SECONDS).kind());
+            assertEquals(ModerationApiResult.Kind.TRANSIENT_TRANSPORT, first.get(2, TimeUnit.SECONDS).kind(),
+                    "the cloud was asked and answered too late");
             verify(apiClient, times(1)).moderateText(anyString(), anyString(), anyString(),
                     any(ModerationApiSettings.class), any(ModerationCategorySettings.class));
             assertTrue(coordinator.isRemoteCallAllowed());
@@ -166,8 +169,8 @@ class ChatModerationCoordinatorTest {
             int clear = 0;
             for (Future<ModerationApiResult> answer : answers) {
                 ModerationApiResult.Kind kind = answer.get(10, TimeUnit.SECONDS).kind();
-                assertTrue(kind == ModerationApiResult.Kind.CLEAR || kind == ModerationApiResult.Kind.OVERLOADED,
-                        kind.name());
+                assertTrue(kind == ModerationApiResult.Kind.CLEAR || kind == ModerationApiResult.Kind.OVERLOADED
+                        || kind == ModerationApiResult.Kind.TRANSIENT_TRANSPORT, kind.name());
                 clear += kind == ModerationApiResult.Kind.CLEAR ? 1 : 0;
             }
             assertTrue(clear >= 16, "only " + clear + " of 40 were checked");
@@ -191,7 +194,8 @@ class ChatModerationCoordinatorTest {
 
         try (ChatModerationCoordinator coordinator = new ChatModerationCoordinator(breaker, apiClient, 1, 4)) {
             for (int i = 0; i < 3; i++) {
-                assertEquals(ModerationApiResult.Kind.OVERLOADED, coordinator.checkMessage(player, "slow", settings).kind());
+                assertEquals(ModerationApiResult.Kind.TRANSIENT_TRANSPORT,
+                        coordinator.checkMessage(player, "slow", settings).kind());
             }
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
             while (coordinator.isRemoteCallAllowed() && System.nanoTime() < deadline) {
@@ -216,7 +220,7 @@ class ChatModerationCoordinatorTest {
             ModerationApiResult now = coordinator.checkMessage(player(), "hello", settings("http://127.0.0.1:1", true),
                     late::complete);
 
-            assertEquals(ModerationApiResult.Kind.OVERLOADED, now.kind());
+            assertEquals(ModerationApiResult.Kind.TRANSIENT_TRANSPORT, now.kind());
             assertTrue(late.get(3, TimeUnit.SECONDS).isFlagged());
         }
     }

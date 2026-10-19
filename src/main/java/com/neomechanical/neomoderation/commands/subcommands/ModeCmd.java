@@ -27,6 +27,9 @@ public class ModeCmd extends ModeSubCommand {
         MessageService messages = plugin.messages();
         messages.send(sender, "mode.current",
                 Map.of("value", StatusCmd.modeLabel(messages, sender, plugin.settings().mode())));
+        if (plugin.monitorStats().total() == 0) {
+            return;
+        }
         long seconds = Math.max(0, Duration.between(plugin.monitorStats().since(), Instant.now()).toSeconds());
         messages.send(sender, "mode.stats", Map.of(
                 "total", String.valueOf(plugin.monitorStats().total()), "since", DurationParser.approximate(seconds)));

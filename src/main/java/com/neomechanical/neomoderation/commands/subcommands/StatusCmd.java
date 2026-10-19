@@ -105,6 +105,10 @@ public class StatusCmd implements SubCommand {
         messages.send(sender, cloudStatusKey(plugin.coordinator().lastCloudResultKind()), Map.of(
                 "keysUrl", CloudRecovery.API_KEYS_URL,
                 "billingUrl", CloudRecovery.BILLING_URL));
+        long busy = plugin.coordinator().busySkipped();
+        if (busy > 0) {
+            messages.send(sender, "status.cloud-busy", Map.of("count", String.valueOf(busy)));
+        }
     }
 
     private static String localKey(ModerationSettings settings, ModerationCoverage coverage) {
@@ -137,6 +141,7 @@ public class StatusCmd implements SubCommand {
             case CLIENT_AUTH -> "status.cloud-auth";
             case INSUFFICIENT_CREDITS -> "status.cloud-credits";
             case CLIENT_REQUEST -> "status.cloud-request-error";
+            // A busy server is counted on its own line, never recorded as the cloud's result.
             case TRANSIENT_TRANSPORT, OVERLOADED -> "status.cloud-transient";
         };
     }

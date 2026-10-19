@@ -28,7 +28,7 @@ public final class PaperAsyncChatBridge {
 
         Listener listener = new Listener() {
         };
-        EventExecutor executor = new PaperAsyncChatExecutor(processor);
+        EventExecutor executor = executor(processor);
         plugin.getServer().getPluginManager().registerEvent(
                 eventClass,
                 listener,
@@ -48,6 +48,11 @@ public final class PaperAsyncChatBridge {
         } catch (ClassNotFoundException ignored) {
             return null;
         }
+    }
+
+    /** What runs for each Paper chat event; any event with Paper's {@code getPlayer} and {@code message} methods. */
+    static EventExecutor executor(ChatModerationProcessor processor) {
+        return new PaperAsyncChatExecutor(processor);
     }
 
     private static final class PaperAsyncChatExecutor implements EventExecutor {
@@ -101,13 +106,19 @@ public final class PaperAsyncChatBridge {
         }
     }
 
-    /** Whether a chat component is bare text, with no style and no parts another plugin added. */
+    /**
+     * Whether a chat component is bare text, with no style and no parts another
+     * plugin added. Reflects through Adventure's public types: the classes behind
+     * them (StyleImpl) are package-private, so calling through them throws.
+     */
     private static boolean isPlain(Object component) {
         try {
-            Object children = component.getClass().getMethod("children").invoke(component);
-            Object style = component.getClass().getMethod("style").invoke(component);
+            Class<?> componentType = Class.forName("net.kyori.adventure.text.Component");
+            Class<?> styleType = Class.forName("net.kyori.adventure.text.format.Style");
+            Object children = componentType.getMethod("children").invoke(component);
+            Object style = componentType.getMethod("style").invoke(component);
             return children instanceof java.util.List<?> list && list.isEmpty()
-                    && Boolean.TRUE.equals(style.getClass().getMethod("isEmpty").invoke(style));
+                    && Boolean.TRUE.equals(styleType.getMethod("isEmpty").invoke(style));
         } catch (ReflectiveOperationException | RuntimeException e) {
             return false;
         }

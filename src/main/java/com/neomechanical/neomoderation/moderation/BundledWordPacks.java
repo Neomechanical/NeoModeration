@@ -9,6 +9,7 @@ import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -29,10 +30,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * holds phrases every server allows.</p>
  *
  * <p>Two more lists shape how words are read: {@code wordpacks/common-words.txt},
- * everyday words a banned word is never read across ("put a" is not "puta"),
- * and {@code wordpacks/languages.txt}, words one language uses every day that
- * another language's list bans ("retard" in French), allowed for that
- * language's speakers.</p>
+ * everyday words by language, which tell two words from one word split up
+ * ("put a" is not "puta", see {@link EverydayWords}), and
+ * {@code wordpacks/languages.txt}, words one language uses every day that
+ * another language's list bans ("retard" in French), allowed on that
+ * language's servers and for its speakers.</p>
  */
 public final class BundledWordPacks {
 
@@ -40,6 +42,8 @@ public final class BundledWordPacks {
     public static final List<String> CODES = List.of("es", "fr", "de", "pt", "tr");
     public static final String AUTO = "auto";
     public static final String ALL = "all";
+    /** The language whose everyday words count on every server: most servers' players write some English. */
+    static final String ENGLISH = "en";
     private static final String EVERYDAY = "everyday";
 
     /** A pack's banned words and the phrases it allows. */
@@ -47,7 +51,7 @@ public final class BundledWordPacks {
     }
 
     private static final Map<String, Pack> LOADED = new ConcurrentHashMap<>();
-    private static volatile Set<String> commonWords;
+    private static volatile Map<String, Set<String>> everydayWords;
     private static volatile Map<String, List<String>> languageWords;
 
     private BundledWordPacks() {
@@ -110,23 +114,32 @@ public final class BundledWordPacks {
     }
 
     /**
-     * Everyday words, normalised the way chat is: a banned word is never read
-     * across a space between two of them. See {@code wordpacks/common-words.txt}.
+     * The everyday words of {@code locale}'s language, normalised the way chat is,
+     * from {@code wordpacks/common-words.txt}; empty for a language it does not
+     * list. {@code locale} is a language or locale code such as {@code es},
+     * {@code pt_BR} or {@code sv-se}.
      */
-    static Set<String> commonWords() {
-        Set<String> words = commonWords;
+    static Set<String> everydayWords(String locale) {
+        return everydayWords().getOrDefault(language(locale), Set.of());
+    }
+
+    /** Every listed language's everyday words, by language code. */
+    static Map<String, Set<String>> everydayWords() {
+        Map<String, Set<String>> words = everydayWords;
         if (words == null) {
-            Set<String> loaded = new HashSet<>();
-            for (String line : lines("common-words")) {
-                for (String word : line.split("\\s+")) {
-                    String normalized = new String(TextNormalizer.normalize(word, false).chars());
-                    if (!normalized.isEmpty()) {
-                        loaded.add(normalized);
+            Map<String, Set<String>> loaded = new HashMap<>();
+            byLanguage("common-words").forEach((language, list) -> {
+                Set<String> normalized = new HashSet<>();
+                for (String word : list) {
+                    String folded = new String(TextNormalizer.normalize(word, false).chars());
+                    if (!folded.isEmpty()) {
+                        normalized.add(folded);
                     }
                 }
-            }
-            words = Set.copyOf(loaded);
-            commonWords = words;
+                loaded.put(language, Set.copyOf(normalized));
+            });
+            words = Map.copyOf(loaded);
+            everydayWords = words;
         }
         return words;
     }
@@ -144,25 +157,26 @@ public final class BundledWordPacks {
         }
         Map<String, List<String>> lists = languageWords;
         if (lists == null) {
-            Map<String, List<String>> loaded = new LinkedHashMap<>();
-            for (String line : lines("languages")) {
-                int colon = line.indexOf(':');
-                if (colon > 0) {
-                    loaded.put(line.substring(0, colon).trim().toLowerCase(Locale.ROOT),
-                            List.of(line.substring(colon + 1).trim().split("\\s+")));
-                }
-            }
-            lists = Map.copyOf(loaded);
+            lists = byLanguage("languages");
             languageWords = lists;
         }
         String code = locale.trim().replace('-', '_').toLowerCase(Locale.ROOT);
-        int separator = code.indexOf('_');
-        String language = separator > 0 ? code.substring(0, separator) : code;
+        String language = language(code);
         List<String> words = new ArrayList<>(lists.getOrDefault(language, List.of()));
         if (!code.equals(language)) {
             words.addAll(lists.getOrDefault(code, List.of()));
         }
         return List.copyOf(words);
+    }
+
+    /** The language part of a code such as {@code pt_PT}, {@code pt-br} or {@code sv}, in lower case; empty for {@code null}. */
+    static String language(String code) {
+        if (code == null) {
+            return "";
+        }
+        String normalized = code.trim().replace('-', '_').toLowerCase(Locale.ROOT);
+        int separator = normalized.indexOf('_');
+        return separator > 0 ? normalized.substring(0, separator) : normalized;
     }
 
     /** The two-letter language of a locale code such as {@code pt-br} or {@code de_AT}. */
@@ -193,6 +207,27 @@ public final class BundledWordPacks {
             }
         }
         return new Pack(List.copyOf(words), List.copyOf(allowed));
+    }
+
+    /**
+     * Reads {@code "<language> <language>: <word> <word>"} lines into one list of
+     * words per language; a language may take several lines.
+     */
+    private static Map<String, List<String>> byLanguage(String name) {
+        Map<String, List<String>> lists = new LinkedHashMap<>();
+        for (String line : lines(name)) {
+            int colon = line.indexOf(':');
+            String words = colon > 0 ? line.substring(colon + 1).trim() : "";
+            if (words.isEmpty()) {
+                continue;
+            }
+            for (String language : line.substring(0, colon).trim().toLowerCase(Locale.ROOT).split("[\\s,]+")) {
+                lists.computeIfAbsent(language, key -> new ArrayList<>()).addAll(List.of(words.split("\\s+")));
+            }
+        }
+        Map<String, List<String>> copied = new LinkedHashMap<>();
+        lists.forEach((language, words) -> copied.put(language, List.copyOf(words)));
+        return Map.copyOf(copied);
     }
 
     /** The lines of {@code wordpacks/<name>.txt}, trimmed, without blank lines and {@code #} comments. */

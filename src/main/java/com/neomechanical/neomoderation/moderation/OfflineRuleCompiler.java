@@ -3,6 +3,7 @@ package com.neomechanical.neomoderation.moderation;
 import com.neomechanical.neomoderation.config.OfflineModerationSettings;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -27,7 +28,9 @@ final class OfflineRuleCompiler {
 
     /**
      * The compiled rules. {@code speakerPhrases} caches, per game language, the
-     * words that language's speakers may use although another language bans them.
+     * words that language's speakers may use although another language bans them;
+     * {@code everydayScopes} caches, per speaker's language, the everyday words a
+     * match may be read as instead (see {@link EverydayWords}).
      */
     record CompiledRules(
             OfflineModerationSettings source,
@@ -35,7 +38,8 @@ final class OfflineRuleCompiler {
             List<String[]> allowedPhrases,
             List<CompiledUrl> urls,
             List<String> allowedUrls,
-            Map<String, List<String[]>> speakerPhrases
+            Map<String, List<String[]>> speakerPhrases,
+            Map<String, List<Set<String>>> everydayScopes
     ) {
         /** The phrases a speaker of {@code language} may use besides everyone's; empty for {@code null}. */
         List<String[]> speakerPhrases(String language) {
@@ -44,6 +48,26 @@ final class OfflineRuleCompiler {
             }
             return speakerPhrases.computeIfAbsent(language.toLowerCase(Locale.ROOT), code ->
                     tokenizeAll(BundledWordPacks.languageWords(code), source.normalizeLeetspeak()));
+        }
+
+        /**
+         * The everyday words of each language whose words are read as words for
+         * {@code speaker}: English, the server's locale and the speaker's game
+         * language, each once.
+         */
+        List<Set<String>> everydayScope(String speaker) {
+            return everydayScopes.computeIfAbsent(BundledWordPacks.language(speaker), language -> {
+                Set<String> codes = new LinkedHashSet<>(List.of(
+                        BundledWordPacks.ENGLISH, BundledWordPacks.language(source.locale()), language));
+                List<Set<String>> scope = new ArrayList<>();
+                for (String code : codes) {
+                    Set<String> words = BundledWordPacks.everydayWords(code);
+                    if (!words.isEmpty()) {
+                        scope.add(words);
+                    }
+                }
+                return List.copyOf(scope);
+            });
         }
     }
 
@@ -62,61 +86,50 @@ final class OfflineRuleCompiler {
     }
 
     /**
-     * Marks every token a banned word may not run into from the token before it:
-     * the end of a contraction ("let's hit"), and a word after a word ("put a"),
-     * by {@link BundledWordPacks#commonWords()}. A single letter between single
-     * letters is spelled out ("k y s"), never a word.
+     * The first match of {@code word} at or after {@code from} that is not
+     * everyday words of one language (see {@link EverydayWords}), or {@code null}.
+     * A word written with a space is read across every space.
      */
-    static boolean[] crossingBlocked(TextNormalizer.Normalized text) {
-        boolean[] blocked = text.joinBlocked().clone();
-        List<int[]> tokens = tokensOf(text);
-        if (tokens.size() < 2) {
-            return blocked;
-        }
-        Set<String> common = BundledWordPacks.commonWords();
-        boolean[] word = new boolean[tokens.size()];
-        for (int t = 0; t < tokens.size(); t++) {
-            int[] token = tokens.get(t);
-            boolean single = token[1] - token[0] == 1;
-            boolean spelledOut = single
-                    && ((t > 0 && length(tokens.get(t - 1)) == 1)
-                    || (t + 1 < tokens.size() && length(tokens.get(t + 1)) == 1));
-            word[t] = !spelledOut && common.contains(new String(text.chars(), token[0], token[1] - token[0]));
-        }
-        for (int t = 1; t < tokens.size(); t++) {
-            if (word[t - 1] && word[t]) {
-                blocked[tokens.get(t)[0]] = true;
+    static int[] findWord(
+            TextNormalizer.Normalized text,
+            CompiledWord word,
+            boolean[] masked,
+            EverydayWords everyday,
+            int from
+    ) {
+        int[] match;
+        while ((match = findMatch(text, word, masked, from)) != null) {
+            if (word.spaced() || !everyday.innocent(match[0], match[1])) {
+                return match;
             }
+            from = match[0] + 1;
         }
-        return blocked;
+        return null;
     }
 
     /**
      * Finds the first match of {@code word} at or after normalised index
      * {@code from}, or {@code null}. A match must start where a token starts and
      * finish where one finishes; between those points separators are ignored,
-     * except into a token {@code crossing} marks (see {@link #crossingBlocked}),
-     * unless the word was written with a space. A match never starts after the
-     * apostrophe of a contraction.
+     * except that a match never starts at or runs into the end of a contraction
+     * ("let's hit" is not "s hit").
      */
     static int[] findMatch(
             TextNormalizer.Normalized text,
             CompiledWord word,
             boolean[] masked,
-            boolean[] crossing,
             int from
     ) {
         char[] chars = text.chars();
         boolean[] tokenStart = text.tokenStart();
         boolean[] tokenEnd = text.tokenEnd();
-        boolean[] startBlocked = text.joinBlocked();
-        boolean[] joinBlocked = word.spaced() ? startBlocked : crossing;
+        boolean[] joinBlocked = text.joinBlocked();
         char[] runChars = word.runChars();
         int[] runLengths = word.runLengths();
         int length = chars.length;
 
         for (int start = from; start < length; start++) {
-            if (!tokenStart[start] || masked[start] || startBlocked[start]) {
+            if (!tokenStart[start] || masked[start] || joinBlocked[start]) {
                 continue;
             }
             int position = start;
@@ -133,11 +146,11 @@ final class OfflineRuleCompiler {
                     if (masked[position + runLength] || (runLength > 0 && joinBlocked[position + runLength])) {
                         break;
                     }
+                    // The last letter ends the match at the first word end it can:
+                    // "put a 4" is "put a" and a number, and "fuck kids" ends at "fuck".
                     if (run == runChars.length - 1
                             && runLength >= runLengths[run]
-                            && tokenEnd[position + runLength - 1]
-                            && tokenStart[position + runLength]
-                            && !tokenEnd[position + runLength]) {
+                            && tokenEnd[position + runLength - 1]) {
                         break;
                     }
                     runLength++;
@@ -200,11 +213,8 @@ final class OfflineRuleCompiler {
         return false;
     }
 
-    private static int length(int[] token) {
-        return token[1] - token[0];
-    }
-
-    private static List<int[]> tokensOf(TextNormalizer.Normalized text) {
+    /** Each token's start and end in the normalised text. */
+    static List<int[]> tokensOf(TextNormalizer.Normalized text) {
         List<int[]> tokens = new ArrayList<>();
         boolean[] tokenStart = text.tokenStart();
         boolean[] tokenEnd = text.tokenEnd();
@@ -264,6 +274,7 @@ final class OfflineRuleCompiler {
                 allowedPhrases,
                 List.copyOf(urls),
                 List.copyOf(allowedUrls),
+                new ConcurrentHashMap<>(),
                 new ConcurrentHashMap<>()
         );
     }

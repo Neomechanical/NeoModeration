@@ -123,8 +123,27 @@ class DetectionNotifierTest {
 
         List<String> alerts = TestPlugin.lines(germanStaff);
         assertEquals(4, alerts.size(), String.join("\n", alerts));
-        assertEquals("[NeoMod] Hinweise zu Steve pausieren 30 Sekunden. Alles wird weiter protokolliert.", alerts.get(3));
+        assertEquals("[NeoMod] Hinweise zu Steve pausieren, solange das anhält. Alles wird weiter protokolliert.",
+                alerts.get(3));
         verify(logger, org.mockito.Mockito.times(6)).info(anyString());
+    }
+
+    @Test
+    void theFirstAlertAfterAPauseSaysHowManyStaffMissed() {
+        NeoModerationPlugin plugin = plugin(new YamlConfiguration());
+        long[] now = {1_000L};
+        DetectionNotifier notifier = new DetectionNotifier(plugin, discord, () -> now[0]);
+        for (int i = 0; i < 6; i++) {
+            notifier.notifyDetection(blocked(List.of()), plugin.settings());
+        }
+
+        now[0] += 60_000L;
+        notifier.notifyDetection(blocked(List.of()), plugin.settings());
+
+        List<String> alerts = TestPlugin.lines(germanStaff);
+        assertEquals(6, alerts.size(), String.join("\n", alerts));
+        assertEquals("[NeoMod] Hinweise zu Steve sind zurück. Während der Pause verpasst: 2", alerts.get(4));
+        assertEquals(alerts.get(0), alerts.get(5));
     }
 
     @Test

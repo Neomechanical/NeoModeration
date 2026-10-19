@@ -72,6 +72,7 @@ final class TextNormalizer {
      * @param tokenEnd     whether each char ended one
      * @param joinBlocked  whether each char began a token that follows an apostrophe
      *                     inside a word; a match may neither start there nor run into it
+     * @param leet         whether each char was typed as a digit or symbol ("g0" for "go")
      * @param collapsed    {@code chars} with runs of the same character reduced to
      *                     one, used only as a cheap necessary-condition prefilter
      */
@@ -81,6 +82,7 @@ final class TextNormalizer {
             boolean[] tokenStart,
             boolean[] tokenEnd,
             boolean[] joinBlocked,
+            boolean[] leet,
             String collapsed
     ) {
         int length() {
@@ -130,6 +132,7 @@ final class TextNormalizer {
                     c = folded;
                 }
                 char digit = c >= '0' && c <= '9' ? c : 0;
+                boolean typedAsLetter = Character.isLetter(c);
                 if (normalizeLeetspeak) {
                     // '!' is a leetspeak 'i' inside a word ("b!tch") but ordinary
                     // punctuation at a boundary; converting it unconditionally
@@ -140,12 +143,13 @@ final class TextNormalizer {
                 }
                 if (c == 'ß') {
                     // German sharp s is spelled "ss" in every word list.
-                    out.add('s', rawAt, atTokenStart, atTokenStart && afterInWordApostrophe, (char) 0);
-                    out.add('s', rawAt, false, false, (char) 0);
+                    out.add('s', rawAt, atTokenStart, atTokenStart && afterInWordApostrophe, (char) 0, false);
+                    out.add('s', rawAt, false, false, (char) 0, false);
                     atTokenStart = false;
                     afterInWordApostrophe = false;
                 } else if (Character.isLetterOrDigit(c)) {
-                    out.add(c, rawAt, atTokenStart, atTokenStart && afterInWordApostrophe, digit);
+                    out.add(c, rawAt, atTokenStart, atTokenStart && afterInWordApostrophe, digit,
+                            !typedAsLetter && Character.isLetter(c));
                     atTokenStart = false;
                     afterInWordApostrophe = false;
                 } else {
@@ -188,6 +192,7 @@ final class TextNormalizer {
         private int[] rawIndex;
         private boolean[] tokenStart;
         private boolean[] joinBlocked;
+        private boolean[] leet;
         private char[] digits;
         private int count;
 
@@ -197,22 +202,25 @@ final class TextNormalizer {
             rawIndex = new int[capacity];
             tokenStart = new boolean[capacity];
             joinBlocked = new boolean[capacity];
+            leet = new boolean[capacity];
             digits = new char[capacity];
         }
 
-        void add(char c, int rawAt, boolean startsToken, boolean blocked, char digit) {
+        void add(char c, int rawAt, boolean startsToken, boolean blocked, char digit, boolean typedAsSymbol) {
             if (count == chars.length) {
                 int capacity = count * 2;
                 chars = Arrays.copyOf(chars, capacity);
                 rawIndex = Arrays.copyOf(rawIndex, capacity);
                 tokenStart = Arrays.copyOf(tokenStart, capacity);
                 joinBlocked = Arrays.copyOf(joinBlocked, capacity);
+                leet = Arrays.copyOf(leet, capacity);
                 digits = Arrays.copyOf(digits, capacity);
             }
             chars[count] = c;
             rawIndex[count] = rawAt;
             tokenStart[count] = startsToken;
             joinBlocked[count] = blocked;
+            leet[count] = typedAsSymbol;
             digits[count] = digit;
             count++;
         }
@@ -233,7 +241,7 @@ final class TextNormalizer {
                 }
             }
             return new Normalized(finalChars, Arrays.copyOf(rawIndex, count), finalStart, finalEnd,
-                    Arrays.copyOf(joinBlocked, count), collapsed.toString());
+                    Arrays.copyOf(joinBlocked, count), Arrays.copyOf(leet, count), collapsed.toString());
         }
 
         /**

@@ -45,6 +45,7 @@ help:
   dashboard: "{#brand}&lNeoModeration{#faint} {version}{#muted}: local rules {#text}{mode}{#muted}, cloud {#text}{cloud}{#muted}, {#text}{total}{#muted} caught since startup"
   page: "{#faint}Page {page} of 2. {#muted}More: {#brand}/nmod help {next}"
   hint: "{#faint}Click a command to run it or to put it in your chat box. Hover over it to see what it does."
+  hint-console: "{#faint}Type a command below to run it."
   entry-usage: "  {#brand}{usage}"
   entry-desc: "  {#muted}{desc}"
   entry-hover: "{#brand}{usage}\n{#muted}{desc}"
@@ -164,6 +165,7 @@ status:
   cloud-credits: "{#muted}Last cloud check: {#risk}out of credits{#muted}. Add some at {#brand}{billingUrl}{#muted}."
   cloud-request-error: "{#muted}Last cloud check: {#risk}request refused{#muted}. Run {#brand}/nmod doctor{#muted}."
   cloud-transient: "{#muted}Last cloud check: {#review}no answer{#muted}. Local rules still run; {#brand}/nmod reload{#muted} retries now."
+  cloud-busy: "{#muted}Messages the cloud had no time to check since startup (chat was busy): {#text}{count}"
   value:
     alerts-preview: "on, with the message"
     alerts-hidden: "on, message hidden"
@@ -195,7 +197,7 @@ rules:
   removed: "{prefix} {#safe}Removed {#text}{value}{#safe} from {kind}."
   already-there: "{prefix} {#muted}{#text}{value}{#muted} is already in {kind}."
   not-there: "{prefix} {#muted}{#text}{value}{#muted} is not in {kind}."
-  in-pack: "{prefix} {#muted}{#text}{value}{#muted} comes from a language pack, so it still blocks. Run {#brand}/{label} allow word add {value}{#muted} to let it through."
+  in-pack: "{prefix} {#muted}{#text}{value}{#muted} comes from a language pack, so it still blocks. {#brand}/{label} allow word add {value}{#muted} lets it through in every message, from every player."
 
 action:
   usage: "{prefix} {#muted}Use {#brand}/{label} action <list|add|remove|reset>{#muted}."
@@ -239,6 +241,7 @@ usage:
 mapart:
   confiscated: "{prefix} {#risk}That map was removed: its picture is not allowed here."
   blocked: "{prefix} {#risk}That map's picture is not allowed here."
+  capped: "{prefix} {#muted}Pictures from {#text}{player}{#muted} are not sent to the cloud for the rest of the hour: the limit in moderation.mapArt.checksPerPlayerPerHour ({#text}{limit}{#muted}) is reached."
 
 mute:
   blocked: "{prefix} {#muted}You are muted for {#text}{duration}{#muted}."
@@ -315,11 +318,14 @@ alert:
   then: " {#faint}then {#muted}{actions}"
   hidden: "message hidden"
   hover: "{#muted}Click to see {player}'s cases"
-  paused-player: "{prefix} {#muted}Alerts about {#text}{player}{#muted} pause for {seconds} seconds. Everything is still logged."
-  paused-all: "{prefix} {#muted}Too many alerts at once, so they pause for {seconds} seconds. Everything is still logged."
+  paused-player: "{prefix} {#muted}Alerts about {#text}{player}{#muted} pause while this keeps up. Everything is still logged."
+  paused-all: "{prefix} {#muted}Too many alerts at once, so they pause until it calms down. Everything is still logged."
+  missed-player: "{prefix} {#muted}Alerts about {#text}{player}{#muted} are back. Missed while paused: {#text}{count}"
+  missed-all: "{prefix} {#muted}Alerts are back. Missed while paused: {#text}{count}{#muted}, players: {#text}{players}"
 
 surface:
   title: "{prefix} {#muted}Where local rules apply. Click a setting to change it."
+  title-console: "{prefix} {#muted}Where local rules apply."
   chat-row: "  {#text}Chat{#muted}: always checked"
   chat-row-off: "  {#text}Chat{#muted}: not checked (moderation.chat.scanAsyncChat)"
   row: "  {#text}{surface}{#muted}: "
@@ -348,7 +354,7 @@ allow:
 mode:
   usage: "{prefix} {#muted}Use {#brand}/{label} mode <monitor|enforce>{#muted}."
   current: "{prefix} {#muted}Local rules: {#text}{value}"
-  stats: "{prefix} {#muted}Caught since startup, {#text}{since}{#muted} ago: {#text}{total}"
+  stats: "{prefix} {#muted}Caught since the server started {#text}{since}{#muted} ago: {#text}{total}"
   stats-line: "  {#faint}{count} {#muted}{what}"
   set-monitor: "{prefix} {#review}Local rules now only alert staff. {#muted}Nothing is blocked until {#brand}/nmod mode enforce{#muted}."
   set-enforce: "{prefix} {#safe}Local rules now block. {#muted}Actions you set with {#brand}/nmod action{#muted} run too."
@@ -440,6 +446,7 @@ doctor:
     actions-none: "block only, nobody is muted, kicked or banned"
     actions-list: "{actions}"
     off-plain: "off"
+    strikes-off: "off"
     spam-on: "messages per 10 s: {rate}, repeats: {repeats}, capitals: {caps}%"
     spam-commands: "commands per 10 s: {rate}"
     spam-idle: "on, but every limit is 0"
@@ -471,7 +478,7 @@ doctor:
     events-credits: "out of credits"
     events-request: "refused; check moderation.api.endpoint"
     events-transient: "no answer from the cloud"
-    events-busy: "the cloud was busy; local rules still ran"
+    events-busy: "{count} messages since startup had only the local rules because chat came faster than the cloud could check them"
     account-ok: "{ms} ms, workspace {workspace}, plan {plan}"
     account-auth: "the key was rejected ({ms} ms). Replace it at {url}, then run /nmod setup <key>"
     account-credits: "out of credits ({ms} ms). Add some at {url}"
@@ -502,6 +509,7 @@ privacy:
 
 cases:
   title: "{prefix} {#muted}Cases{who}. Click one to open it."
+  title-console: "{prefix} {#muted}Cases{who}. Open one with {#brand}/{label} case <number>{#muted}."
   title-player: " for {#text}{player}{#muted}"
   line: "  {#faint}#{id} {verdict} {#text}{player}{#faint} in {surface}{#muted}: {reason} {#faint}{ago} ago{status}"
   status:
@@ -540,6 +548,7 @@ cases:
 preset:
   usage: "{prefix} {#muted}Use {#brand}/{label} preset <family|community|minimal>{#muted}."
   list-title: "{prefix} {#muted}How strict the cloud is. Click one to use it."
+  list-title-console: "{prefix} {#muted}How strict the cloud is. Use one with {#brand}/{label} preset <name>{#muted}."
   list-item: "  {#brand}{name}{#muted}: {summary}"
   list-hover: "{#muted}Use the {name} preset"
   family: "every category, strictest (0.55)"
@@ -617,3 +626,4 @@ migrated:
   tell-players: "Players are now told why a message was stopped (moderation.tellPlayers: true). Set it to false to block without a word."
   per-player-on: "Each player now reads NeoModeration's messages in their own game language (perPlayerLanguage: true)."
   per-player-off: "Every player keeps reading your edited {locale} messages (perPlayerLanguage: false). Set it to true to show each player their own game language."
+  map-art-cap: "The cloud now checks at most {count} new map pictures per player an hour (moderation.mapArt.checksPerPlayerPerHour: {count}), so nobody can use up your credits by drawing maps. Set it to 0 for no limit."

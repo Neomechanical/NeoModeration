@@ -64,11 +64,12 @@ moderation:
     # Review it for your server and change it in-game with /nmod word and
     # /nmod allow. A word only matches from the start of a word to the end of
     # one, so "assignment" and "Scunthorpe" stay clean. A word split into
-    # pieces is still caught ("f uck", "ni gger", "k y s"), but two everyday
-    # words are not read as one ("put a" is not "puta"); write a word with a
-    # space, such as "ass hole", to catch it however it is spaced. Inflections
-    # are listed explicitly. "badword" is kept so the documented check
-    # /nmod test badword works.
+    # pieces is still caught ("f uck", "ni gger", "k y s"), but everyday words of
+    # English, the server's language or the player's own stay clean when
+    # together they spell a listed word ("put a torch here"). A word written
+    # with a space, such as "ass hole", is caught however it is spaced.
+    # Inflections are listed explicitly. "badword" is kept so the documented
+    # check /nmod test badword works.
     bannedWords:
       - "badword"
       - "fuck"
@@ -120,8 +121,8 @@ moderation:
       - "pakis"
       - "gook"
       - "gooks"
-      - "wetback"
-      - "wetbacks"
+      - "wet back"
+      - "wet backs"
       - "beaner"
       - "beaners"
       - "retard"
@@ -137,8 +138,9 @@ moderation:
     # language ("pic", "cono", "Amina") are left out of every pack. The pt
     # pack follows Brazilian Portuguese. A few words are everyday words in one
     # language and banned in another: French "retard", Spanish "Kike", Swedish
-    # "slut" and "fick", "puto" and "bicha" in Portugal. They pass for players
-    # whose game language is that one, and for everyone when "locale" is.
+    # "slut" and "fick", "puto" and "bicha" in Portugal. They pass for everyone
+    # when "locale" is that language, and for a player whose game language it
+    # is when the message is written in that language.
     languagePacks: [auto]
     bannedUrls:
       - "grabify.link"
@@ -269,7 +271,8 @@ moderation:
     book: "off"
     anvil: "off"
     command: "off"
-    # Which commands' arguments get scanned when command != off.
+    # Which commands' arguments get scanned when command != off. A muted player
+    # cannot use them either, whatever command is set to.
     scannedCommands: [ "msg", "tell", "w", "whisper", "me", "r", "reply" ]
 
   # ---- Local case history ---------------------------------------------------

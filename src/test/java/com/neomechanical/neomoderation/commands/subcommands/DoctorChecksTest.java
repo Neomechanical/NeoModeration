@@ -34,9 +34,9 @@ class DoctorChecksTest {
             for (DiscordAlerts.Problem problem : DiscordAlerts.Problem.values()) {
                 checks.addAll(DoctorChecks.local(settings, false, problem));
             }
-            checks.addAll(DoctorChecks.cloudSetup(settings, false, null));
+            checks.addAll(DoctorChecks.cloudSetup(settings, false, null, 0));
             for (ModerationApiResult.Kind kind : ModerationApiResult.Kind.values()) {
-                checks.addAll(DoctorChecks.cloudSetup(settings, true, kind));
+                checks.addAll(DoctorChecks.cloudSetup(settings, true, kind, 3));
             }
         }
         checks.addAll(DoctorChecks.account(usage(100), 12));

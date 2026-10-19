@@ -66,7 +66,11 @@ class ChatCloudFailureTest {
         } else {
             verify(coordinator).checkMessage(eq(player), eq("hello"), eq(settings), any());
         }
-        if (cloudResult.isFlagged()) {
+        if (cloudResult.isFlagged() && cloudMode == ModerationMode.MONITOR) {
+            // The message went on at once; the answer that followed it only tells staff.
+            verify(handler).handleAfter(player, "chat", "platform:harassment", "hello", false);
+            verifyNoMoreInteractions(handler);
+        } else if (cloudResult.isFlagged()) {
             verify(handler).handle(player, "chat", "platform:harassment", "hello",
                     requested, DetectionHandler.Source.CLOUD);
             verifyNoMoreInteractions(handler);
@@ -119,8 +123,33 @@ class ChatCloudFailureTest {
 
         assertEquals(ChatDecision.allow(), decision);
         verify(coordinator, never()).checkMessage(any(), anyString(), any(), any());
-        verify(handler).handle(player, "chat", "platform:harassment", "hello",
-                DetectionHandler.Disposition.ALLOW, DetectionHandler.Source.CLOUD);
+        verify(handler).handleAfter(player, "chat", "platform:harassment", "hello", false);
+    }
+
+    @org.junit.jupiter.api.Test
+    void aFlaggedAnswerTooLateForAFailClosedServerIsRecordedAsBlocked() {
+        ModerationSettings settings = settings(false, ModerationMode.ENFORCE);
+        NeoModerationPlugin plugin = mock(NeoModerationPlugin.class);
+        when(plugin.settings()).thenReturn(settings);
+        when(plugin.messages()).thenReturn(mock(MessageService.class));
+        ChatModerationCoordinator coordinator = mock(ChatModerationCoordinator.class);
+        DetectionHandler handler = mock(DetectionHandler.class);
+        Player player = mock(Player.class);
+        when(player.getName()).thenReturn("Tester");
+        when(player.getUniqueId()).thenReturn(UUID.randomUUID());
+        java.util.concurrent.atomic.AtomicReference<Consumer<ModerationApiResult>> late =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        when(coordinator.checkMessage(eq(player), eq("hello"), eq(settings), any())).thenAnswer(call -> {
+            late.set(call.getArgument(3));
+            return ModerationApiResult.transientTransport();
+        });
+
+        ChatDecision decision = new ChatModerationProcessor(plugin, coordinator,
+                mock(PlayerMuteService.class), new SpamDetector(), handler).handleChat(player, "hello", true);
+        late.get().accept(ModerationApiResult.flagged("harassment"));
+
+        assertEquals(ChatDecision.block(), decision);
+        verify(handler).handleAfter(player, "chat", "platform:harassment", "hello", true);
     }
 
     @org.junit.jupiter.api.Test

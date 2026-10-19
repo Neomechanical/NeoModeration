@@ -7,6 +7,7 @@ import com.neomechanical.neomoderation.config.ModerationApiSettings;
 import com.neomechanical.neomoderation.config.ModerationCategorySettings;
 import com.neomechanical.neomoderation.config.ModerationMode;
 import com.neomechanical.neomoderation.config.ModerationSettings;
+import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.moderation.DetectionHandler;
 import com.neomechanical.neomoderation.moderation.FixedWindow;
 import com.neomechanical.neomoderation.moderation.MapArtScanner;
@@ -156,11 +157,12 @@ public final class MapArtListener implements Listener {
             act(sighting, mapId, cachedCategory, settings);
             return;
         }
-        if (cleanMaps.contains(key) || !plugin.coordinator().isRemoteCallAllowed()) {
+        if (cleanMaps.contains(key) || !plugin.coordinator().isRemoteCallAllowed()
+                || !mayCheck(sighting.player(), settings.mapArt())) {
             return;
         }
         String image = MapArtScanner.pngBase64(pixels);
-        if (image == null || !mayCheck(sighting.player().getUniqueId(), settings.mapArt())) {
+        if (image == null) {
             return;
         }
         ModerationApiResult result = plugin.apiClient().moderateImage(sighting.actorName(), sighting.actorId(),
@@ -178,20 +180,32 @@ public final class MapArtListener implements Listener {
         act(sighting, mapId, category, settings);
     }
 
-    /** Counts a new picture against the player's hourly allowance; false once it is used up. */
-    private boolean mayCheck(UUID player, MapArtSettings settings) {
+    /**
+     * Counts a new picture against the player's hourly allowance; false once it is
+     * used up, which the console hears the first time each hour.
+     */
+    private boolean mayCheck(Player player, MapArtSettings settings) {
         long now = System.currentTimeMillis();
+        int checked;
         synchronized (checksThisHour) {
             if (checksThisHour.size() > CLEANUP_THRESHOLD) {
                 checksThisHour.values().removeIf(window -> window.ended(now));
             }
-            FixedWindow window = checksThisHour.computeIfAbsent(player, ignored -> new FixedWindow(HOUR_MS));
-            if (!settings.allowsAnotherCheck(window.count(now))) {
-                return false;
-            }
+            FixedWindow window = checksThisHour.computeIfAbsent(player.getUniqueId(),
+                    ignored -> new FixedWindow(HOUR_MS));
+            checked = window.count(now);
+            // Refused pictures count too, so only the first refusal is logged.
             window.add(now);
-            return true;
+            if (settings.allowsAnotherCheck(checked)) {
+                return true;
+            }
         }
+        if (checked == settings.checksPerPlayerPerHour()) {
+            plugin.getLogger().info(MessageService.plain(plugin.messages().format("mapart.capped", Map.of(
+                    "prefix", "", "player", player.getName(),
+                    "limit", String.valueOf(settings.checksPerPlayerPerHour())))).trim());
+        }
+        return false;
     }
 
     private void act(Sighting sighting, int mapId, String category, ModerationSettings scanned) {

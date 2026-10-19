@@ -116,19 +116,14 @@ public final class ChatModerationProcessor {
             return passed;
         }
         String checked = text;
-        // An answer that can no longer stop the message only tells staff.
-        Consumer<ModerationApiResult> alertOnly = result -> {
-            if (result.isFlagged()) {
-                handler.handle(player, "chat", result.reason(), checked, DetectionHandler.Disposition.ALLOW,
-                        DetectionHandler.Source.CLOUD);
-            }
-        };
         if (settings.cloudMode() == ModerationMode.MONITOR || !mayWait) {
             // The cloud can only alert staff here, so the message goes now and the answer follows it.
-            coordinator.checkInBackground(player, checked, settings, alertOnly);
+            coordinator.checkInBackground(player, checked, settings, lateAnswer(player, checked, false));
             return passed;
         }
-        ModerationApiResult cloudResult = coordinator.checkMessage(player, checked, settings, alertOnly);
+        // An answer too late to stop the message only tells staff; with no answer in time, fail-closed blocked it.
+        ModerationApiResult cloudResult = coordinator.checkMessage(player, checked, settings,
+                lateAnswer(player, checked, !settings.failOpen()));
         if (!cloudResult.isFlagged()) {
             if (cloudResult.kind() != ModerationApiResult.Kind.CLEAR && !settings.failOpen()
                     && settings.cloudMode() == ModerationMode.ENFORCE) {
@@ -153,6 +148,15 @@ public final class ChatModerationProcessor {
             case ALLOW -> ChatDecision.allow();
             case BLOCK -> ChatDecision.block();
             case CENSOR -> censored != null ? ChatDecision.censor(censored) : ChatDecision.block();
+        };
+    }
+
+    /** A cloud answer that came after the message went its way: staff hear about it if it flagged. */
+    private Consumer<ModerationApiResult> lateAnswer(Player player, String message, boolean blocked) {
+        return result -> {
+            if (result.isFlagged()) {
+                handler.handleAfter(player, "chat", result.reason(), message, blocked);
+            }
         };
     }
 }

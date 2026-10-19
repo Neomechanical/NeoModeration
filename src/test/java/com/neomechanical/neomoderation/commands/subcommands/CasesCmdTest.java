@@ -36,7 +36,7 @@ class CasesCmdTest {
         run("cases");
 
         List<String> lines = TestPlugin.lines(staff);
-        assertEquals("[NeoMod] Cases. Click one to open it.", lines.get(0));
+        assertEquals("[NeoMod] Cases. Open one with /nmod case <number>.", lines.get(0));
         assertEquals(12, lines.size(), String.join("\n", lines));
         assertTrue(lines.get(1).startsWith("  #1 Blocked Steve in chat: banned word \"badword\" "), lines.get(1));
         assertEquals("  Older cases: /nmod cases page 2", lines.get(11));
@@ -49,7 +49,7 @@ class CasesCmdTest {
         run("cases", "Steve", "page", "2");
 
         List<String> lines = TestPlugin.lines(staff);
-        assertEquals("[NeoMod] Cases for Steve. Click one to open it.", lines.get(0));
+        assertEquals("[NeoMod] Cases for Steve. Open one with /nmod case <number>.", lines.get(0));
         assertEquals("  Older cases: /nmod cases Steve page 3", lines.get(lines.size() - 1));
     }
 
@@ -60,7 +60,7 @@ class CasesCmdTest {
         run("cases", "1234", "page", "1");
 
         verify(caseLog, never()).byId(anyLong());
-        assertEquals("[NeoMod] Cases for 1234. Click one to open it.", TestPlugin.lines(staff).get(0));
+        assertEquals("[NeoMod] Cases for 1234. Open one with /nmod case <number>.", TestPlugin.lines(staff).get(0));
     }
 
     @Test
@@ -70,7 +70,7 @@ class CasesCmdTest {
         run("cases", "Resolve", "page", "1");
 
         verify(caseLog, never()).updateStatus(anyLong(), anyString());
-        assertEquals("[NeoMod] Cases for Resolve. Click one to open it.", TestPlugin.lines(staff).get(0));
+        assertEquals("[NeoMod] Cases for Resolve. Open one with /nmod case <number>.", TestPlugin.lines(staff).get(0));
     }
 
     @Test
@@ -95,8 +95,10 @@ class CasesCmdTest {
         assertTrue(transcript.contains("  Why: banned word \"badword\""), transcript);
         assertTrue(transcript.contains("  Status: open"), transcript);
         assertTrue(transcript.contains("  They wrote: this is a badword"), transcript);
-        assertTrue(transcript.contains("[Resolve] [Dismiss] [Allow \"badword\"] [More from Steve] [Mute 10m]"),
-                transcript);
+        // The console cannot click, so each button comes with the command it runs.
+        assertTrue(transcript.contains("  [Resolve] /nmod cases resolve 7\n  [Dismiss] /nmod cases dismiss 7\n"
+                + "  [Allow \"badword\"] /nmod allow word add badword\n  [More from Steve] /nmod cases Steve page 1\n"
+                + "  [Mute 10m] /nmod mute Steve 10m"), transcript);
     }
 
     @Test
@@ -106,7 +108,8 @@ class CasesCmdTest {
         run("case", "7");
 
         String transcript = TestPlugin.transcript(staff);
-        assertTrue(transcript.contains("[Resolve] [Dismiss] [More from Steve] [Mute 10m]"), transcript);
+        assertTrue(transcript.contains("  [Resolve] /nmod cases resolve 7\n  [Dismiss] /nmod cases dismiss 7\n"
+                + "  [More from Steve] /nmod cases Steve page 1\n  [Mute 10m] /nmod mute Steve 10m"), transcript);
         assertFalse(transcript.contains("Allow"), transcript);
     }
 

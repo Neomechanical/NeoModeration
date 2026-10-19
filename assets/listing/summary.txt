@@ -1,1 +1,1 @@
-Chat filter: anti-swear, anti-spam and anti-advertising. Blocks profanity, slurs and scam links.
+Anti-swear chat filter: profanity, slurs, spam, scam links and server ads. No account needed.

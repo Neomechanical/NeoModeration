@@ -29,18 +29,37 @@ fvck this
 f*ck this
 phuck you
 dreck sack
+you pa ki
+you p4 ki
+you pa.ki
+you pa-ki
+you bean er
+you be an er
+you w ho re
+you who res
+you go oks
+you g0 0k
+you wet back
+you wet backs
+you bulls hit
+you or os pu
 # language: es_es
 puta madre
+esto es una mi er da
+kike
 eres un puto
 eres un maricon
 hijo de puta
 # language: fr_fr
 va te faire foutre
+shut up retard
+sal op e
 vatefairefoutre
 nique ta mere
 fils de pute
 # language: de_de
 du bist ein hurensohn
+du w ich ser
 fick dich
 # language: pt_br
 vai tomar no cu caralho
@@ -48,3 +67,9 @@ foda se
 # language: tr_tr
 orospu çocuğu
 siktir git
+# language: es_mx
+you are a kike
+# language: sv_se
+what a slut
+# language: da_dk
+you fag

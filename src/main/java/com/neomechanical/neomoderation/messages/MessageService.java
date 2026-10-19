@@ -143,9 +143,19 @@ public final class MessageService {
         return render(active, key, placeholders);
     }
 
-    /** A message in the language {@code reader} reads. */
+    /**
+     * A message in the language {@code reader} reads. The console, which cannot
+     * click, reads {@code <key>-console} where a locale has one ("Click one to
+     * open it" becomes "Open one with /nmod case <number>").
+     */
     public String format(CommandSender reader, String key, Map<String, String> placeholders) {
-        return render(localeOf(reader), key, placeholders);
+        YamlConfiguration locale = localeOf(reader);
+        return render(locale, reader instanceof Player ? key : forConsole(locale, key), placeholders);
+    }
+
+    private String forConsole(YamlConfiguration locale, String key) {
+        String console = key + "-console";
+        return locale.isString(console) || fallback.isString(console) ? console : key;
     }
 
     /** A message with no placeholders, in the language {@code reader} reads. */
@@ -170,12 +180,16 @@ public final class MessageService {
     public void sendMenu(CommandSender sender, List<MenuRenderer.Line> lines) {
         if (sender instanceof Player player && player.spigot() != null) {
             for (MenuRenderer.Line line : lines) {
-                player.spigot().sendMessage(line.player());
+                if (line.player() != null) {
+                    player.spigot().sendMessage(line.player());
+                }
             }
             return;
         }
         for (MenuRenderer.Line line : lines) {
-            sender.sendMessage(line.console());
+            if (line.console() != null) {
+                sender.sendMessage(line.console());
+            }
         }
     }
 

@@ -2,7 +2,7 @@ NeoModeration by Neomechanical filters Minecraft chat. It blocks swearing, slurs
 
 ## What a new install does
 
-- Blocks messages that contain a word from starter lists of swear words and slurs: English, plus the Spanish, French, German, Portuguese or Turkish list that matches `locale` in `config.yml` (`languagePacks` turns on more). A word only matches from the start of a word to the end of one, so "assignment" and "Scunthorpe" stay clean, and two everyday words are never read as one ("put a" is not a slur). A word one language uses every day, such as French "retard" (late), passes for players of that language.
+- Blocks messages that contain a word from starter lists of swear words and slurs: English, plus the Spanish, French, German, Portuguese or Turkish list that matches `locale` in `config.yml` (`languagePacks` turns on more). A word only matches from the start of a word to the end of one, so "assignment" and "Scunthorpe" stay clean, and so do everyday words that together spell a listed word, as in "put a torch here". A word one language uses every day, such as French "retard" (late), passes for players writing in that language.
 - Also matches common disguises of a listed word: spaced or stretched letters, accents, look-alike letters, leetspeak such as `b4dw0rd`, and words split across rapid short messages.
 - Blocks ads for other Minecraft servers: public IP addresses, addresses with a port, `play.` and `mc.` style addresses, free hosts such as `aternos.me`, and "join myserver.net". Ordinary links stay. Let your own server's address through with `/nmod allow url`.
 - Blocks a starter list of IP-grabber and scam links, including ones written with `(dot)` or `[.]`.
@@ -49,7 +49,7 @@ Without an API key or a Discord webhook, no chat or map content leaves your serv
 
 ## Compatibility
 
-NeoModeration runs on Bukkit, Spigot, Paper, Purpur and Folia, Minecraft 1.18.2 to 26.3. Release checks run on Paper 1.18.2, 1.19.4, 1.20.6, 1.21.11, 26.1.2, 26.2 and 26.3 and on Folia 1.21.11. In-game messages are in English, Spanish, French, German, Portuguese or Turkish, and each player reads them in their own game language.
+NeoModeration runs on Spigot, Paper and Purpur, Minecraft 1.18.2 to 26.3, and on Folia from 1.19.4. Release checks run on Paper 1.18.2, 1.19.4, 1.20.6, 1.21.11, 26.1.2, 26.2 and 26.3 and on Folia 1.21.11. In-game messages are in English, Spanish, French, German, Portuguese or Turkish, and each player reads them in their own game language.
 
 ## Links
 
