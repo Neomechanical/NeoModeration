@@ -1,6 +1,6 @@
 # ===========================================================================
 #  NeoModeration
-#  Chat + map-art moderation for Minecraft.
+#  Chat and map-art moderation for Minecraft.
 #
 #  Most settings can also be changed in-game with /nmod (no restart needed).
 #  Run "/nmod status" any time to see what is currently active.
@@ -40,30 +40,33 @@ moderation:
   # /nmod mode monitor.
   mode: "enforce"
 
-  # The same setting for CLOUD decisions, which are judgements made by a model
-  # rather than a list you wrote. A new install only ALERTS on these until you
-  # have watched it decide for a while, then run:  /nmod cloudmode enforce
+  # The same setting for CLOUD decisions, which a model makes. A new install
+  # only ALERTS on these until you have watched it decide for a while, then
+  # run:  /nmod cloudmode enforce
   # Remove this key entirely to make cloud decisions follow "mode" above.
   cloudMode: "monitor"
 
   # ---- Local rules (no API key required, evaluate instantly) --------------
   offline:
     enabled: true
-    # Block ANY url, not just the ones listed in bannedUrls.
+    # Block every link, including ones missing from bannedUrls.
     blockAnyUrl: false
-    # Block messages that advertise another Minecraft server: an IP address, an
-    # address with a port, play./mc./smp. style addresses, free-host addresses
-    # (aternos.me, minehut.gg ...) and "join myserver.net". Ordinary links such
-    # as YouTube or a wiki page are not affected. Add your own server's address
-    # to allowedUrls so players can share it.
+    # Block messages that advertise another Minecraft server: a public IP
+    # address, any address with a port, play./mc./smp. style addresses,
+    # free-host addresses (aternos.me, minehut.gg ...) and "join myserver.net".
+    # Ordinary links such as YouTube or a wiki page are not affected. Add your
+    # own server's address to allowedUrls so players can share it.
     blockServerAds: true
     # Treat "b4dw0rd" style spellings as their plain-text equivalent.
     normalizeLeetspeak: true
     # A starter English list so a new install blocks real abuse immediately.
     # Review it for your server and change it in-game with /nmod word and
-    # /nmod allow. Matching is whole-word, so "assignment" and "Scunthorpe"
-    # stay clean; inflections are listed explicitly. "badword" is kept so the
-    # documented check /nmod test badword works.
+    # /nmod allow. A word only matches from the start of a word to the end of
+    # one, so "assignment" and "Scunthorpe" stay clean, while spelled-apart
+    # forms such as "f uck" are still caught; everyday phrases that spell a
+    # banned word ("put a") are never read as it. Inflections are listed
+    # explicitly. "badword" is kept so the documented check /nmod test
+    # badword works.
     bannedWords:
       - "badword"
       - "fuck"
@@ -72,6 +75,12 @@ moderation:
       - "fucking"
       - "fucker"
       - "fuckers"
+      - "fck"
+      - "fcking"
+      - "fvck"
+      - "fvcking"
+      - "phuck"
+      - "phucking"
       - "motherfucker"
       - "motherfuckers"
       - "shit"
@@ -123,7 +132,8 @@ moderation:
     #   es, fr, de, pt, tr   name the packs you want, for example [auto, es]
     #   all            every pack, for a server with players from many countries
     # Use [] for none. Ordinary words that look like a swear word in another
-    # language ("pic", "cono", "Amina") are left out of every pack.
+    # language ("pic", "cono", "Amina") are left out of every pack. The pt
+    # pack follows Brazilian Portuguese.
     languagePacks: [auto]
     bannedUrls:
       - "grabify.link"
@@ -201,11 +211,15 @@ moderation:
   # ---- Extra actions after a message is blocked ---------------------------
   # Empty by default: block the matching message, alert staff, log a case,
   # but do not mute the player or clear chat for everyone. Add actions with
-  # /nmod action add <clear|mute|kick|ban>; they run in order.
+  # /nmod action add <clear|mute|kick|ban>; they run in order. They follow a
+  # banned word, link or server ad; spam is only blocked.
   #   type: CLEAR_CHAT | MUTE | KICK | BAN | COMMAND
-  #   MUTE takes durationSeconds; KICK and BAN take an optional reason.
+  #   MUTE takes durationSeconds; KICK and BAN take an optional reason, which
+  #   players otherwise read in their own language.
   #   COMMAND runs "command" from the console, with %PLAYER%, %UUID%,
-  #   %DURATION% and %REASON% filled in.
+  #   %DURATION% and %REASON% filled in. TIMEOUT runs "tempmute", and
+  #   GIVE_ROLE, TAKE_ROLE and TEMP_ROLE run LuckPerms with "role", unless
+  #   "command" says otherwise.
   actions: []
 
   # ---- Local anti-spam (no API key needed, runs before everything) --------
@@ -217,8 +231,9 @@ moderation:
     # Same/similar message this many times in a row gets flagged.
     duplicateLimit: 3
     similarityThreshold: 0.9
-    # Flag messages over this % uppercase (only when at least capsMinLength
-    # letters). Player names don't count.
+    # A message over this % uppercase (with at least capsMinLength letters) is
+    # sent in lower case instead of being blocked. The sender's own name does
+    # not count.
     capsPercent: 70
     capsMinLength: 8
     # Flag runs of the same character longer than this (aaaaaaaaa...).

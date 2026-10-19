@@ -1,10 +1,11 @@
 name: NeoModeration
 version: '${project.version}'
-description: Chat, anti-spam, and map-art moderation for Minecraft.
+description: Chat, anti-spam and map-art moderation for Minecraft.
 main: com.neomechanical.neomoderation.NeoModerationPlugin
 load: POSTWORLD
 authors:
-  - NeoDevs
+  - Neomechanical
+website: https://neomechanical.com/docs/use-cases/minecraft
 prefix: NeoModeration
 api-version: 1.18
 folia-supported: true
@@ -16,7 +17,12 @@ commands:
     aliases: [ neomoderation, nmod ]
 permissions:
   neomoderation.admin:
-    description: Allows use of NeoModeration admin commands.
+    description: Every /nmod command, settings and the cloud key included.
+    default: op
+    children:
+      neomoderation.moderate: true
+  neomoderation.moderate:
+    description: Day-to-day moderation with /nmod help, status, test, privacy, cases, mute and unmute.
     default: op
   neomoderation.bypass:
     description: Skips moderation checks.

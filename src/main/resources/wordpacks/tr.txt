@@ -1,14 +1,13 @@
 # Turkish starter list. Severe swearing and slurs only, written without Turkish
 # letters (the filter folds "ı" to "i" and "ş" to "s"). Short forms that are also
-# ordinary words ("sık", "piç" as "pic") are left out; "amk" and "siktir" are in
-# because they are the most common forms in game chat.
+# ordinary words ("sık", "piç" as "pic", "sikiş" as "sıkış") are left out; "amk"
+# and "siktir" are in because they are the most common forms in game chat.
 amk
 siktir
 siktirgit
 orospu
 orospular
 orospucocugu
-sikis
 sikerim
 sikik
 sikeyim

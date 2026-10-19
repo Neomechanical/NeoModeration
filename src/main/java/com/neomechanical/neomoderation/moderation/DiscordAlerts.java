@@ -59,17 +59,17 @@ public final class DiscordAlerts implements AutoCloseable {
     }
 
     public DiscordAlerts() {
-        this(HttpClient.newBuilder().connectTimeout(TIMEOUT).build());
+        this(HttpClient.newBuilder().connectTimeout(TIMEOUT).build(), FLUSH_SECONDS);
     }
 
-    DiscordAlerts(HttpClient http) {
+    DiscordAlerts(HttpClient http, long flushSeconds) {
         this.http = http;
         this.sender = Executors.newSingleThreadScheduledExecutor(task -> {
             Thread thread = new Thread(task, "NeoModeration-discord");
             thread.setDaemon(true);
             return thread;
         });
-        sender.scheduleWithFixedDelay(this::flush, FLUSH_SECONDS, FLUSH_SECONDS, TimeUnit.SECONDS);
+        sender.scheduleWithFixedDelay(this::flush, flushSeconds, flushSeconds, TimeUnit.SECONDS);
     }
 
     public static boolean isWebhookUrl(String url) {

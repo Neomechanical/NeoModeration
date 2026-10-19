@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
 /**
@@ -49,9 +50,12 @@ public final class CaseLog implements AutoCloseable {
 
     private final Object lock = new Object();
     private final Connection connection;
+    /** Rows written so far. Rows are never deleted, so the highest id counts them; kept here so no reader waits on SQLite. */
+    private final AtomicLong total;
 
-    private CaseLog(Connection connection) {
+    private CaseLog(Connection connection, long total) {
         this.connection = connection;
+        this.total = new AtomicLong(total);
     }
 
     public static CaseLog open(Path databasePath, Logger logger) {
@@ -80,15 +84,25 @@ public final class CaseLog implements AutoCloseable {
                 statement.executeUpdate(
                         "CREATE INDEX IF NOT EXISTS cases_player ON cases(player COLLATE NOCASE)");
             }
-            return new CaseLog(connection);
+            long total;
+            try (Statement statement = connection.createStatement();
+                 ResultSet rows = statement.executeQuery("SELECT MAX(id) FROM cases")) {
+                total = rows.next() ? rows.getLong(1) : 0L;
+            }
+            return new CaseLog(connection, total);
         } catch (ClassNotFoundException | SQLException e) {
             logger.warning("Case history unavailable (" + e.getMessage() + "); detections will not be logged to disk.");
-            return new CaseLog(null);
+            return new CaseLog(null, 0L);
         }
     }
 
     public boolean isAvailable() {
         return connection != null;
+    }
+
+    /** The command that lists one player's cases, whatever their name looks like ("1234" too). */
+    public static String historyCommand(String label, String player) {
+        return "/" + label + " cases " + player + " page 1";
     }
 
     public long record(long timestamp, String uuid, String player, String surface,
@@ -111,7 +125,9 @@ public final class CaseLog implements AutoCloseable {
                 insert.executeUpdate();
                 try (ResultSet keys = insert.getGeneratedKeys()) {
                     if (keys.next()) {
-                        return keys.getLong(1);
+                        long id = keys.getLong(1);
+                        total.accumulateAndGet(id, Math::max);
+                        return id;
                     }
                 }
             } catch (SQLException ignored) {
@@ -137,18 +153,9 @@ public final class CaseLog implements AutoCloseable {
         }
     }
 
+    /** How many cases were ever written. Never touches SQLite, so any thread may ask (bStats asks on the server thread). */
     public long totalCount() {
-        if (connection == null) {
-            return 0L;
-        }
-        synchronized (lock) {
-            try (Statement statement = connection.createStatement();
-                 ResultSet rows = statement.executeQuery("SELECT COUNT(*) FROM cases")) {
-                return rows.next() ? rows.getLong(1) : 0L;
-            } catch (SQLException ignored) {
-                return 0L;
-            }
-        }
+        return total.get();
     }
 
     public List<CaseRecord> recent(String playerFilter, int limit) {

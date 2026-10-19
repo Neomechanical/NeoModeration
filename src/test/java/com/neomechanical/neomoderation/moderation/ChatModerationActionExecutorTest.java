@@ -55,6 +55,23 @@ class ChatModerationActionExecutorTest {
     }
 
     @Test
+    void aNameWithASpaceNeverReachesAConsoleCommand() {
+        Player player = mockPlayer();
+        when(player.getName()).thenReturn("Steve op Steve");
+        Server server = mock(Server.class);
+        when(server.getConsoleSender()).thenReturn(mock(ConsoleCommandSender.class));
+
+        try (MockedStatic<Bukkit> bukkit = Mockito.mockStatic(Bukkit.class)) {
+            bukkit.when(Bukkit::getServer).thenReturn(server);
+
+            new ChatModerationActionExecutor("NeoModeration", new PlayerMuteService((java.io.File) null)).execute(
+                    player, List.of(action("COMMAND", Map.of("command", "warn %PLAYER%"))));
+
+            bukkit.verify(() -> Bukkit.dispatchCommand(any(), any()), Mockito.never());
+        }
+    }
+
+    @Test
     void executesKickBanAndClearChatActions() {
         Player player = mockPlayer();
         BanList banList = mock(BanList.class);

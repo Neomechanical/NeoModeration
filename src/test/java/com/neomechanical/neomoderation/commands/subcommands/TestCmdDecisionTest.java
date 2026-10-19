@@ -17,13 +17,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TestCmdDecisionTest {
     @Test
     void cleanMessagesAreAllowedAndDetectionsRespectTheActiveMode() {
-        assertEquals(TestCmd.Outcome.ALLOWED, TestCmd.outcome(true, false, ModerationMode.ENFORCE, false));
-        assertEquals(TestCmd.Outcome.ALLOWED, TestCmd.outcome(true, false, ModerationMode.MONITOR, false));
-        assertEquals(TestCmd.Outcome.ENFORCED, TestCmd.outcome(true, true, ModerationMode.ENFORCE, false));
-        assertEquals(TestCmd.Outcome.MONITORED, TestCmd.outcome(true, true, ModerationMode.MONITOR, false));
-        assertEquals(TestCmd.Outcome.ALLOWED, TestCmd.outcome(false, true, ModerationMode.ENFORCE, false));
-        assertEquals(TestCmd.Outcome.CENSORED, TestCmd.outcome(true, true, ModerationMode.ENFORCE, true));
-        assertEquals(TestCmd.Outcome.MONITORED, TestCmd.outcome(true, true, ModerationMode.MONITOR, true));
+        assertEquals(TestCmd.Result.ALLOWED, TestCmd.outcome(true, false, ModerationMode.ENFORCE, false));
+        assertEquals(TestCmd.Result.ALLOWED, TestCmd.outcome(true, false, ModerationMode.MONITOR, false));
+        assertEquals(TestCmd.Result.ENFORCED, TestCmd.outcome(true, true, ModerationMode.ENFORCE, false));
+        assertEquals(TestCmd.Result.MONITORED, TestCmd.outcome(true, true, ModerationMode.MONITOR, false));
+        assertEquals(TestCmd.Result.ALLOWED, TestCmd.outcome(false, true, ModerationMode.ENFORCE, false));
+        assertEquals(TestCmd.Result.CENSORED, TestCmd.outcome(true, true, ModerationMode.ENFORCE, true));
+        assertEquals(TestCmd.Result.MONITORED, TestCmd.outcome(true, true, ModerationMode.MONITOR, true));
     }
 
     @Test
@@ -34,9 +34,9 @@ class TestCmdDecisionTest {
         config.set("moderation.cloudMode", "monitor");
         ModerationSettings settings = ModerationSettings.from(new BukkitConfigView(config));
 
-        assertEquals(TestCmd.Outcome.ENFORCED,
+        assertEquals(TestCmd.Result.ENFORCED,
                 TestCmd.outcome(settings, true, DetectionHandler.Source.LOCAL, false));
-        assertEquals(TestCmd.Outcome.MONITORED,
+        assertEquals(TestCmd.Result.MONITORED,
                 TestCmd.outcome(settings, true, DetectionHandler.Source.CLOUD, false));
     }
 

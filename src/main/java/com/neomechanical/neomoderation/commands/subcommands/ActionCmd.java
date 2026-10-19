@@ -6,7 +6,6 @@ import com.neomechanical.neomoderation.commands.SubCommand;
 import com.neomechanical.neomoderation.config.ModerationAction;
 import com.neomechanical.neomoderation.config.ModerationActionType;
 import com.neomechanical.neomoderation.messages.ActionText;
-import com.neomechanical.neomoderation.messages.MessageService;
 import org.bukkit.command.CommandSender;
 
 import java.util.ArrayList;
@@ -14,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 public class ActionCmd implements SubCommand {
     private final NeoModerationPlugin plugin;
@@ -95,8 +95,8 @@ public class ActionCmd implements SubCommand {
 
         List<Map<String, Object>> actions = loadActionMaps();
         actions.removeIf(entry -> type.name().equalsIgnoreCase(String.valueOf(entry.get("type"))));
-        Map<String, Object> actionMap = buildActionMap(type, durationSeconds,
-                MessageService.plain(plugin.messages().text(sender, "action.default-reason")));
+        // No reason is stored: each player reads the default one in their own language.
+        Map<String, Object> actionMap = buildActionMap(type, durationSeconds);
         actions.add(actionMap);
         saveActions(actions);
         plugin.messages().send(sender, "action.added", Map.of(
@@ -117,15 +117,19 @@ public class ActionCmd implements SubCommand {
         }
 
         List<Map<String, Object>> actions = loadActionMaps();
-        boolean removed = actions.removeIf(entry -> type.name().equalsIgnoreCase(String.valueOf(entry.get("type"))));
-        String name = ActionText.name(plugin.messages(), sender,
-                new ModerationAction(type, "", "", DEFAULT_MUTE_SECONDS, ""));
-        if (!removed) {
-            plugin.messages().send(sender, "action.missing", Map.of("value", name));
+        Optional<ModerationAction> existing = actions.stream()
+                .filter(entry -> type.name().equalsIgnoreCase(String.valueOf(entry.get("type"))))
+                .findFirst()
+                .flatMap(ModerationAction::tryFrom);
+        if (existing.isEmpty()) {
+            plugin.messages().send(sender, "action.missing", Map.of("value", kind));
             return;
         }
+        actions.removeIf(entry -> type.name().equalsIgnoreCase(String.valueOf(entry.get("type"))));
         saveActions(actions);
-        plugin.messages().send(sender, "action.removed", Map.of("value", name));
+        // Named as it was set, such as "mute for 30m", not as a fresh one would be.
+        plugin.messages().send(sender, "action.removed",
+                Map.of("value", ActionText.name(plugin.messages(), sender, existing.get())));
     }
 
     private void resetActions(CommandSender sender) {
@@ -143,14 +147,11 @@ public class ActionCmd implements SubCommand {
         };
     }
 
-    private Map<String, Object> buildActionMap(ModerationActionType type, int durationSeconds, String reason) {
+    private Map<String, Object> buildActionMap(ModerationActionType type, int durationSeconds) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("type", type.name());
         if (type == ModerationActionType.MUTE) {
             map.put("durationSeconds", durationSeconds);
-        }
-        if (type == ModerationActionType.MUTE || type == ModerationActionType.KICK || type == ModerationActionType.BAN) {
-            map.put("reason", reason);
         }
         return map;
     }

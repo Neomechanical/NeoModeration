@@ -1,7 +1,5 @@
 package com.neomechanical.neomoderation.config;
 
-import com.neomechanical.neomoderation.commands.InputLimits;
-
 import java.util.Map;
 import java.util.Optional;
 
@@ -12,6 +10,14 @@ public record ModerationAction(
         int durationSeconds,
         String reason
 ) {
+    /** The reason an action gets when config.yml gives none; players read it in their own language. */
+    public static final String DEFAULT_REASON = "Inappropriate chat message";
+
+    /** The same action with another reason, such as the default one in a player's language. */
+    public ModerationAction withReason(String newReason) {
+        return new ModerationAction(type, command, role, durationSeconds, newReason);
+    }
+
     public static Optional<ModerationAction> tryFrom(Map<?, ?> raw) {
         Optional<ModerationActionType> type = ModerationActionType.parse(stringValue(raw.get("type")));
         if (type.isEmpty()) {
@@ -32,7 +38,7 @@ public record ModerationAction(
                 command,
                 stringValue(raw.get("role")),
                 durationSeconds,
-                stringValueOrDefault(raw.get("reason"), "Inappropriate chat message")
+                stringValueOrDefault(raw.get("reason"), DEFAULT_REASON)
         ));
     }
 

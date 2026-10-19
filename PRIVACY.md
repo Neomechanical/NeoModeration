@@ -6,26 +6,28 @@ active configuration.
 
 ## Local moderation, by default
 
-With no API key configured, **no chat or map content leaves your server**:
+With no API key and no Discord webhook configured, **no chat or map content
+leaves your server**:
 
 - Word, link, server-ad and spam rules run entirely in-process.
 - No accounts, no telemetry about chat content, and no network calls for moderation.
 
 ## What stays on your server
 
-- **Case history**: each detection is saved in `plugins/NeoModeration/cases.db`
-  with the player, where it happened, the rule and what was done. The message
-  itself is kept only when `moderation.cases.storeContent` is `true` (off by
-  default), as a short preview. For a flagged map found in an item frame, the
-  case keeps the map's number and position.
-- **Mutes** are saved in `plugins/NeoModeration/mutes.yml`: the player's UUID
-  and when the mute ends. **Strikes** live in memory and reset on a restart.
+- Each detection is saved as a case in `plugins/NeoModeration/cases.db`, with
+  the player, where it happened, the rule and what was done. The message itself
+  is kept only when `moderation.cases.storeContent` is `true` (off by default),
+  as a short preview. For a flagged map found in an item frame, the case keeps
+  the map's number and position.
+- Mutes are saved in `plugins/NeoModeration/mutes.yml` as the player's UUID and
+  when the mute ends. Strikes live in memory and reset on a restart.
 
 ## What the cloud receives (only when you add an API key)
 
-When you enable cloud moderation with `/nmod setup <apiKey>`, each checked chat
-message (or scanned map image) is sent over HTTPS to the configured endpoint
-(default `https://api.neomechanical.com/v1/events`). The request contains:
+When you start the trial (`/nmod trial start`) or add a key
+(`/nmod setup <apiKey>`), each checked chat message (or scanned map image) is
+sent over HTTPS to the configured endpoint (default
+`https://api.neomechanical.com/v1/events`). The request contains:
 
 | Field | Content |
 |---|---|
@@ -67,11 +69,19 @@ happened, the rule, what was done and, unless `includeMessage` is `false`, a
 short preview of the message. Nothing goes to Discord until you set a webhook;
 `/nmod discord off` stops it.
 
+## The trial request
+
+`/nmod trial start` sends Neomechanical a random install ID and the server
+software and version. The ID is kept in `plugins/NeoModeration/.install-id`, so
+each server can claim one trial. `/nmod trial status` sends only the key. Neither
+carries anything about players.
+
 ## Update check
 
 Once at startup NeoModeration asks GitHub's public API for the latest release
-(`api.github.com/repos/Neomechanical/NeoModeration/releases/latest`). The
-request carries nothing about your server or players. Turn it off with
+(`api.github.com/repos/Neomechanical/NeoModeration/releases/latest`). Like every
+request the plugin makes, it names the plugin version and server software in its
+User-Agent; it carries nothing about your players. Turn it off with
 `updateCheck: false` in `config.yml`.
 
 ## Plugin usage metrics

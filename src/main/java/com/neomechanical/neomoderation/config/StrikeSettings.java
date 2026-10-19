@@ -13,6 +13,9 @@ import java.util.Map;
  * runs in addition to the regular detection actions.
  */
 public record StrikeSettings(boolean enabled, int decayMinutes, List<Escalation> escalation) {
+    /** The bundled ladder's reason; players read it in their own language. */
+    public static final String DEFAULT_REASON = "Repeated inappropriate chat";
+
     public record Escalation(int atStrikes, ModerationAction action) {
     }
 
@@ -27,7 +30,7 @@ public record StrikeSettings(boolean enabled, int decayMinutes, List<Escalation>
         }
         if (ladder.isEmpty()) {
             ladder.add(new Escalation(4, new ModerationAction(
-                    ModerationActionType.KICK, "", "", 300, "Repeated inappropriate chat")));
+                    ModerationActionType.KICK, "", "", 300, DEFAULT_REASON)));
         }
         ladder.sort(java.util.Comparator.comparingInt(Escalation::atStrikes));
         return new StrikeSettings(

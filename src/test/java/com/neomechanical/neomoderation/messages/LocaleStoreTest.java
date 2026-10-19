@@ -1,7 +1,10 @@
 package com.neomechanical.neomoderation.messages;
 
+import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -9,12 +12,16 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class LocaleStoreTest {
 
@@ -112,5 +119,47 @@ class LocaleStoreTest {
         assertEquals("pt_BR", MessageService.resolveLocaleCode("pt-br"));
         assertEquals("tr_TR", MessageService.resolveLocaleCode("tr_TR"));
         assertEquals("custom_locale", MessageService.resolveLocaleCode("custom_locale"));
+    }
+
+    @Test
+    void aLocaleFileWithATypoIsLeftAsItIsAndItsLanguageStillReads(@TempDir Path folder)
+            throws Exception {
+        Path locale = Files.createDirectories(folder.resolve("locale"));
+        String broken = "toggle:\n  \"on\": \"{prefix} Moderación: activa\n  sin cerrar: [\n";
+        Files.writeString(locale.resolve("es_ES.yml"), broken);
+        JavaPlugin plugin = plugin(folder);
+
+        Set<String> edited = LocaleStore.prepare(plugin);
+
+        assertEquals(broken, Files.readString(locale.resolve("es_ES.yml")), "a broken file is never overwritten");
+        assertTrue(edited.contains("es_ES"), "a file that cannot be read counts as the server's own");
+        MessageService messages = MessageService.load(plugin, "es_ES", false);
+        assertEquals("[NeoMod] La moderación está activada.",
+                MessageService.plain(messages.text(mock(CommandSender.class),
+                        "toggle.on")), "the built-in Spanish texts stand in until the file is fixed");
+    }
+
+    @Test
+    void aFileHoldingTheServersOwnTextIsReportedAndKept(@TempDir Path folder)
+            throws Exception {
+        Path locale = Files.createDirectories(folder.resolve("locale"));
+        Files.writeString(locale.resolve("en_US.yml"), "toggle:\n  \"on\": \"{prefix} Our filter is on.\"\n");
+        JavaPlugin plugin = plugin(folder);
+
+        Set<String> edited = LocaleStore.prepare(plugin);
+
+        assertTrue(edited.contains("en_US"));
+        YamlConfiguration onDisk = YamlConfiguration.loadConfiguration(locale.resolve("en_US.yml").toFile());
+        assertEquals("{prefix} Our filter is on.", onDisk.getString("toggle.on"));
+        assertTrue(onDisk.isSet("toggle.off"), "missing keys are still added around the server's own text");
+    }
+
+    private static JavaPlugin plugin(Path folder) {
+        JavaPlugin plugin = mock(JavaPlugin.class);
+        when(plugin.getDataFolder()).thenReturn(folder.toFile());
+        when(plugin.getLogger()).thenReturn(Logger.getLogger("test"));
+        when(plugin.getResource(anyString())).thenAnswer(call ->
+                LocaleStoreTest.class.getClassLoader().getResourceAsStream(call.<String>getArgument(0)));
+        return plugin;
     }
 }

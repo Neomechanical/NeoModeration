@@ -1,6 +1,7 @@
 package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
+import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.commands.SubCommand;
 import com.neomechanical.neomoderation.commands.TrialPromptSupport;
 import com.neomechanical.neomoderation.config.ModerationMode;
@@ -27,6 +28,11 @@ public class StatusCmd implements SubCommand {
     @Override
     public String getName() {
         return "status";
+    }
+
+    @Override
+    public String getPermission() {
+        return Permissions.MODERATE;
     }
 
     @Override

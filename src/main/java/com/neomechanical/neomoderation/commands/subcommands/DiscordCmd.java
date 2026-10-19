@@ -61,17 +61,14 @@ public class DiscordCmd implements SubCommand {
         }
         CommandSender console = plugin.getServer().getConsoleSender();
         Map<String, String> fields = new LinkedHashMap<>();
-        fields.put(plain(messages, console, "discord.field-player"), plain(messages, console, "discord.test-player"));
-        fields.put(plain(messages, console, "discord.field-reason"), plain(messages, console, "discord.test-reason"));
-        fields.put(plain(messages, console, "discord.field-message"), plain(messages, console, "discord.test-message"));
-        DiscordAlerts.Alert alert = new DiscordAlerts.Alert(plain(messages, console, "discord.title-review"), 0x9CA8FF, fields);
+        fields.put(messages.plainText(console, "discord.field-player"), messages.plainText(console, "discord.test-player"));
+        fields.put(messages.plainText(console, "discord.field-reason"), messages.plainText(console, "discord.test-reason"));
+        fields.put(messages.plainText(console, "discord.field-message"), messages.plainText(console, "discord.test-message"));
+        DiscordAlerts.Alert alert = new DiscordAlerts.Alert(messages.plainText(console, "discord.title-review"), 0x9CA8FF, fields);
         plugin.discordAlerts().sendNow(webhook, alert, delivered ->
                 plugin.runSync(() -> messages.send(sender, delivered ? "discord.sent" : "discord.failed")));
     }
 
-    private static String plain(MessageService messages, CommandSender reader, String key) {
-        return MessageService.plain(messages.text(reader, key));
-    }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, String[] args) {

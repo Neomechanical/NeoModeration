@@ -17,7 +17,9 @@ import java.util.regex.Pattern;
  * server-style prefix ({@code play.}, {@code mc.}, {@code smp.} ...), a
  * subdomain of a free Minecraft host, or a host written straight after "join",
  * "ip:" or "server is". A private address such as {@code 192.168.1.1} is not
- * reachable from outside, so it counts only with a port.</p>
+ * reachable from outside, so it counts only with a port, and a well-known public
+ * DNS resolver ({@code 1.1.1.1}, {@code 8.8.8.8} ...) only with a port. An address
+ * followed by a path ({@code kick.com/streamer}) is a web page, never a server.</p>
  *
  * <p>Works on lower-cased text. Every {@code allowedUrls} entry is masked first,
  * so a server's own address can be shared.</p>
@@ -46,9 +48,19 @@ final class ServerAdDetector {
             "play", "mc", "join", "hub", "server", "srv", "smp", "pvp", "survival",
             "lobby", "connect", "skyblock", "anarchy", "factions");
 
-    /** Free and budget Minecraft hosts; any subdomain of these is a server address. */
+    /** Free and budget Minecraft hosts and tunnels; any subdomain of these is a server address. */
     private static final Set<String> SERVER_HOST_DOMAINS = Set.of(
-            "aternos.me", "minehut.gg", "exaroton.me", "falixsrv.me", "joinmc.link", "ply.gg");
+            "aternos.me", "minehut.gg", "exaroton.me", "falixsrv.me", "joinmc.link", "ply.gg", "playit.gg",
+            "minefort.com", "server.pro", "e4mc.link");
+
+    /** Public DNS resolvers, which players name when they talk about their connection. */
+    private static final Set<String> DNS_RESOLVERS = Set.of(
+            "1.1.1.1", "1.0.0.1", "8.8.8.8", "8.8.4.4", "9.9.9.9", "149.112.112.112",
+            "208.67.222.222", "208.67.220.220");
+
+    /** Cyrillic letters that look like Latin ones, as in a "рlay." written with a Cyrillic "р". */
+    private static final String CYRILLIC_LOOKALIKES = "аеорсхуіј";
+    private static final String LATIN_LOOKALIKES = "aeopcxyij";
 
     /**
      * Registrable domains that are never treated as server ads, whatever comes
@@ -61,7 +73,7 @@ final class ServerAdDetector {
             "wikipedia.org", "minecraft.net", "mojang.com", "microsoft.com", "xbox.com",
             "modrinth.com", "spigotmc.org", "papermc.io", "curseforge.com", "planetminecraft.com",
             "namemc.com", "twitter.com", "x.com", "tiktok.com", "instagram.com", "facebook.com",
-            "fandom.com", "neomechanical.com");
+            "fandom.com", "neomechanical.com", "kick.com", "buycraft.net", "tebex.io");
 
     /** TLDs that server addresses actually use; keeps config.yml and server.properties clean. */
     private static final Set<String> COMMON_TLDS = Set.of(
@@ -107,7 +119,7 @@ final class ServerAdDetector {
         }
         Matcher ip = IP_PATTERN.matcher(lowerText);
         while (ip.find()) {
-            if (isAdvertisedIp(ip)) {
+            if (isAdvertisedIp(ip) && !isWebPath(lowerText, ip.end())) {
                 spans.add(new int[]{ip.start(), ip.end()});
             }
         }
@@ -120,9 +132,18 @@ final class ServerAdDetector {
         return spans;
     }
 
-    /** Folds the usual disguises back to plain dots: fullwidth dots, "dot", "(dot)", "[.]" and " . ". */
+    /**
+     * Folds the usual disguises back to plain text: fullwidth dots, "dot", "(dot)",
+     * "[.]", " . " and Cyrillic letters that look like Latin ones.
+     */
     static String deobfuscate(String lowerText) {
-        String text = lowerText
+        StringBuilder folded = new StringBuilder(lowerText.length());
+        for (int i = 0; i < lowerText.length(); i++) {
+            char c = lowerText.charAt(i);
+            int lookalike = CYRILLIC_LOOKALIKES.indexOf(c);
+            folded.append(lookalike >= 0 ? LATIN_LOOKALIKES.charAt(lookalike) : c);
+        }
+        String text = folded.toString()
                 .replace('。', '.')
                 .replace('．', '.')
                 .replace('｡', '.')
@@ -140,7 +161,7 @@ final class ServerAdDetector {
         }
         Matcher ip = IP_PATTERN.matcher(text);
         while (ip.find()) {
-            if (isAdvertisedIp(ip)) {
+            if (isAdvertisedIp(ip) && !isWebPath(text, ip.end())) {
                 return Optional.of(report(ip.group()));
             }
         }
@@ -153,6 +174,11 @@ final class ServerAdDetector {
         return Optional.empty();
     }
 
+    /** A server address never has a path; "kick.com/streamer" is a web page. */
+    private static boolean isWebPath(String text, int end) {
+        return end < text.length() && text.charAt(end) == '/';
+    }
+
     private static boolean isAdvertisedIp(Matcher ip) {
         int[] octets = new int[4];
         for (int i = 0; i < 4; i++) {
@@ -161,7 +187,11 @@ final class ServerAdDetector {
                 return false;
             }
         }
-        return ip.group(5) != null || !isPrivate(octets);
+        if (ip.group(5) != null) {
+            return true;
+        }
+        String address = octets[0] + "." + octets[1] + "." + octets[2] + "." + octets[3];
+        return !isPrivate(octets) && !DNS_RESOLVERS.contains(address);
     }
 
     private static boolean isPrivate(int[] o) {
@@ -177,7 +207,7 @@ final class ServerAdDetector {
         String port = host.group(3);
         String[] labels = hostname.split("\\.");
         String registrable = labels[labels.length - 2] + "." + labels[labels.length - 1];
-        if (NEVER_SERVER_AD_DOMAINS.contains(registrable)) {
+        if (NEVER_SERVER_AD_DOMAINS.contains(registrable) || isWebPath(text, host.end())) {
             return false;
         }
         for (String serverHost : SERVER_HOST_DOMAINS) {

@@ -157,11 +157,6 @@ final class TextNormalizer {
         return out.build();
     }
 
-    /** The separator-free, run-collapsed spelling of a configured rule. */
-    static String collapsedForm(String value, boolean normalizeLeetspeak) {
-        return normalize(value, normalizeLeetspeak).collapsed();
-    }
-
     private static boolean isApostrophe(int codePoint) {
         return codePoint == '\'' || codePoint == '’' || codePoint == '‘'
                 || codePoint == 'ʼ' || codePoint == '`';

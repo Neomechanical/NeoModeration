@@ -1,21 +1,32 @@
 package com.neomechanical.neomoderation.config;
 
+import com.neomechanical.neomoderation.moderation.BundledWordPacks;
 import org.bukkit.configuration.Configuration;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Brings config.yml up to date where it still holds exactly what an earlier
- * release shipped and the shipped value has changed since. A value the operator
- * edited is never touched, and a migrated value no longer matches, so nothing
- * runs twice.
+ * Brings an upgraded server's config.yml up to date without changing what it does.
+ *
+ * <p>A value that still holds exactly what an earlier release shipped follows the
+ * new shipped value; a value the operator edited is never touched. A setting a
+ * later release added is written into the file the first time, with its comment,
+ * set to whatever keeps that server doing what it did: an upgrade never starts
+ * blocking something by surprise. Each change is reported once, as a
+ * {@link Change} the console shows in the server's language.</p>
  */
 public final class ConfigMigrations {
     static final String WORDS_PATH = "moderation.offline.bannedWords";
+    static final String SERVER_ADS_PATH = "moderation.offline.blockServerAds";
+    static final String PACKS_PATH = "moderation.offline.languagePacks";
+    static final String TELL_PLAYERS_PATH = "moderation.tellPlayers";
+    static final String PER_PLAYER_PATH = "perPlayerLanguage";
 
     /**
      * The starter word list shipped from 1.5.0 to 1.6.6. It blocked "scam", so a
@@ -28,15 +39,20 @@ public final class ConfigMigrations {
             "slut", "sluts", "nigger", "niggers", "nigga", "niggas", "faggot", "faggots", "retard",
             "retarded", "wanker", "twat", "kys");
 
+    /** One change made to config.yml: a {@code migrated.*} message key and its values. */
+    public record Change(String key, Map<String, String> values) {
+    }
+
     private ConfigMigrations() {
     }
 
     /**
      * Applies every migration to {@code config}, whose defaults are the bundled
-     * config.yml. Returns one console line per change; empty when nothing changed.
+     * config.yml. {@code serverEditedItsLanguage} tells whether the locale file of
+     * the server's language holds texts the server wrote. Empty when nothing changed.
      */
-    public static List<String> apply(Configuration config) {
-        List<String> changes = new ArrayList<>();
+    public static List<Change> apply(Configuration config, boolean serverEditedItsLanguage) {
+        List<Change> changes = new ArrayList<>();
         Configuration bundled = config.getDefaults();
         if (bundled == null) {
             return changes;
@@ -45,11 +61,47 @@ public final class ConfigMigrations {
         List<String> shipped = bundled.getStringList(WORDS_PATH);
         if (config.isSet(WORDS_PATH) && !shipped.isEmpty() && sameWords(current, STARTER_WORDS_1_5)) {
             config.set(WORDS_PATH, shipped);
-            changes.add("Updated the unedited starter word list in config.yml: \"scam\" is no longer blocked, "
-                    + "so players can warn each other about scams, and " + (shipped.size() - current.size() + 1)
-                    + " slurs were added.");
+            changes.add(new Change("migrated.words",
+                    Map.of("count", String.valueOf(shipped.size() - current.size() + 1))));
+        }
+
+        // Settings 1.7.0 added. Missing means an earlier release wrote this file.
+        if (!config.isSet(SERVER_ADS_PATH)) {
+            add(config, SERVER_ADS_PATH, false);
+            changes.add(new Change("migrated.server-ads", Map.of()));
+        }
+        if (!config.isSet(PACKS_PATH)) {
+            boolean languageHasPack = BundledWordPacks.CODES.contains(
+                    BundledWordPacks.languageOf(config.getString("locale", "en_US")));
+            add(config, PACKS_PATH, languageHasPack ? List.of() : List.of(BundledWordPacks.AUTO));
+            if (languageHasPack) {
+                changes.add(new Change("migrated.language-packs", Map.of()));
+            }
+        }
+        if (!config.isSet(TELL_PLAYERS_PATH)) {
+            add(config, TELL_PLAYERS_PATH, true);
+            changes.add(new Change("migrated.tell-players", Map.of()));
+        }
+        if (!config.isSet(PER_PLAYER_PATH)) {
+            // A server that rewrote its messages keeps showing them to everyone.
+            add(config, PER_PLAYER_PATH, !serverEditedItsLanguage);
+            changes.add(new Change(serverEditedItsLanguage ? "migrated.per-player-off" : "migrated.per-player-on",
+                    Map.of("locale", config.getString("locale", "en_US"))));
         }
         return changes;
+    }
+
+    /** Writes a setting the file lacks, with the bundled config.yml's comment above it where the server keeps comments. */
+    private static void add(Configuration config, String path, Object value) {
+        config.set(path, value);
+        try {
+            // Comments in config files exist from 1.18.1; on older servers the value goes in alone.
+            Method getComments = config.getDefaults().getClass().getMethod("getComments", String.class);
+            Method setComments = config.getClass().getMethod("setComments", String.class, List.class);
+            setComments.invoke(config, path, getComments.invoke(config.getDefaults(), path));
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            // No comments on this server version.
+        }
     }
 
     private static boolean sameWords(List<String> configured, List<String> shipped) {

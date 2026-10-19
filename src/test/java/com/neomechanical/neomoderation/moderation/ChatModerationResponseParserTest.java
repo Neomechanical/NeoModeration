@@ -30,7 +30,7 @@ class ChatModerationResponseParserTest {
                 + "\"categories\":{\"harassment\":0.8657,\"hate\":0.1}},"
                 + "\"categories\":{\"harassment\":0.8657}}";
         YamlConfiguration config = categoriesConfig(true);
-        assertTrue(ChatModerationResponseParser.matchesPositiveSignal(body,
+        assertTrue(flagged(body,
                 ModerationCategorySettings.from(new BukkitConfigView(config))));
     }
 
@@ -39,7 +39,7 @@ class ChatModerationResponseParserTest {
         String body = "{\"decision\":{\"status\":\"review\",\"severity\":\"low\"},"
                 + "\"categories\":{\"harassment\":0.2}}";
         YamlConfiguration config = categoriesConfig(true);
-        assertFalse(ChatModerationResponseParser.matchesPositiveSignal(body,
+        assertFalse(flagged(body,
                 ModerationCategorySettings.from(new BukkitConfigView(config))));
     }
 
@@ -49,7 +49,7 @@ class ChatModerationResponseParserTest {
                 + "\"categories\":{\"hate\":0.95}}";
         YamlConfiguration config = categoriesConfig(true);
         config.set("moderation.categories.hate", false);
-        assertFalse(ChatModerationResponseParser.matchesPositiveSignal(body,
+        assertFalse(flagged(body,
                 ModerationCategorySettings.from(new BukkitConfigView(config))));
     }
 
@@ -97,7 +97,7 @@ class ChatModerationResponseParserTest {
     void booleanCategoryFlagsDoNotOverrideACustomScoreThreshold() {
         YamlConfiguration config = categoriesConfig(true);
         config.set("moderation.categories.harassment", 0.95);
-        assertFalse(ChatModerationResponseParser.matchesPositiveSignal(
+        assertFalse(flagged(
                 "{\"categories\":{\"harassment\":true},\"category_scores\":{\"harassment\":0.8}}",
                 ModerationCategorySettings.from(new BukkitConfigView(config))));
     }
@@ -108,8 +108,8 @@ class ChatModerationResponseParserTest {
                 + "\"categories\":{\"harassment\":0.91,\"hate\":0.1}}";
         ModerationCategorySettings settings = ModerationCategorySettings.from(new BukkitConfigView(categoriesConfig(true)));
         org.junit.jupiter.api.Assertions.assertEquals(
-                java.util.Optional.of("harassment"),
-                ChatModerationResponseParser.matchedCategory(body, settings)
+                "harassment",
+                ChatModerationResponseParser.parseResult(body, settings).category()
         );
         org.junit.jupiter.api.Assertions.assertEquals(
                 "platform:harassment",
@@ -131,7 +131,7 @@ class ChatModerationResponseParserTest {
         config.set("moderation.categories.spam", false);
         config.set("moderation.categories.illicit", false);
         config.set("moderation.categories.selfHarm", false);
-        return ChatModerationResponseParser.matchesPositiveSignal(body, ModerationCategorySettings.from(new BukkitConfigView(config)));
+        return flagged(body, ModerationCategorySettings.from(new BukkitConfigView(config)));
     }
 
     private static YamlConfiguration categoriesConfig(boolean harassment) {
@@ -145,5 +145,9 @@ class ChatModerationResponseParserTest {
         config.set("moderation.categories.illicit", false);
         config.set("moderation.categories.selfHarm", false);
         return config;
+    }
+
+    private static boolean flagged(String body, ModerationCategorySettings settings) {
+        return ChatModerationResponseParser.parseResult(body, settings).isFlagged();
     }
 }

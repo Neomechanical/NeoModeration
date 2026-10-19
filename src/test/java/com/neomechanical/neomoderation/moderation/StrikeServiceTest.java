@@ -51,7 +51,6 @@ class StrikeServiceTest {
         service.recordStrike(PLAYER, settings(), now + 1);
 
         long afterDecay = now + 31L * 60_000L;
-        assertEquals(0, service.current(PLAYER, settings(), afterDecay));
         StrikeService.Result result = service.recordStrike(PLAYER, settings(), afterDecay);
         assertEquals(1, result.strikes());
         assertTrue(result.escalation().isEmpty());

@@ -28,6 +28,7 @@ import com.neomechanical.neomoderation.moderation.StrikeService;
 import com.neomechanical.neomoderation.moderation.UpdateChecker;
 import com.neomechanical.neomoderation.platform.MetricsRegistrar;
 import com.neomechanical.neomoderation.platform.PlatformScheduler;
+import com.neomechanical.neomoderation.platform.SecretCommandLogFilter;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.entity.Entity;
@@ -35,6 +36,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -42,8 +44,9 @@ public final class NeoModerationPlugin extends JavaPlugin {
     private static final int BSTATS_PLUGIN_ID = 32542;
 
     private ChatModerationCoordinator coordinator;
-    private ModerationSettings settings;
-    private MessageService messages;
+    // Swapped whole on reload and read from chat threads, so every reader sees a complete one.
+    private volatile ModerationSettings settings;
+    private volatile MessageService messages;
     private PlayerMuteService muteService;
     private MonitorStats monitorStats;
     private DetectionNotifier notifier;
@@ -54,14 +57,18 @@ public final class NeoModerationPlugin extends JavaPlugin {
     private PlatformScheduler scheduler;
     private DiscordAlerts discordAlerts;
     private String messagesLocale;
+    /** Bundled locales whose file on disk holds texts this server wrote. */
+    private Set<String> editedLocales = Set.of();
     private final AtomicBoolean trialActivationPending = new AtomicBoolean();
     private final AtomicReference<String> newerVersion = new AtomicReference<>();
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        // Before any command can run: keys and webhook URLs typed into /nmod stay out of the log.
+        SecretCommandLogFilter.install();
         scheduler = new PlatformScheduler(this);
-        MessageService.prepareFiles(this);
+        editedLocales = MessageService.prepareFiles(this);
         reloadModerationConfig();
         muteService = new PlayerMuteService(this);
         coordinator = new ChatModerationCoordinator(getLogger());
@@ -91,7 +98,7 @@ public final class NeoModerationPlugin extends JavaPlugin {
         // fall back to the legacy listener only on Spigot.
         if (!PaperAsyncChatBridge.registerIfAvailable(this, processor)) {
             getServer().getPluginManager().registerEvents(
-                    new ChatModerationListener(this, processor),
+                    new ChatModerationListener(processor),
                     this
             );
         }
@@ -127,8 +134,10 @@ public final class NeoModerationPlugin extends JavaPlugin {
         String current = getDescription().getVersion();
         runAsync(() -> UpdateChecker.findNewerVersion(current, ClientIdentity.userAgent()).ifPresent(latest -> {
             newerVersion.set(latest);
+            // The logger already names the plugin, so the console line goes without the chat prefix.
             getLogger().warning(MessageService.plain(messages.format("update.available",
-                    Map.of("latest", latest, "current", current))) + UpdateChecker.RELEASES_PAGE);
+                    Map.of("latest", latest, "current", current, "prefix", ""))).trim()
+                    + " " + UpdateChecker.RELEASES_PAGE);
         }));
     }
 
@@ -151,16 +160,17 @@ public final class NeoModerationPlugin extends JavaPlugin {
      */
     public void reloadModerationConfig() {
         reloadConfig();
-        List<String> migrated = ConfigMigrations.apply(getConfig());
+        String serverLocale = MessageService.resolveLocaleCode(getConfig().getString("locale", "en_US"));
+        List<ConfigMigrations.Change> migrated = ConfigMigrations.apply(getConfig(), editedLocales.contains(serverLocale));
         if (!migrated.isEmpty()) {
             saveConfig();
-            migrated.forEach(getLogger()::info);
         }
         settings = ModerationSettings.from(new BukkitConfigView(getConfig()), getLogger());
         String locale = getConfig().getString("locale", "en_US") + "|" + perPlayerLanguage();
         if (messages == null || !locale.equals(messagesLocale)) {
             loadMessages();
         }
+        migrated.forEach(change -> getLogger().info(MessageService.plain(messages.format(change.key(), change.values()))));
         if (coordinator != null) {
             coordinator.resetCircuit();
         }
@@ -168,7 +178,7 @@ public final class NeoModerationPlugin extends JavaPlugin {
 
     /** /nmod reload: config.yml and every locale file, including files an admin edited by hand. */
     public void reloadEverything() {
-        MessageService.prepareFiles(this);
+        editedLocales = MessageService.prepareFiles(this);
         messagesLocale = null;
         reloadModerationConfig();
     }

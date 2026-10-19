@@ -1,4 +1,4 @@
-package com.neomechanical.neomoderation.commands;
+package com.neomechanical.neomoderation.config;
 
 /**
  * Keeps in-game command payloads within Minecraft RCON / chat-safe sizes.

@@ -4,6 +4,8 @@ import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.config.ModerationAction;
 import com.neomechanical.neomoderation.config.ModerationMode;
 import com.neomechanical.neomoderation.config.ModerationSettings;
+import com.neomechanical.neomoderation.config.StrikeSettings;
+import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.messages.Reasons;
 import org.bukkit.entity.Player;
 
@@ -84,7 +86,8 @@ public final class DetectionHandler {
             StrikeService.Result result =
                     strikes.recordStrike(player.getUniqueId(), settings.strikes(), System.currentTimeMillis());
             strike = result.strikes();
-            if (effective == Disposition.BLOCK) {
+            // Actions are for abuse; spam is only blocked, so a flood of "gg" never mutes anyone.
+            if (effective == Disposition.BLOCK && !"spam".equals(Reasons.bucket(reason))) {
                 actions.addAll(settings.actions());
             }
             result.escalation().ifPresent(actions::add);
@@ -97,7 +100,7 @@ public final class DetectionHandler {
             if (!alertOnly && settings.tellPlayers() && !SELF_EXPLAINING_SURFACES.contains(surface)) {
                 tellPlayer(player, surface, reason, effective);
             }
-            actionExecutor.execute(player, actions);
+            actionExecutor.execute(player, inPlayersLanguage(player, actions));
             notifier.notifyDetection(detection, settings);
         });
         recordCase(player, detection, settings);
@@ -120,6 +123,20 @@ public final class DetectionHandler {
         plugin.runForEntity(finder, () -> notifier.notifyDetection(detection, settings));
         recordCase(finder, detection, settings);
         return effective;
+    }
+
+    /** Kick and ban reasons the plugin wrote itself read in the player's own language. */
+    private List<ModerationAction> inPlayersLanguage(Player player, List<ModerationAction> actions) {
+        List<ModerationAction> localized = new ArrayList<>(actions.size());
+        for (ModerationAction action : actions) {
+            String key = switch (action.reason() == null ? "" : action.reason()) {
+                case ModerationAction.DEFAULT_REASON -> "action.default-reason";
+                case StrikeSettings.DEFAULT_REASON -> "action.strike-reason";
+                default -> null;
+            };
+            localized.add(key == null ? action : action.withReason(MessageService.plain(plugin.messages().text(player, key))));
+        }
+        return localized;
     }
 
     private void tellPlayer(Player player, String surface, String reason, Disposition effective) {

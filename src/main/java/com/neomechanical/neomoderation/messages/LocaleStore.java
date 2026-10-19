@@ -1,5 +1,6 @@
 package com.neomechanical.neomoderation.messages;
 
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -12,9 +13,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
-import java.util.HexFormat;
 import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiPredicate;
 
@@ -35,12 +37,16 @@ final class LocaleStore {
     private LocaleStore() {
     }
 
-    /** Writes or upgrades every bundled locale file. Run at startup and on /nmod reload. */
-    static void prepare(JavaPlugin plugin) {
+    /**
+     * Writes or upgrades every bundled locale file. Run at startup and on /nmod reload.
+     * Returns the locales whose file holds a text the server wrote itself.
+     */
+    static Set<String> prepare(JavaPlugin plugin) {
         File directory = new File(plugin.getDataFolder(), "locale");
         File shippedFile = new File(directory, SHIPPED_FILE);
         YamlConfiguration shipped = YamlConfiguration.loadConfiguration(shippedFile);
         boolean shippedChanged = false;
+        Set<String> edited = new HashSet<>();
         for (String code : MessageService.BUNDLED_LOCALES) {
             YamlConfiguration bundled = bundled(plugin, code);
             if (bundled == null) {
@@ -51,11 +57,19 @@ final class LocaleStore {
             if (!target.exists()) {
                 plugin.saveResource("locale/" + code + ".yml", false);
             } else {
-                YamlConfiguration onDisk = YamlConfiguration.loadConfiguration(target);
+                YamlConfiguration onDisk = read(plugin, target, true);
+                if (onDisk == null) {
+                    // Unreadable: never overwrite it, and leave its fingerprints for when it is fixed.
+                    edited.add(code);
+                    continue;
+                }
                 Map<String, Set<String>> known = history(plugin, code);
                 addFingerprints(known, shipped, code);
                 if (merge(onDisk, bundled, (key, value) -> known.getOrDefault(key, Set.of()).contains(fingerprint(value)))) {
                     save(plugin, onDisk, target);
+                }
+                if (holdsOwnTexts(onDisk, bundled)) {
+                    edited.add(code);
                 }
             }
             shippedChanged |= record(shipped, code, bundled);
@@ -65,6 +79,41 @@ final class LocaleStore {
                     + "edited. Do not edit.");
             save(plugin, shipped, shippedFile);
         }
+        return edited;
+    }
+
+    /**
+     * A locale file from disk, or {@code null} when it is not valid YAML. A broken
+     * file is left exactly as it is, so a typo never costs a server its own texts;
+     * {@code report} says it in the console (once, from {@link #prepare}).
+     */
+    static YamlConfiguration read(JavaPlugin plugin, File file, boolean report) {
+        YamlConfiguration yaml = new YamlConfiguration();
+        try {
+            yaml.load(file);
+            return yaml;
+        } catch (IOException | InvalidConfigurationException e) {
+            if (!report) {
+                return null;
+            }
+            String reason = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage().strip();
+            int lineBreak = reason.indexOf('\n');
+            plugin.getLogger().warning("Could not read locale/" + file.getName() + ", so it was left as it is and "
+                    + "the built-in texts are used until it is fixed: "
+                    + (lineBreak > 0 ? reason.substring(0, lineBreak) : reason));
+            return null;
+        }
+    }
+
+    /** Whether {@code onDisk} still holds a text, at a key the jar ships, that differs from the jar's. */
+    static boolean holdsOwnTexts(YamlConfiguration onDisk, YamlConfiguration bundled) {
+        for (String key : bundled.getKeys(true)) {
+            if (!bundled.isConfigurationSection(key) && onDisk.isSet(key)
+                    && !Objects.equals(onDisk.getString(key), bundled.getString(key))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** The bundled locale from the jar, or {@code null} when the jar lacks it. */

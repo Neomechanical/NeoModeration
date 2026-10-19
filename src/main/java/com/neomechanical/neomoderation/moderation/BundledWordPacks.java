@@ -22,7 +22,10 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>A server picks packs with {@code moderation.offline.languagePacks}:
  * {@code auto} adds the pack for the language of {@code locale}, a code such as
- * {@code es} adds that pack, and {@code all} adds every one.</p>
+ * {@code es} adds that pack, and {@code all} adds every one. A pack line starting
+ * with {@code +} is a phrase the pack allows, and {@code wordpacks/everyday.txt}
+ * holds phrases every server allows: real words that spell a banned one once
+ * their spaces are dropped ("put a").</p>
  */
 public final class BundledWordPacks {
 
@@ -30,19 +33,30 @@ public final class BundledWordPacks {
     public static final List<String> CODES = List.of("es", "fr", "de", "pt", "tr");
     public static final String AUTO = "auto";
     public static final String ALL = "all";
+    private static final String EVERYDAY = "everyday";
 
-    private static final Map<String, List<String>> LOADED = new ConcurrentHashMap<>();
+    /** A pack's banned words and the phrases it allows. */
+    private record Pack(List<String> words, List<String> allowed) {
+    }
+
+    private static final Map<String, Pack> LOADED = new ConcurrentHashMap<>();
 
     private BundledWordPacks() {
     }
 
     /** The words of one pack, or an empty list for a code with no pack. */
     public static List<String> words(String code) {
-        String normalized = code == null ? "" : code.trim().toLowerCase(Locale.ROOT);
-        if (!CODES.contains(normalized)) {
-            return List.of();
-        }
-        return LOADED.computeIfAbsent(normalized, BundledWordPacks::load);
+        return pack(code).words();
+    }
+
+    /** The phrases one pack allows while it is on. */
+    public static List<String> allowed(String code) {
+        return pack(code).allowed();
+    }
+
+    /** Phrases every server allows, whatever its packs: see {@code wordpacks/everyday.txt}. */
+    public static List<String> everyday() {
+        return LOADED.computeIfAbsent(EVERYDAY, BundledWordPacks::load).allowed();
     }
 
     /**
@@ -77,30 +91,55 @@ public final class BundledWordPacks {
         return List.copyOf(merged);
     }
 
+    /** The everyday phrases plus the phrases the given packs allow. */
+    public static List<String> allowedOf(List<String> packs) {
+        Set<String> merged = new LinkedHashSet<>(everyday());
+        for (String pack : packs) {
+            merged.addAll(allowed(pack));
+        }
+        return List.copyOf(merged);
+    }
+
     /** The two-letter language of a locale code such as {@code pt-br} or {@code de_AT}. */
-    static String languageOf(String locale) {
+    public static String languageOf(String locale) {
         String resolved = MessageService.resolveLocaleCode(locale);
         int separator = resolved.indexOf('_');
         return (separator > 0 ? resolved.substring(0, separator) : resolved).toLowerCase(Locale.ROOT);
     }
 
-    private static List<String> load(String code) {
-        String path = "/wordpacks/" + code + ".txt";
+    private static Pack pack(String code) {
+        String normalized = code == null ? "" : code.trim().toLowerCase(Locale.ROOT);
+        return CODES.contains(normalized)
+                ? LOADED.computeIfAbsent(normalized, BundledWordPacks::load)
+                : new Pack(List.of(), List.of());
+    }
+
+    /** Reads {@code wordpacks/<name>.txt}: a word per line, {@code +} before an allowed phrase, {@code #} comments. */
+    private static Pack load(String name) {
+        String path = "/wordpacks/" + name + ".txt";
         try (InputStream stream = BundledWordPacks.class.getResourceAsStream(path)) {
             if (stream == null) {
-                return List.of();
+                return new Pack(List.of(), List.of());
             }
             List<String> words = new ArrayList<>();
+            List<String> allowed = new ArrayList<>();
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    String word = line.trim();
-                    if (!word.isEmpty() && !word.startsWith("#")) {
-                        words.add(word);
+                    String entry = line.trim();
+                    if (entry.isEmpty() || entry.startsWith("#")) {
+                        continue;
+                    }
+                    if (entry.startsWith("+")) {
+                        allowed.add(entry.substring(1).trim());
+                    } else if (EVERYDAY.equals(name)) {
+                        allowed.add(entry);
+                    } else {
+                        words.add(entry);
                     }
                 }
             }
-            return List.copyOf(words);
+            return new Pack(List.copyOf(words), List.copyOf(allowed));
         } catch (IOException e) {
             throw new UncheckedIOException("Bundled word pack " + path + " is unreadable", e);
         }

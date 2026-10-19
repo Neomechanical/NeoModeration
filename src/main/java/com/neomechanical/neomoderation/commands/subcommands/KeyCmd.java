@@ -1,7 +1,7 @@
 package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
-import com.neomechanical.neomoderation.commands.InputLimits;
+import com.neomechanical.neomoderation.config.InputLimits;
 import com.neomechanical.neomoderation.commands.SubCommand;
 import org.bukkit.command.CommandSender;
 

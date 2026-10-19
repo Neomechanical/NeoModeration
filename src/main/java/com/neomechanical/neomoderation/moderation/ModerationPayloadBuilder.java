@@ -65,7 +65,7 @@ public final class ModerationPayloadBuilder {
             }
             first = false;
             thresholds.append('"')
-                    .append(JsonStrings.escape(platformKey(entry.getKey())))
+                    .append(JsonStrings.escape(ModerationCategorySettings.platformName(entry.getKey())))
                     .append("\":")
                     .append((double) entry.getValue());
         }
@@ -111,12 +111,5 @@ public final class ModerationPayloadBuilder {
                 + "\"learning\":{\"enabled\":false,\"mode\":\"off\"}"
                 + "}"
                 + "}";
-    }
-
-    private static String platformKey(String configKey) {
-        return switch (configKey) {
-            case "selfHarm" -> "self-harm";
-            default -> configKey;
-        };
     }
 }

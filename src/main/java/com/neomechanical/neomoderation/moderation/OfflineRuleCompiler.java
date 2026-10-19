@@ -4,7 +4,6 @@ import com.neomechanical.neomoderation.config.OfflineModerationSettings;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Compiles and caches {@link OfflineModerationSettings} into run-collapsed token
@@ -175,8 +174,9 @@ final class OfflineRuleCompiler {
                 words.add(compiled);
             }
         }
-        List<String[]> allowedPhrases = new ArrayList<>(settings.allowedWords().size());
-        for (String allowedWord : settings.allowedWords()) {
+        List<String> allowedWords = settings.effectiveAllowedWords();
+        List<String[]> allowedPhrases = new ArrayList<>(allowedWords.size());
+        for (String allowedWord : allowedWords) {
             String[] tokens = tokenizeRule(allowedWord, settings.normalizeLeetspeak());
             if (tokens.length > 0) {
                 allowedPhrases.add(tokens);
@@ -250,7 +250,18 @@ final class OfflineRuleCompiler {
         return tokens.toArray(new String[0]);
     }
 
+    /**
+     * Lower case that keeps every character where it was, so a span found in the
+     * result is the same span in the original: "İ" becomes "i", not two characters.
+     */
     static String lower(String value) {
-        return value == null ? "" : value.toLowerCase(Locale.ROOT);
+        if (value == null) {
+            return "";
+        }
+        char[] chars = value.toCharArray();
+        for (int i = 0; i < chars.length; i++) {
+            chars[i] = Character.toLowerCase(chars[i]);
+        }
+        return new String(chars);
     }
 }

@@ -76,6 +76,8 @@ class LocaleKeysTest {
                     checked++;
                     boolean exists = key.endsWith(".")
                             ? ENGLISH.isConfigurationSection(key.substring(0, key.length() - 1))
+                            : key.endsWith("-")
+                            ? ENGLISH.getKeys(true).stream().anyMatch(name -> name.startsWith(key))
                             : ENGLISH.isString(key);
                     if (!exists) {
                         missing.add(file.getFileName() + ": " + key);
@@ -85,6 +87,14 @@ class LocaleKeysTest {
         }
         assertTrue(checked > 200, "found only " + checked + " message keys in the code; is the pattern still right?");
         assertTrue(missing.isEmpty(), () -> "Keys the code uses but en_US.yml lacks:\n" + String.join("\n", missing));
+    }
+
+    @Test
+    void everyVerdictHasItsWords() {
+        for (Outcome.Verdict verdict : Outcome.Verdict.values()) {
+            assertTrue(ENGLISH.isString("alert.verdict." + verdict.key()), verdict.name());
+            assertTrue(ENGLISH.isString("discord.title-" + verdict.key()), verdict.name());
+        }
     }
 
     @Test

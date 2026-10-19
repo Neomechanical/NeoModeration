@@ -1,5 +1,6 @@
 package com.neomechanical.neomoderation.moderation;
 
+import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.config.ModerationAction;
 import com.neomechanical.neomoderation.config.ModerationActionType;
@@ -46,7 +47,7 @@ class DetectionNotifierTest {
         MessageService messages = TestPlugin.loaded(folder.toFile(), "en_US", true);
         when(plugin.messages()).thenReturn(messages);
         when(plugin.getLogger()).thenReturn(logger);
-        when(germanStaff.hasPermission(DetectionNotifier.NOTIFY_PERMISSION)).thenReturn(true);
+        when(germanStaff.hasPermission(Permissions.NOTIFY)).thenReturn(true);
         Server server = mock(Server.class);
         when(server.getConsoleSender()).thenReturn(mock(ConsoleCommandSender.class));
         doReturn(List.of(germanStaff, regular)).when(server).getOnlinePlayers();
@@ -105,7 +106,7 @@ class DetectionNotifierTest {
         new DetectionNotifier(plugin, discord).notifyDetection(blocked(List.of()), settings);
 
         ArgumentCaptor<DiscordAlerts.Alert> alert = ArgumentCaptor.forClass(DiscordAlerts.Alert.class);
-        verify(discord).submit(eq(WEBHOOK), alert.capture(), eq("and {count} more in the last minute"));
+        verify(discord).submit(eq(WEBHOOK), alert.capture(), eq("and {count} more"));
         assertEquals("Blocked", alert.getValue().title());
         assertEquals(Map.of("Player", "Steve", "Where", "chat", "Why", "banned word \"badword\"",
                 "Message", "`this is a badword`", "Then", ""), alert.getValue().fields());

@@ -29,8 +29,8 @@ class DoctorChecksTest {
             YamlConfiguration config = new YamlConfiguration();
             setup.accept(config);
             ModerationSettings settings = ModerationSettings.from(new BukkitConfigView(config));
-            checks.addAll(DoctorChecks.local(settings, true));
-            checks.addAll(DoctorChecks.local(settings, false));
+            checks.addAll(DoctorChecks.local(settings, true, null));
+            checks.addAll(DoctorChecks.local(settings, false, "HTTP 404"));
             checks.addAll(DoctorChecks.cloudSetup(settings, false, null));
             for (ModerationApiResult.Kind kind : ModerationApiResult.Kind.values()) {
                 checks.addAll(DoctorChecks.cloudSetup(settings, true, kind));

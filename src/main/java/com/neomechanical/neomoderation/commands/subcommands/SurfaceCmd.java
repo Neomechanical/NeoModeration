@@ -68,7 +68,8 @@ public class SurfaceCmd implements SubCommand {
         SurfaceSettings surfaces = plugin.settings().surfaces();
         List<MenuRenderer.Line> lines = new ArrayList<>();
         lines.add(MenuRenderer.text(messages.text(sender, "surface.title")));
-        lines.add(MenuRenderer.text(messages.text(sender, "surface.chat-row")));
+        lines.add(MenuRenderer.text(messages.text(sender,
+                plugin.settings().scanAsyncChat() ? "surface.chat-row" : "surface.chat-row-off")));
         for (String surface : SurfaceSettings.SURFACE_NAMES) {
             String current = surfaces.modeFor(surface).name().toLowerCase(Locale.ROOT);
             lines.add(row(sender, label, surface, "surface.row", current));

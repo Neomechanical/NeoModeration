@@ -1,5 +1,6 @@
 package com.neomechanical.neomoderation.listener;
 
+import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.messages.MenuRenderer;
 import com.neomechanical.neomoderation.messages.MessageService;
@@ -30,7 +31,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public final class AdminJoinListener implements Listener {
 
-    public static final String ADMIN_PERMISSION = "neomoderation.admin";
     public static final String MARKER_FILE = ".admin-welcomed";
 
     private final NeoModerationPlugin plugin;
@@ -45,7 +45,7 @@ public final class AdminJoinListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        if (!player.hasPermission(ADMIN_PERMISSION)) {
+        if (!player.hasPermission(Permissions.ADMIN)) {
             return;
         }
         String newer = plugin.newerVersion();
@@ -98,7 +98,7 @@ public final class AdminJoinListener implements Listener {
         String current = plugin.getDescription().getVersion();
         messages.sendMenu(player, List.of(MenuRenderer.buttons(List.of(
                 new MenuRenderer.Button(messages.format(player, "update.available",
-                        Map.of("latest", newer, "current", current)), "", "", MenuRenderer.ClickAction.NONE),
+                        Map.of("latest", newer, "current", current)) + " ", "", "", MenuRenderer.ClickAction.NONE),
                 new MenuRenderer.Button(messages.text(player, "update.button"), UpdateChecker.RELEASES_PAGE,
                         messages.format(player, "update.hover", Map.of("url", UpdateChecker.RELEASES_PAGE)),
                         MenuRenderer.ClickAction.OPEN_URL)))));

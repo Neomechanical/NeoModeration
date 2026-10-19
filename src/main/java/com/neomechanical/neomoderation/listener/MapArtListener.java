@@ -1,5 +1,6 @@
 package com.neomechanical.neomoderation.listener;
 
+import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.config.MapArtSettings;
 import com.neomechanical.neomoderation.config.ModerationApiSettings;
@@ -41,7 +42,6 @@ import java.util.concurrent.Semaphore;
  * it is not punished.</p>
  */
 public final class MapArtListener implements Listener {
-    private static final String BYPASS_PERMISSION = "neomoderation.bypass";
     private static final String SURFACE = "map_art";
     private static final String FRAME_SURFACE = "map_frame";
 
@@ -213,7 +213,7 @@ public final class MapArtListener implements Listener {
     }
 
     static boolean shouldBypass(Player player) {
-        return player.hasPermission(BYPASS_PERMISSION);
+        return player.hasPermission(Permissions.BYPASS);
     }
 
     static boolean isCacheableResult(ModerationApiResult result) {

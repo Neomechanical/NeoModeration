@@ -1,6 +1,7 @@
 package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
+import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.commands.SubCommand;
 import com.neomechanical.neomoderation.commands.TrialPromptSupport;
 import com.neomechanical.neomoderation.config.ModerationMode;
@@ -28,7 +29,8 @@ import java.util.Map;
 public class TestCmd implements SubCommand {
     private static final String CONSOLE_UUID = "00000000-0000-0000-0000-000000000000";
 
-    enum Outcome {
+    /** What the previewed message would get. */
+    enum Result {
         ALLOWED,
         MONITORED,
         CENSORED,
@@ -44,6 +46,11 @@ public class TestCmd implements SubCommand {
     @Override
     public String getName() {
         return "test";
+    }
+
+    @Override
+    public String getPermission() {
+        return Permissions.MODERATE;
     }
 
     @Override
@@ -158,17 +165,17 @@ public class TestCmd implements SubCommand {
         };
     }
 
-    static Outcome outcome(boolean enabled, boolean detected, ModerationMode mode, boolean censored) {
+    static Result outcome(boolean enabled, boolean detected, ModerationMode mode, boolean censored) {
         if (!enabled || !detected) {
-            return Outcome.ALLOWED;
+            return Result.ALLOWED;
         }
         if (mode == ModerationMode.MONITOR) {
-            return Outcome.MONITORED;
+            return Result.MONITORED;
         }
-        return censored ? Outcome.CENSORED : Outcome.ENFORCED;
+        return censored ? Result.CENSORED : Result.ENFORCED;
     }
 
-    static Outcome outcome(ModerationSettings settings, boolean detected, DetectionHandler.Source source,
+    static Result outcome(ModerationSettings settings, boolean detected, DetectionHandler.Source source,
                            boolean censored) {
         return outcome(settings.enabled(), detected, source.modeIn(settings),
                 source == DetectionHandler.Source.LOCAL && censored);

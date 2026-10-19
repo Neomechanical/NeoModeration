@@ -46,17 +46,6 @@ public final class StrikeService {
         }
     }
 
-    public int current(UUID player, StrikeSettings settings, long now) {
-        State state = states.get(player);
-        if (state == null || !settings.enabled()) {
-            return 0;
-        }
-        synchronized (state) {
-            long decayMs = settings.decayMinutes() * 60_000L;
-            return now - state.lastStrike > decayMs ? 0 : state.count;
-        }
-    }
-
     /** How many players a count is held for. */
     int tracked() {
         return states.size();

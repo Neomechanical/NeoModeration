@@ -1,6 +1,9 @@
 # Spanish starter list. Severe swearing and slurs only, written without accents
 # (the filter folds accents, so "cabrón" matches "cabron"). A phrase written as one
 # word, such as "hijodeputa", also matches "hijo de puta" and "h i j o de puta".
+# A line starting with "+" is allowed while this pack is on: "Kike" is a common
+# Spanish name as well as an English slur.
++kike
 mierda
 mierdas
 joder

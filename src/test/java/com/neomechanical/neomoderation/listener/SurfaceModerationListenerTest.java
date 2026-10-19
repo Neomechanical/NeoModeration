@@ -5,6 +5,7 @@ import com.neomechanical.neomoderation.config.BukkitConfigView;
 import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.moderation.DetectionHandler;
+import com.neomechanical.neomoderation.moderation.PlayerMuteService;
 import com.neomechanical.neomoderation.moderation.SpamDetector;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.Server;
@@ -13,6 +14,7 @@ import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
@@ -43,6 +45,33 @@ class SurfaceModerationListenerTest {
         PlayerCommandPreprocessEvent event = run("/msg Notch you badword", "block", recipient);
 
         verify(event).setCancelled(true);
+    }
+
+    @Test
+    void aMutedPlayerCannotCarryOnThroughMessageCommands() {
+        NeoModerationPlugin plugin = pluginWith("off");
+        Player player = mock(Player.class);
+        UUID id = UUID.randomUUID();
+        when(player.getUniqueId()).thenReturn(id);
+        when(plugin.muteService().isMuted(id)).thenReturn(true);
+        when(plugin.muteService().remainingSeconds(id)).thenReturn(600);
+
+        PlayerCommandPreprocessEvent whisper = command(player, "/msg Notch hi there");
+        PlayerCommandPreprocessEvent spawn = command(player, "/spawn");
+        SurfaceModerationListener listener = new SurfaceModerationListener(plugin, mock(DetectionHandler.class));
+        listener.onCommand(whisper);
+        listener.onCommand(spawn);
+
+        verify(whisper).setCancelled(true);
+        verify(plugin.messages()).send(player, "mute.blocked", Map.of("duration", "10m"));
+        verify(spawn, never()).setCancelled(true);
+    }
+
+    private static PlayerCommandPreprocessEvent command(Player player, String text) {
+        PlayerCommandPreprocessEvent event = mock(PlayerCommandPreprocessEvent.class);
+        when(event.getPlayer()).thenReturn(player);
+        when(event.getMessage()).thenReturn(text);
+        return event;
     }
 
     private PlayerCommandPreprocessEvent run(String text, String mode, Player onlineRecipient) {
@@ -76,6 +105,7 @@ class SurfaceModerationListenerTest {
         when(plugin.spamDetector()).thenReturn(new SpamDetector());
         when(plugin.messages()).thenReturn(mock(MessageService.class));
         when(plugin.getServer()).thenReturn(mock(Server.class));
+        when(plugin.muteService()).thenReturn(mock(PlayerMuteService.class));
         return plugin;
     }
 

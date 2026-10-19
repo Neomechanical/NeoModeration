@@ -62,7 +62,8 @@ public final class PaperAsyncChatBridge {
             try {
                 Player player = (Player) event.getClass().getMethod("getPlayer").invoke(event);
                 Object component = event.getClass().getMethod("message").invoke(event);
-                ChatDecision decision = processor.handleAsyncChat(player, plainText(component));
+                // Another plugin can make a player chat from the server thread, which must not wait for the cloud.
+                ChatDecision decision = processor.handleChat(player, plainText(component), event.isAsynchronous());
                 if (decision.type() == ChatDecision.Type.BLOCK && event instanceof Cancellable cancellable) {
                     cancellable.setCancelled(true);
                 } else if (decision.type() == ChatDecision.Type.CENSOR

@@ -36,7 +36,7 @@ public final class MenuRenderer {
 
     /** Static line (header, divider, hint): same text both forms. */
     public static Line text(String formatted) {
-        return new Line(TextComponent.fromLegacyText(formatted), formatted);
+        return new Line(components(formatted), formatted);
     }
 
     /** Whole-line clickable entry (such as a case row or preset option). */
@@ -50,7 +50,7 @@ public final class MenuRenderer {
         StringBuilder console = new StringBuilder();
         for (Button part : parts) {
             TextComponent piece = new TextComponent();
-            for (BaseComponent component : TextComponent.fromLegacyText(part.text())) {
+            for (BaseComponent component : components(part.text())) {
                 piece.addExtra(component);
             }
             attach(piece, part);
@@ -73,6 +73,19 @@ public final class MenuRenderer {
     /** Section heading, e.g. "Get started". */
     public static Line section(String formatted) {
         return text(formatted);
+    }
+
+    /**
+     * Components for formatted text, with no click of their own: the chat API turns
+     * anything shaped like a link into one, and a link a player wrote must not
+     * become something staff can click inside an alert.
+     */
+    private static BaseComponent[] components(String formatted) {
+        BaseComponent[] components = TextComponent.fromLegacyText(formatted);
+        for (BaseComponent component : components) {
+            component.setClickEvent(null);
+        }
+        return components;
     }
 
     private static void attach(TextComponent piece, Button part) {

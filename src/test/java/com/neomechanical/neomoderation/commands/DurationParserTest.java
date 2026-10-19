@@ -1,5 +1,6 @@
 package com.neomechanical.neomoderation.commands;
 
+import com.neomechanical.neomoderation.config.InputLimits;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

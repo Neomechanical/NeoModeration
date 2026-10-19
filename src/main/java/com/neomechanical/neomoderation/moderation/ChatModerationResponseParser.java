@@ -1,24 +1,13 @@
 package com.neomechanical.neomoderation.moderation;
 
-import com.neomechanical.neomoderation.config.ModerationCategorySettings;
-
-import java.util.Optional;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import com.neomechanical.neomoderation.config.ModerationCategorySettings;
 
 public final class ChatModerationResponseParser {
 
     private ChatModerationResponseParser() {
-    }
-
-    public static boolean matchesPositiveSignal(String responseBody, ModerationCategorySettings categorySettings) {
-        return parseResult(responseBody, categorySettings).isFlagged();
-    }
-
-    public static Optional<String> matchedCategory(String responseBody, ModerationCategorySettings categorySettings) {
-        ModerationApiResult result = parseResult(responseBody, categorySettings);
-        return result.isFlagged() ? Optional.of(result.category()) : Optional.empty();
     }
 
     public static ModerationApiResult parseResult(String body, ModerationCategorySettings settings) {
@@ -34,7 +23,7 @@ public final class ChatModerationResponseParser {
             boolean hasCategorySignal = false;
             String matched = null;
             for (String category : ModerationCategorySettings.categoryKeys()) {
-                String key = platformKey(category);
+                String key = ModerationCategorySettings.platformName(category);
                 JsonElement value = scores != null ? scores.get(key) : null;
                 if (value == null && categories != null) {
                     value = categories.get(key);
@@ -88,10 +77,6 @@ public final class ChatModerationResponseParser {
         } catch (RuntimeException error) {
             return ModerationApiResult.transientTransport();
         }
-    }
-
-    private static String platformKey(String category) {
-        return "selfHarm".equals(category) ? "self-harm" : category;
     }
 
     private static JsonObject object(JsonObject parent, String key) {

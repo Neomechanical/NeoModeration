@@ -1,6 +1,8 @@
 package com.neomechanical.neomoderation.listener;
 
+import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.NeoModerationPlugin;
+import com.neomechanical.neomoderation.commands.DurationParser;
 import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.config.SurfaceSettings;
 import com.neomechanical.neomoderation.config.SurfaceSettings.SurfaceMode;
@@ -24,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -34,8 +37,6 @@ import java.util.Optional;
  * notice, staff alerts and case history behave exactly as in chat.
  */
 public final class SurfaceModerationListener implements Listener {
-    private static final String BYPASS_PERMISSION = "neomoderation.bypass";
-
     private final NeoModerationPlugin plugin;
     private final DetectionHandler handler;
 
@@ -115,16 +116,9 @@ public final class SurfaceModerationListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onCommand(PlayerCommandPreprocessEvent event) {
         ModerationSettings settings = plugin.settings();
-        SurfaceMode mode = settings.surfaces().command();
-        if (mode == SurfaceMode.OFF || !settings.enabled()) {
-            return;
-        }
         Player player = event.getPlayer();
-        if (player.hasPermission(BYPASS_PERMISSION)) {
-            return;
-        }
         String[] parts = event.getMessage().split("\\s+");
-        if (parts.length == 0) {
+        if (parts.length == 0 || player.hasPermission(Permissions.BYPASS)) {
             return;
         }
         String command = parts[0].startsWith("/") ? parts[0].substring(1) : parts[0];
@@ -132,6 +126,17 @@ public final class SurfaceModerationListener implements Listener {
         String bareCommand = command.substring(command.indexOf(':') + 1);
         if (!settings.surfaces().scannedCommands().contains(command)
                 && !settings.surfaces().scannedCommands().contains(bareCommand)) {
+            return;
+        }
+        // A mute covers the message commands too, whatever the command surface is set to.
+        if (plugin.muteService().isMuted(player.getUniqueId())) {
+            event.setCancelled(true);
+            plugin.messages().send(player, "mute.blocked", Map.of("duration",
+                    DurationParser.format(plugin.muteService().remainingSeconds(player.getUniqueId()))));
+            return;
+        }
+        SurfaceMode mode = settings.surfaces().command();
+        if (mode == SurfaceMode.OFF || !settings.enabled()) {
             return;
         }
 
@@ -176,7 +181,7 @@ public final class SurfaceModerationListener implements Listener {
         if (mode == SurfaceMode.OFF
                 || !settings.enabled()
                 || text.isBlank()
-                || player.hasPermission(BYPASS_PERMISSION)) {
+                || player.hasPermission(Permissions.BYPASS)) {
             return DetectionHandler.Disposition.ALLOW;
         }
         OfflineModerationResult result = OfflineModerationEngine.evaluate(text, settings.offline());

@@ -1,5 +1,6 @@
 package com.neomechanical.neomoderation.commands;
 
+import com.neomechanical.neomoderation.config.InputLimits;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;

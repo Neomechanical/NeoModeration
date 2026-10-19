@@ -17,13 +17,13 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Starts the free 14-day cloud trial for this server install, or, once a key is
- * set, shows how the trial is going: days left, what the cloud caught, and the
+ * The free 14-day cloud trial. {@code /nmod trial} says what a trial sends and
+ * how its decisions work, then offers {@code /nmod trial start}; with a key set
+ * it shows how the trial is going: days left, what the cloud caught, and the
  * link to keep it.
  */
 public class TrialCmd implements SubCommand {
     private static final String KEY_PATH = "moderation.api.apiKey";
-    private static final String ENABLED_PATH = "moderation.enabled";
 
     private final NeoModerationPlugin plugin;
     private final TrialClient trialClient;
@@ -44,27 +44,49 @@ public class TrialCmd implements SubCommand {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, String[] args) {
-        return args.length == 2 ? SubCommand.filterPrefix(args[1], "status") : List.of();
+        return args.length == 2 ? SubCommand.filterPrefix(args[1], "start", "status") : List.of();
     }
 
     @Override
     public void execute(CommandSender sender, String label, String[] args) {
         String existingKey = plugin.settings().api().apiKey();
-        boolean statusAsked = args.length >= 2 && "status".equalsIgnoreCase(args[1]);
-        if (statusAsked || !existingKey.isBlank()) {
+        String action = args.length >= 2 ? args[1].toLowerCase(Locale.ROOT) : "";
+        if (action.equals("status") || !existingKey.isBlank()) {
             showStatus(sender, existingKey);
-            return;
+        } else if (action.equals("start")) {
+            start(sender);
+        } else {
+            explain(sender, label);
         }
+    }
+
+    /** What a trial sends and how its decisions work, before anything is sent. */
+    private void explain(CommandSender sender, String label) {
+        MessageService messages = plugin.messages();
+        messages.send(sender, "trial.explain-title");
+        messages.send(sender, "trial.explain-sends");
+        messages.send(sender, "trial.explain-monitor");
+        String command = "/" + label + " trial start";
+        if (sender instanceof Player) {
+            messages.sendMenu(sender, List.of(MenuRenderer.clickableLine(messages.text(sender, "trial.start-button"),
+                    command, messages.format(sender, "trial.start-hover", Map.of("command", command)),
+                    MenuRenderer.ClickAction.RUN)));
+        } else {
+            messages.send(sender, "trial.start-console", Map.of("command", command));
+        }
+    }
+
+    private void start(CommandSender sender) {
         if (!plugin.tryStartTrialActivation()) {
             plugin.messages().send(sender, "trial.pending");
             return;
         }
         plugin.messages().send(sender, "trial.requesting");
         ModerationApiSettings api = plugin.settings().api();
-        String installId = InstallIdentity.getOrCreate(plugin);
         String platform = plugin.getServer().getName() + " " + plugin.getServer().getVersion();
         plugin.runAsync(() -> {
             try {
+                String installId = InstallIdentity.getOrCreate(plugin);
                 TrialClient.TrialResult result = trialClient.activateTrial(api, installId, platform);
                 plugin.runSync(() -> {
                     try {
@@ -88,14 +110,18 @@ public class TrialCmd implements SubCommand {
             reply(sender, () -> plugin.messages().send(sender, "trial.configuration-changed"));
             return;
         }
-        plugin.getConfig().set(ENABLED_PATH, true);
         plugin.getConfig().set("moderation.cloudMode", "monitor");
         plugin.getConfig().set(KEY_PATH, result.apiKey());
         plugin.saveAndReload();
+        boolean moderationOn = plugin.settings().enabled();
         reply(sender, () -> {
             MessageService messages = plugin.messages();
             messages.send(sender, "trial.activated", Map.of("expires", DateText.of(messages, sender, result.expiresAt())));
             messages.send(sender, "trial.activated-monitor");
+            if (!moderationOn) {
+                // Starting a trial never switches moderation back on behind the admin's back.
+                messages.send(sender, "trial.moderation-off");
+            }
             sendKeepButton(sender, result.claimUrl());
         });
     }

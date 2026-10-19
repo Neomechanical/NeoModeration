@@ -97,6 +97,8 @@ public final class StartupSummary {
         }
         if (!coverage.localRules()) {
             inactive.add(line(messages, console, "startup.missing-rules", Map.of()));
+        } else if (!settings.offline().blockServerAds()) {
+            inactive.add(line(messages, console, "startup.missing-server-ads", Map.of()));
         }
         return inactive;
     }

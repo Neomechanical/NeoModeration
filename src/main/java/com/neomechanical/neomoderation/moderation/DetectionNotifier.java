@@ -1,5 +1,6 @@
 package com.neomechanical.neomoderation.moderation;
 
+import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.messages.ActionText;
@@ -20,7 +21,6 @@ import java.util.Map;
  * set. Runs on the offender's thread.
  */
 public final class DetectionNotifier {
-    public static final String NOTIFY_PERMISSION = "neomoderation.notify";
     private static final int MAX_MESSAGE_PREVIEW = 80;
     private static final int RISK = 0xFF7A70;
     private static final int REVIEW = 0xF5B54A;
@@ -39,20 +39,27 @@ public final class DetectionNotifier {
 
     public void notifyDetection(Detection detection, ModerationSettings settings) {
         MessageService messages = plugin.messages();
-        String preview = settings.alerts().includeMessage() ? preview(detection.message()) : null;
+        // A found map's "message" is where it hangs, which alerts always show.
+        boolean showMessage = settings.alerts().includeMessage()
+                || DetectionHandler.FOUND_SURFACES.contains(detection.surface());
+        String preview = showMessage ? preview(detection.message()) : null;
         CommandSender console = plugin.getServer().getConsoleSender();
         // The logger already names the plugin, so the console line goes without the chat prefix.
         plugin.getLogger().info(MessageService.plain(line(messages, console, detection, preview, "")).trim());
 
         if (settings.alerts().enabled()) {
-            String casesCommand = "/nmod cases " + detection.player();
+            String casesCommand = CaseLog.historyCommand("nmod", detection.player());
             for (Player staff : plugin.getServer().getOnlinePlayers()) {
-                if (staff.hasPermission(NOTIFY_PERMISSION)) {
-                    String hover = messages.format(staff, "alert.hover", Map.of("player", detection.player()));
-                    messages.sendMenu(staff, List.of(MenuRenderer.clickableLine(
-                            line(messages, staff, detection, preview, null), casesCommand, hover,
-                            MenuRenderer.ClickAction.RUN)));
+                if (!staff.hasPermission(Permissions.NOTIFY)) {
+                    continue;
                 }
+                String line = line(messages, staff, detection, preview, null);
+                // The click opens the player's cases, so it is only offered to staff who may open them.
+                messages.sendMenu(staff, List.of(staff.hasPermission(Permissions.MODERATE)
+                        ? MenuRenderer.clickableLine(line, casesCommand,
+                                messages.format(staff, "alert.hover", Map.of("player", detection.player())),
+                                MenuRenderer.ClickAction.RUN)
+                        : MenuRenderer.text(line)));
             }
         }
 
@@ -73,7 +80,7 @@ public final class DetectionNotifier {
         if (prefix != null) {
             values.put("prefix", prefix);
         }
-        values.put("verdict", messages.text(reader, verdictKey(detection.outcome())));
+        values.put("verdict", messages.text(reader, "alert.verdict." + detection.outcome().verdict().key()));
         values.put("player", detection.player());
         values.put("surface", messages.text(reader, "surface-name." + detection.surface()));
         values.put("message", preview != null ? preview : messages.text(reader, "alert.hidden"));
@@ -87,36 +94,19 @@ public final class DetectionNotifier {
     private static DiscordAlerts.Alert discordAlert(MessageService messages, CommandSender console,
                                                     Detection detection, String preview) {
         Outcome.Verdict verdict = detection.outcome().verdict();
-        String title = messages.text(console, switch (verdict) {
-            case BLOCKED -> "discord.title-blocked";
-            case CENSORED -> "discord.title-censored";
-            case REVIEW -> "discord.title-review";
-        });
+        String title = messages.plainText(console, "discord.title-" + verdict.key());
         Map<String, String> fields = new LinkedHashMap<>();
-        fields.put(plain(messages, console, "discord.field-player"), detection.player());
-        fields.put(plain(messages, console, "discord.field-where"),
-                plain(messages, console, "surface-name." + detection.surface()));
-        fields.put(plain(messages, console, "discord.field-reason"),
+        fields.put(messages.plainText(console, "discord.field-player"), detection.player());
+        fields.put(messages.plainText(console, "discord.field-where"),
+                messages.plainText(console, "surface-name." + detection.surface()));
+        fields.put(messages.plainText(console, "discord.field-reason"),
                 MessageService.plain(Reasons.describe(messages, console, detection.reason())));
         if (preview != null) {
-            fields.put(plain(messages, console, "discord.field-message"), "`" + preview.replace('`', '\'') + "`");
+            fields.put(messages.plainText(console, "discord.field-message"), "`" + preview.replace('`', '\'') + "`");
         }
-        fields.put(plain(messages, console, "discord.field-then"),
+        fields.put(messages.plainText(console, "discord.field-then"),
                 MessageService.plain(ActionText.afterwards(messages, console, detection.outcome())));
-        return new DiscordAlerts.Alert(MessageService.plain(title), verdict == Outcome.Verdict.BLOCKED ? RISK : REVIEW,
-                fields);
-    }
-
-    private static String plain(MessageService messages, CommandSender reader, String key) {
-        return MessageService.plain(messages.text(reader, key));
-    }
-
-    private static String verdictKey(Outcome outcome) {
-        return switch (outcome.verdict()) {
-            case BLOCKED -> "alert.verdict.blocked";
-            case CENSORED -> "alert.verdict.censored";
-            case REVIEW -> "alert.verdict.review";
-        };
+        return new DiscordAlerts.Alert(title, verdict == Outcome.Verdict.BLOCKED ? RISK : REVIEW, fields);
     }
 
     static String preview(String message) {

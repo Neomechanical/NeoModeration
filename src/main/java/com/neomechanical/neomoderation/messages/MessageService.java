@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -53,7 +54,10 @@ public final class MessageService {
         Map<String, YamlConfiguration> loaded = new LinkedHashMap<>();
         for (String code : BUNDLED_LOCALES) {
             File file = new File(directory, code + ".yml");
-            YamlConfiguration yaml = file.exists() ? YamlConfiguration.loadConfiguration(file) : LocaleStore.bundled(plugin, code);
+            YamlConfiguration yaml = file.exists() ? LocaleStore.read(plugin, file, false) : null;
+            if (yaml == null) {
+                yaml = LocaleStore.bundled(plugin, code);
+            }
             if (yaml != null) {
                 loaded.put(code, yaml);
             }
@@ -63,14 +67,20 @@ public final class MessageService {
         YamlConfiguration active = loaded.get(resolved);
         if (active == null) {
             File custom = new File(directory, resolved + ".yml");
-            active = custom.exists() ? YamlConfiguration.loadConfiguration(custom) : fallback;
+            active = custom.exists() ? LocaleStore.read(plugin, custom, true) : null;
+            if (active == null) {
+                active = fallback;
+            }
         }
         return new MessageService(fallback, active, resolved, perPlayerLanguage ? Map.copyOf(loaded) : Map.of());
     }
 
-    /** Writes or upgrades the bundled locale files on disk (startup and /nmod reload). */
-    public static void prepareFiles(JavaPlugin plugin) {
-        LocaleStore.prepare(plugin);
+    /**
+     * Writes or upgrades the bundled locale files on disk (startup and /nmod reload).
+     * Returns the locales whose file holds texts the server wrote itself.
+     */
+    public static Set<String> prepareFiles(JavaPlugin plugin) {
+        return LocaleStore.prepare(plugin);
     }
 
     /**
@@ -119,6 +129,11 @@ public final class MessageService {
     /** A message with no placeholders, in the language {@code reader} reads. */
     public String text(CommandSender reader, String key) {
         return format(reader, key, Map.of());
+    }
+
+    /** {@link #text} without colour codes, for the console log and Discord. */
+    public String plainText(CommandSender reader, String key) {
+        return plain(text(reader, key));
     }
 
     /** Shared closing divider; command output ends with it. */

@@ -7,9 +7,10 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * The local rules. {@code bannedWords} is the server's own list as written in
- * config.yml; {@code packWords} are the words of the language packs it selected.
- * Both are enforced: {@link #effectiveWords()}.
+ * The local rules. {@code bannedWords} and {@code allowedWords} are the server's
+ * own lists as written in config.yml; {@code packWords} are the words of the
+ * language packs it selected. What is enforced is {@link #effectiveWords()} less
+ * {@link #effectiveAllowedWords()}.
  */
 public record OfflineModerationSettings(
         boolean enabled,
@@ -58,6 +59,16 @@ public record OfflineModerationSettings(
                 BundledWordPacks.wordsOf(packs),
                 config.getBoolean("moderation.offline.blockServerAds", true)
         );
+    }
+
+    /**
+     * Every allowed phrase in force: the server's own, then the everyday phrases
+     * every server allows and those its language packs allow.
+     */
+    public List<String> effectiveAllowedWords() {
+        Set<String> merged = new LinkedHashSet<>(allowedWords);
+        merged.addAll(BundledWordPacks.allowedOf(languagePacks));
+        return List.copyOf(merged);
     }
 
     /** Every banned word in force: the server's list, then its language packs. */

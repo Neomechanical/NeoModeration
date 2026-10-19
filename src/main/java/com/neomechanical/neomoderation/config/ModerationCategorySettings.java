@@ -35,6 +35,11 @@ public record ModerationCategorySettings(Map<String, Double> thresholds) {
         return new ModerationCategorySettings(Map.copyOf(thresholds));
     }
 
+    /** How the moderation API names a category: config.yml's "selfHarm" is "self-harm" there. */
+    public static String platformName(String category) {
+        return "selfHarm".equals(category) ? "self-harm" : category;
+    }
+
     public static String[] categoryKeys() {
         return CATEGORY_KEYS.clone();
     }

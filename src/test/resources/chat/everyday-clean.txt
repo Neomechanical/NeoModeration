@@ -1,0 +1,56 @@
+# Ordinary game chat that must never be blocked by the shipped English list and
+# every language pack together, with server-ad blocking on. One line per message.
+#
+# English
+go ok
+lets go ok?
+put a torch on the wall
+can u put a sign there
+just put a slab on top
+im gonna put a farm here
+put as many as you want
+my dog has a wet back
+he called me a bad word
+who re you talking to
+took 5 hits to kill it
+455 diamonds in the chest
+let's hit him from behind
+he's hit by a creeper
+the hoe is on the table
+analysis paralysis
+assassin's creed is great
+Scunthorpe united won
+gg wp everyone
+version 1.20.4 is out
+coords 120 64 -340
+check config.yml and server.properties
+my ping to 1.1.1.1 is bad
+use 8.8.8.8 as dns
+join twitch.tv/streamer to watch
+join kick.com/streamer
+watch me on youtube.com/xyz
+our discord is discord.gg/abc
+the ip is 127.0.0.1
+# French
+désolé je suis en retard
+le retard du train
+j'ai pu te dire la vérité
+la mer de sable est loin
+la mer des caraïbes
+re tout le monde
+# Spanish
+ni que fuera tonto
+hola kike que tal
+Kike es mi hermano
+qué pasa con el mapa
+# Portuguese
+a via do metrô
+pela via dos fundos
+cadê o mapa
+# German
+jo der ist gut
+das ist doch scheinbar richtig
+# Turkish
+sıkış tıkış olduk
+kapıda sıkış
+sıkıştım burada

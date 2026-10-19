@@ -36,8 +36,11 @@ final class DoctorChecks {
     private DoctorChecks() {
     }
 
-    /** Everything that can be said without asking the cloud. */
-    static List<Check> local(ModerationSettings settings, boolean caseLogAvailable) {
+    /**
+     * Everything that can be said without asking the cloud. {@code discordProblem}
+     * is why the last Discord post failed, or {@code null}.
+     */
+    static List<Check> local(ModerationSettings settings, boolean caseLogAvailable, String discordProblem) {
         ModerationCoverage coverage = ModerationCoverage.from(settings);
         List<Check> checks = new ArrayList<>();
         checks.add(settings.enabled()
@@ -61,17 +64,14 @@ final class DoctorChecks {
         checks.add(cases(settings, caseLogAvailable));
         String webhook = settings.alerts().discordWebhookUrl();
         if (!webhook.isBlank()) {
-            checks.add(DiscordAlerts.isWebhookUrl(webhook)
-                    ? Check.of(Level.OK, "discord", "discord-on")
-                    : Check.of(Level.FAIL, "discord", "discord-bad-url"));
+            if (!DiscordAlerts.isWebhookUrl(webhook)) {
+                checks.add(Check.of(Level.FAIL, "discord", "discord-bad-url"));
+            } else if (discordProblem != null) {
+                checks.add(new Check(Level.FAIL, "discord", "discord-failing", Map.of("problem", discordProblem)));
+            } else {
+                checks.add(Check.of(Level.OK, "discord", "discord-on"));
+            }
         }
-        checks.add(Check.of(Level.OK, "fail-policy", settings.failOpen() ? "fail-open" : "fail-closed"));
-        long budget = (long) settings.api().connectTimeoutMs() + settings.api().readTimeoutMs() + 400L;
-        checks.add(budget > CHAT_WAIT_CAP_MS
-                ? Check.of(Level.WARN, "timeouts", "timeouts-capped")
-                : new Check(Level.OK, "timeouts", "timeouts-ok", Map.of(
-                        "connect", String.valueOf(settings.api().connectTimeoutMs()),
-                        "read", String.valueOf(settings.api().readTimeoutMs()))));
         return checks;
     }
 
@@ -90,6 +90,13 @@ final class DoctorChecks {
                     ? Check.of(Level.WARN, "cloud-mode", "cloud-monitor")
                     : Check.of(Level.OK, "cloud-mode", "cloud-enforce"));
         }
+        checks.add(Check.of(Level.OK, "fail-policy", settings.failOpen() ? "fail-open" : "fail-closed"));
+        long budget = (long) settings.api().connectTimeoutMs() + settings.api().readTimeoutMs() + 400L;
+        checks.add(budget > CHAT_WAIT_CAP_MS
+                ? Check.of(Level.OK, "timeouts", "timeouts-capped")
+                : new Check(Level.OK, "timeouts", "timeouts-ok", Map.of(
+                        "connect", String.valueOf(settings.api().connectTimeoutMs()),
+                        "read", String.valueOf(settings.api().readTimeoutMs()))));
         if (!isHttpUri(settings.api().endpoint())) {
             checks.add(new Check(Level.FAIL, "endpoint", "endpoint-bad", Map.of("endpoint", settings.api().endpoint())));
             return checks;

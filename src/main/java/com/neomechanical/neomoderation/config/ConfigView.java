@@ -6,9 +6,8 @@ import java.util.Map;
 /**
  * The whole configuration surface the settings records need, expressed without
  * naming a server platform: seven accessors, path-addressed with dots, each with
- * the caller's default. {@link BukkitConfigView} wraps the server's config.yml
- * and {@link MapConfigView} wraps parsed YAML, so settings parsing is testable
- * with no server.
+ * the caller's default. {@link BukkitConfigView} wraps the server's config.yml;
+ * tests wrap plain maps, so settings parsing is testable with no server.
  */
 public interface ConfigView {
 

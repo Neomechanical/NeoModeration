@@ -1,6 +1,7 @@
 package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
+import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.commands.DurationParser;
 import com.neomechanical.neomoderation.commands.SubCommand;
 import com.neomechanical.neomoderation.messages.MessageService;
@@ -26,6 +27,11 @@ public class MuteCmd implements SubCommand {
     @Override
     public String getName() {
         return unmute ? "unmute" : "mute";
+    }
+
+    @Override
+    public String getPermission() {
+        return Permissions.MODERATE;
     }
 
     @Override

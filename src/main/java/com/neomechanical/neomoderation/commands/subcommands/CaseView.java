@@ -1,11 +1,13 @@
 package com.neomechanical.neomoderation.commands.subcommands;
 
+import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.commands.DurationParser;
 import com.neomechanical.neomoderation.messages.ActionText;
 import com.neomechanical.neomoderation.messages.MenuRenderer;
 import com.neomechanical.neomoderation.messages.MenuRenderer.Button;
 import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.messages.Reasons;
+import com.neomechanical.neomoderation.moderation.CaseLog;
 import com.neomechanical.neomoderation.moderation.CaseLog.CaseRecord;
 import com.neomechanical.neomoderation.moderation.Outcome;
 import org.bukkit.command.CommandSender;
@@ -54,11 +56,12 @@ final class CaseView {
         buttons.add(button(messages, reader, "resolve", ids, "/" + label + " cases resolve " + id));
         buttons.add(button(messages, reader, "dismiss", ids, "/" + label + " cases dismiss " + id));
         Reasons.Parsed reason = Reasons.parse(row.reason());
-        if (reason.kind() == Reasons.Kind.WORD && !reason.detail().isBlank()) {
+        // Allowing a word changes config.yml, which only admins may do.
+        if (reason.kind() == Reasons.Kind.WORD && !reason.detail().isBlank() && reader.hasPermission(Permissions.ADMIN)) {
             buttons.add(button(messages, reader, "allow", Map.of("word", reason.detail()),
                     "/" + label + " allow word add " + reason.detail()));
         }
-        buttons.add(button(messages, reader, "history", ids, "/" + label + " cases " + row.player()));
+        buttons.add(button(messages, reader, "history", ids, CaseLog.historyCommand(label, row.player())));
         buttons.add(button(messages, reader, "mute", ids, "/" + label + " mute " + row.player() + " 10m"));
         return buttons;
     }
@@ -83,11 +86,7 @@ final class CaseView {
     private static String verdictKey(CaseRecord row) {
         Outcome.Verdict verdict = Outcome.decode(row.action()).map(Outcome::verdict)
                 .orElse("monitor".equals(row.mode()) ? Outcome.Verdict.REVIEW : Outcome.Verdict.BLOCKED);
-        return switch (verdict) {
-            case BLOCKED -> "alert.verdict.blocked";
-            case CENSORED -> "alert.verdict.censored";
-            case REVIEW -> "alert.verdict.review";
-        };
+        return "alert.verdict." + verdict.key();
     }
 
     /** What ran after the detection, in words; a case saved before 1.7.0 keeps its English text. */

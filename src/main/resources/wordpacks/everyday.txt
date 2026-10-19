@@ -1,0 +1,30 @@
+# Everyday phrases that spell a banned word once their spaces are dropped.
+# The filter joins fragments so that "f uck" is caught; these real phrases are
+# never read as the word they spell, on every server. One phrase per line.
+#
+# English
+put a
+put as
+go ok
+bad word
+wet back
+who re
+# French: "la mer de", "j'ai pu te dire", and "retard" meaning late
+mer de
+mer des
+pu te
+en retard
+du retard
+de retard
+le retard
+un retard
+mon retard
+ton retard
+son retard
+au retard
+les retards
+# Spanish, Portuguese and German
+ni que
+via do
+via dos
+jo der

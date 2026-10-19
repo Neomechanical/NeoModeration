@@ -43,7 +43,12 @@ class ServerAdDetectorTest {
                 "play . coolsmp . net",
                 "play dot coolsmp dot net",
                 "play(dot)coolsmp(dot)net",
-                "play。coolsmp。net")) {
+                "play。coolsmp。net",
+                "\u0440lay.coolsmp.net is up",
+                "cool.minefort.com",
+                "x.e4mc.link",
+                "abc.playit.gg",
+                "my server is cool.server.pro")) {
             assertTrue(advertised(ad).orElse("").startsWith("server_ad:"), "missed a server ad: " + ad);
         }
     }
@@ -65,7 +70,13 @@ class ServerAdDetectorTest {
                 "e.g. a cobble gen, i.e. a farm",
                 "wait... what? ok.so then",
                 "gg.gg lol",
-                "my kdr is 1.75")) {
+                "my kdr is 1.75",
+                "my ping to 1.1.1.1 is bad",
+                "use 8.8.8.8 as dns",
+                "join kick.com/streamer",
+                "join twitch.tv/streamer to watch",
+                "server: buycraft.net",
+                "привет. как дела")) {
             assertEquals(Optional.empty(), advertised(clean), "flagged ordinary chat: " + clean);
         }
     }

@@ -7,8 +7,15 @@ import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 public final class ChatModerationActionExecutor {
+    /**
+     * Names a console command can safely carry. The server refuses anything else at
+     * login unless a proxy turned that check off, and a name with a space in it
+     * would add arguments to the command.
+     */
+    private static final Pattern COMMAND_SAFE_NAME = Pattern.compile("[^\\s§]{1,32}");
     private static final String DEFAULT_TIMEOUT_COMMAND = "tempmute %PLAYER% %DURATION%s %REASON%";
     private static final String DEFAULT_GIVE_ROLE_COMMAND = "lp user %PLAYER% parent add %ROLE%";
     private static final String DEFAULT_TAKE_ROLE_COMMAND = "lp user %PLAYER% parent remove %ROLE%";
@@ -73,6 +80,9 @@ public final class ChatModerationActionExecutor {
     }
 
     private void runCommand(Player player, ModerationAction action, String command) {
+        if (!COMMAND_SAFE_NAME.matcher(player.getName()).matches()) {
+            return;
+        }
         ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
         String hydratedCommand = hydrate(command, player, action);
         Bukkit.dispatchCommand(console, hydratedCommand.startsWith("/") ? hydratedCommand.substring(1) : hydratedCommand);

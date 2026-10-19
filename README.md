@@ -8,7 +8,7 @@ NeoModeration by Neomechanical moderates chat and map art on Minecraft servers. 
 
 1. Drop `NeoModeration-1.7.0.jar` into `plugins/` and restart.
 2. Run `/nmod test badword`. It shows "Local rules: caught" and "Result: blocked". The preview never blocks or punishes anyone. It checks content rules; message rate, repeats and split messages need live chat.
-3. Optional: for cloud moderation, start a free 14-day trial. It needs no account.
+3. Optional: for cloud moderation, start a free 14-day trial. It needs no account. `/nmod trial` first says what a trial sends and how its decisions work, then offers a button (or `/nmod trial start` in the console) to begin.
 
 ```text
 /nmod trial
@@ -29,37 +29,31 @@ Or connect an existing workspace key:
 
 ## Why add cloud moderation?
 
-Players do not always type abuse exactly as expected. In Neomechanical's
-published 10-string benchmark, replacing letters with digits, adding accents,
-or putting punctuation between letters caused a leading free moderation
-endpoint to flag 4/10 strings instead of 10/10. Neomechanical's additive
-normalisation restored 10/10 for each of those transforms and added no flags
-across eight ordinary clean chat lines.
+The local rules catch words, links and server ads, however they are spelled. What they cannot do is read meaning. Harassment and threats in plain words, encouragement to self-harm, scams that never use a banned word, sexual talk and abuse in languages without a word pack all pass a word list. The cloud reads each message for its meaning in eight categories and checks map art.
 
-The sample is deliberately small and English-only. [Review the results, method,
-and limitations](https://neomechanical.com/r/neomoderation_github?to=obfuscation)
-before deciding whether cloud checks fit your server.
+The free 14-day trial runs on your own chat, and while it runs its decisions only alert staff, so you can judge them before they block anything. [How the cloud checks Minecraft chat](https://neomechanical.com/docs/use-cases/minecraft?src=neomoderation_github).
 
 ## What runs without a key
 
-- **Starter word lists**: English, plus the Spanish, French, German, Portuguese or Turkish list that matches `locale` in `config.yml`. Set `moderation.offline.languagePacks` to `[auto, es]`, `[all]` or `[]` to choose. Matching is whole-word, so "assignment" and "Scunthorpe" stay clean, and it sees through spacing, accents, look-alike letters, leetspeak and words split across rapid short messages.
-- **Server ads**: IP addresses, addresses with a port, `play.` and `mc.` style addresses, free hosts such as `aternos.me` and "join myserver.net" are blocked. Ordinary links are not affected. Add your own address with `/nmod allow url add <address>`. Turn it off with `moderation.offline.blockServerAds: false`.
-- **Scam links**: IP grabbers and fake giveaways from a starter list, including ones written with `(dot)` or `[.]`.
-- **Anti-spam**: message rate, the same message again, capitals, character floods and command rate. Tune it under `moderation.spam`.
-- **Player notices**: players whose message, sign, book, item name or command is stopped are told why, in their own game language (`moderation.tellPlayers`).
-- **Censor**: set `moderation.chat.censorLocalDetections: true` to star out matched words and let the rest of the message through.
-- **Strikes**: off on a new install. Turn them on under `moderation.strikes` to act when a player reaches a set count.
-- **Signs, books, item names and commands**: `/nmod surface` shows a clickable menu to set each one to off, monitor, censor or block (all off by default).
-- **Case history**: `/nmod cases [player]` lists detections from a local SQLite log. Open one to resolve or dismiss it, allow the word or mute the player.
+- Starter lists of swear words and slurs in English, plus the Spanish, French, German, Portuguese or Turkish list that matches `locale` in `config.yml`. `moderation.offline.languagePacks` takes `[auto, es]`, `[all]` or `[]`. A word only matches from the start of a word to the end of one, so "assignment" and "Scunthorpe" stay clean, and everyday phrases that spell a banned word, such as "put a", are never read as it. Matching sees through spacing, accents, look-alike letters, leetspeak and words split across rapid short messages.
+- Ads for other servers are blocked on a new install: public IP addresses, addresses with a port, `play.` and `mc.` style addresses, free hosts such as `aternos.me`, and "join myserver.net". Ordinary links are not affected. Let your own address through with `/nmod allow url add <address>`. An upgraded server keeps this off until you set `moderation.offline.blockServerAds: true`.
+- IP grabbers and fake giveaway links from a starter list are blocked, including ones written with `(dot)` or `[.]`.
+- Anti-spam blocks message floods, the same message again, character floods and command floods, and sends messages in capitals on in lower case. Spam is only blocked; your actions stay for abuse. Tune it under `moderation.spam`.
+- Players whose message, sign, book, item name or command is stopped are told why, in their own game language (`moderation.tellPlayers`).
+- `moderation.chat.censorLocalDetections: true` stars out matched words and lets the rest of the message through.
+- Strikes are off on a new install. Turn them on under `moderation.strikes` to act when a player reaches a set count.
+- `/nmod surface` shows a clickable menu to check signs, books, item names and commands, each set to off, monitor, censor or block (all off by default).
+- `/nmod cases [player]` lists detections from a local SQLite log. Open one to resolve or dismiss it, allow the word or mute the player.
 
 ## Staff tools
 
-- **Alerts**: players with `neomoderation.notify` see each detection in chat; click one for that player's cases. `moderation.alerts.includeMessage: false` hides the message text.
-- **Discord**: `/nmod discord <webhook URL>` sends the same alerts to a Discord channel, batched so a raid cannot flood it. `/nmod discord test` checks it.
-- **Mute**: `/nmod mute <player> [duration]` and `/nmod unmute <player>`. Mutes are built in; no other plugin is needed.
-- **Exceptions**: `/nmod allow word|url add <value>` fixes a false positive at once. Allowed phrases and links always win.
-- **Cloud presets**: `/nmod preset family|community|minimal` sets how strict the cloud is without touching local rules or actions. Each category also takes its own threshold (0.05 to 0.99) in `config.yml`.
-- **Setup check**: `/nmod doctor` lists every setting that needs attention.
+- Players with `neomoderation.notify` see each detection in chat. Those who may open cases can click it for that player's history. `moderation.alerts.includeMessage: false` hides the message text.
+- `/nmod discord <webhook URL>` sends the same alerts to a Discord channel, batched so a raid cannot flood it, with mentions turned off. `/nmod discord test` checks it, and `/nmod doctor` says when Discord refuses alerts.
+- `/nmod mute <player> [duration]` and `/nmod unmute <player>` mute a player by hand. A mute covers public chat and the message commands (`/msg`, `/tell`, `/r`, `/me` and the rest of `scannedCommands`), with no other plugin.
+- `/nmod allow word|url add <value>` fixes a false positive at once. Allowed phrases and links always win.
+- `/nmod preset family|community|minimal` sets how strict the cloud is without touching local rules or actions. Each category also takes its own threshold (0.05 to 0.99) in `config.yml`.
+- `/nmod doctor` lists every setting that needs attention.
+- Moderators with `neomoderation.moderate` get help, status, test, privacy, cases, mute and unmute; settings and the cloud key stay with `neomoderation.admin`.
 
 ## What happens on a detection
 
@@ -77,14 +71,14 @@ Change actions with:
 /nmod action reset
 ```
 
-Mute durations: `30s`, `5m`, `1h`, `1d` (or bare seconds), up to 30 days.
+Mute durations: `30s`, `5m`, `1h`, `1d` (or bare seconds), up to 30 days. Kick and ban reasons you have not set yourself read in each player's own language.
 
 ## Commands
 
 | Command | What it does |
 |---------|----------------|
 | `/nmod help [2]` | The clickable command menu |
-| `/nmod trial [status]` | Start a free 14-day cloud trial, or see how it is going |
+| `/nmod trial [start\|status]` | Explain the free 14-day cloud trial and start it, or see how it is going |
 | `/nmod setup <key>` | Save a cloud API key; check it with `/nmod doctor` |
 | `/nmod status` | What is protected right now |
 | `/nmod mode [monitor\|enforce]` | Show or switch local rules between alerting and blocking |
@@ -147,16 +141,18 @@ moderation:
 
 ## Permissions
 
-- `neomoderation.admin`: use `/nmod` (ops by default)
-- `neomoderation.bypass`: skip checks
+- `neomoderation.admin`: every `/nmod` command (ops by default); includes `neomoderation.moderate`
+- `neomoderation.moderate`: `/nmod help`, `status`, `test`, `privacy`, `cases`, `mute` and `unmute` (ops by default)
 - `neomoderation.notify`: receive in-game detection alerts (ops by default)
+- `neomoderation.bypass`: skip checks
 
 ## Notes
 
-- Without a key, local rules and anti-spam run; no chat or map content leaves your server. bStats reports technical metrics and aggregate configuration and detection buckets (including cloud state); it sends no chat, player names or API keys. Turn reporting off in `plugins/bStats/config.yml`.
+- Without a key or a Discord webhook, local rules and anti-spam run and no chat or map content leaves your server. bStats reports technical metrics and aggregate configuration and detection buckets (including cloud state); it sends no chat, player names or API keys. Turn reporting off in `plugins/bStats/config.yml`.
 - With a key, checked chat is sent to `https://api.neomechanical.com/v1/events` with `no_store` retention and training turned off. Details: [PRIVACY.md](PRIVACY.md).
 - Cloud failures and a busy cloud follow `moderation.chat.failOpen` (true by default). In cloud enforce mode, fail-closed blocks that message without strikes, mutes or other punishment. In cloud monitor mode it goes through; local rules still run.
-- Cloud chat uses two workers with no waiting queue. Map checks run two at a time and never check the same map twice at once.
+- In cloud monitor mode (the trial's default) a message goes through at once and is checked in the background. In enforce mode it waits for the answer, at most 2.5 seconds. Eight cloud requests run at once with a short queue behind them. Map checks run two at a time and never check the same map twice at once.
+- Keys and webhook URLs typed into `/nmod setup`, `/nmod key set` and `/nmod discord` are kept out of the server log.
 - Edit `plugins/NeoModeration/config.yml` for advanced options.
 
 ## Maintainers

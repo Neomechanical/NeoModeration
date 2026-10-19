@@ -1,5 +1,6 @@
 package com.neomechanical.neomoderation.commands;
 
+import com.neomechanical.neomoderation.config.InputLimits;
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.config.OfflineModerationSettings;
 import com.neomechanical.neomoderation.messages.MessageService;
@@ -62,6 +63,14 @@ public final class RuleListEditor {
         }
         String key = changed ? (adding ? "rules.added" : "rules.removed") : (adding ? "rules.already-there" : "rules.not-there");
         messages.send(sender, key, Map.of("kind", kind, "value", value));
+        if (!changed && !adding && list == RuleList.BANNED_WORDS && fromLanguagePack(plugin, value)) {
+            // The word still blocks; say why and how to let it through.
+            messages.send(sender, "rules.in-pack", Map.of("value", value, "label", label));
+        }
+    }
+
+    private static boolean fromLanguagePack(NeoModerationPlugin plugin, String value) {
+        return plugin.settings().offline().packWords().stream().anyMatch(word -> word.equalsIgnoreCase(value));
     }
 
     private static void showList(NeoModerationPlugin plugin, CommandSender sender, RuleList list, String kind) {

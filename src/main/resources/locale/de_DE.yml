@@ -34,6 +34,8 @@ error:
   rule-too-long: "{prefix} {#risk}Das ist länger als {max} Zeichen."
   player-unknown: "{prefix} {#risk}Ein Spieler namens {#text}{player}{#risk} war noch nie hier."
 
+  unknown-command: "{prefix} {#risk}/{label} {command} gibt es nicht. {#muted}Das gibt es:"
+  admin-only: "{prefix} {#muted}Nur Admins dürfen /{label} {command} verwenden."
 help:
   section:
     start: "{#text}&lErste Schritte"
@@ -43,7 +45,7 @@ help:
   footer: "{#faint}&m                                        "
   dashboard: "{#brand}&lNeoModeration{#faint} {version}{#muted}: lokale Regeln {#text}{mode}{#muted}, Cloud {#text}{cloud}{#muted}, {#text}{total}{#muted} Treffer seit dem Start"
   page: "{#faint}Seite {page} von 2. {#muted}Weiter: {#brand}/nmod help {next}"
-  hint: "{#faint}Klicke auf einen Befehl, um ihn auszuführen. Fahre darüber, um zu sehen, was er tut."
+  hint: "{#faint}Klicke auf einen Befehl, um ihn auszuführen oder in dein Chatfeld zu setzen. Fahre darüber, um zu sehen, was er tut."
   entry-usage: "  {#brand}{usage}"
   entry-desc: "  {#muted}{desc}"
   entry-hover: "{#brand}{usage}\n{#muted}{desc}"
@@ -107,10 +109,17 @@ key:
 
 trial:
   pending: "{prefix} {#muted}Ein Test startet bereits. Warte, bis er fertig ist."
+  explain-title: "{prefix} {#brand}Ein kostenloser 14-Tage-Cloud-Test{#muted}, ohne Konto."
+  explain-sends: "  {#muted}Solange er läuft, geht jede Chatnachricht und jedes Kartenbild mit Name und UUID des Spielers zur Prüfung an Neomechanical. Nichts davon wird gespeichert oder zum Training verwendet."
+  explain-monitor: "  {#muted}Cloud-Entscheidungen melden sich nur beim Team, bis du {#brand}/nmod cloudmode enforce{#muted} ausführst. Deine Wortlisten arbeiten weiter wie bisher."
+  start-button: "  {#brand}[Kostenlosen Test starten]"
+  start-hover: "{#muted}Führt {command} aus"
+  start-console: "  {#muted}Führe {#brand}{command}{#muted} aus, um ihn zu starten."
   configuration-changed: "{prefix} {#review}Die Cloud-Einstellungen haben sich geändert, während der Test startete, deshalb bleiben deine. {#muted}Mit {#brand}/nmod trial{#muted} siehst du sie."
   requesting: "{prefix} {#muted}Dein kostenloser 14-Tage-Cloud-Test startet..."
   activated: "{prefix} {#safe}Dein 14-Tage-Cloud-Test läuft bis zum {#text}{expires}{#safe}."
   activated-monitor: "{prefix} {#muted}Cloud-Entscheidungen melden sich zuerst nur beim Team. Führe {#brand}/nmod cloudmode enforce{#muted} aus, wenn du ihnen vertraust."
+  moderation-off: "{prefix} {#review}Die Moderation ist aus, also wird noch nichts geprüft. {#muted}Führe {#brand}/nmod on{#muted} aus, wenn du so weit bist."
   already-claimed: "{prefix} {#risk}Dieser Server hat seinen kostenlosen Test schon genutzt. {#muted}Hol dir einen Schlüssel unter {#brand}{url}{#muted}."
   rate-limited: "{prefix} {#risk}Aus diesem Netzwerk wurden heute zu viele Tests gestartet. {#muted}Versuch es morgen wieder oder registriere dich unter {#brand}{url}{#muted}."
   failed: "{prefix} {#risk}Der Test ist nicht gestartet: {error}."
@@ -122,8 +131,8 @@ trial:
     invalid-endpoint: "moderation.api.endpoint ist keine gültige Adresse"
   status-no-key: "{prefix} {#muted}Noch kein Cloud-Schlüssel. Führe {#brand}/nmod trial{#muted} für einen kostenlosen 14-Tage-Test aus."
   status-checking: "{prefix} {#muted}Der Cloud-Test wird geprüft..."
-  status-active: "{prefix} {#safe}Cloud-Test: noch {#text}{days}{#safe} Tage, bis zum {#text}{expires}{#safe}."
-  status-caught: "{prefix} {#muted}Die Cloud hat seit dem Start {#text}{count}{#muted} Nachrichten und Karten erkannt."
+  status-active: "{prefix} {#safe}Cloud-Test bis zum {#text}{expires}{#safe}. {#muted}Tage übrig: {#text}{days}"
+  status-caught: "{prefix} {#muted}Von der Cloud erkannt seit dem Start: {#text}{count}"
   status-expired: "{prefix} {#risk}Der Cloud-Test endete am {#text}{expires}{#risk}. {#muted}Die lokalen Regeln laufen weiter."
   status-standard: "{prefix} {#safe}Dieser Server nutzt einen vollen Neomechanical-Schlüssel. {#muted}Dein Guthaben zeigt {#brand}/nmod usage{#muted}."
   keep-button: "  {#brand}[Cloud-Moderation behalten]"
@@ -138,7 +147,7 @@ toggle:
 status:
   enabled: "{#muted}Moderation: {#text}{value}"
   local: "{#muted}Lokale Regeln: {#text}{value}"
-  rules: "{#muted}Regeln: {#text}{words}{#muted} verbotene Wörter, {#text}{urls}{#muted} gesperrte Links, {#text}{exceptions}{#muted} Ausnahmen"
+  rules: "{#muted}Verbotene Wörter: {#text}{words}{#muted}, gesperrte Links: {#text}{urls}{#muted}, Ausnahmen: {#text}{exceptions}"
   packs: "{#muted}Sprachpakete: {#text}{value}"
   server-ads: "{#muted}Werbung für andere Server: {#text}{value}"
   checks: "{#muted}Anti-Spam {#text}{spam}{#muted}, Verwarnungen {#text}{strikes}{#muted}, Fallverlauf {#text}{cases}"
@@ -161,8 +170,8 @@ status:
     server-ads-off: "erlaubt"
     surfaces-off: "nicht geprüft"
     surfaces-on: "{count} von 4 geprüft"
-    cloud-checks: "{categories} Kategorien{maps}, {mode}"
-    cloud-maps: " und Kartenbilder"
+    cloud-checks: "{mode}, Kategorien an: {categories}{maps}"
+    cloud-maps: " plus Kartenbilder"
     cloud-nothing: "Schlüssel gespeichert, keine Prüfung an"
     local-monitor: "nur melden (monitor)"
     local-enforce: "blockieren"
@@ -179,13 +188,14 @@ rules:
     allowed-url: "Erlaubte Links"
   usage: "{prefix} {#muted}Nutze {#brand}/{label} {command} <add|remove|list> [Wert]{#muted}."
   list: "{prefix} {#muted}{kind}: {#text}{values}"
-  list-packs: "{prefix} {#muted}Dazu kommen {#text}{count}{#muted} Wörter aus den Sprachpaketen ({packs})."
+  list-packs: "{prefix} {#muted}Wörter aus den Sprachpaketen ({packs}): {#text}{count}"
   value-required: "{prefix} {#risk}Schreib das Wort oder den Link hinter den Befehl."
   added: "{prefix} {#safe}{kind}: {#text}{value}{#safe} hinzugefügt."
   removed: "{prefix} {#safe}{kind}: {#text}{value}{#safe} entfernt."
   already-there: "{prefix} {#muted}{kind}: {#text}{value}{#muted} ist schon dabei."
   not-there: "{prefix} {#muted}{kind}: {#text}{value}{#muted} ist nicht dabei."
 
+  in-pack: "{prefix} {#muted}{#text}{value}{#muted} stammt aus einem Sprachpaket und blockiert deshalb weiter. Mit {#brand}/{label} allow word add {value}{#muted} lässt du es durch."
 action:
   usage: "{prefix} {#muted}Nutze {#brand}/{label} action <list|add|remove|reset>{#muted}."
   add-usage: "{prefix} {#muted}Nutze {#brand}/{label} action add <clear|mute|kick|ban> [Dauer]{#muted}."
@@ -200,6 +210,7 @@ action:
   bad-duration: "{prefix} {#risk}{#text}{value}{#risk} ist keine Dauer. {#muted}Versuch 30s, 5m oder 1h (höchstens 30d)."
   reset: "{prefix} {#safe}Aktionen gelöscht. {#muted}Eine Blockierung blockiert jetzt nur noch. Verwarnungen stellst du getrennt ein."
   default-reason: "Unangemessener Chat"
+  strike-reason: "Wiederholt unangemessener Chat"
   strike: "Verwarnung {count}"
   name:
     clear: "den Chat für alle leeren"
@@ -224,7 +235,7 @@ usage:
   error-request: "{prefix} {#risk}Die Anfrage wurde abgelehnt. {#muted}Führe {#brand}/nmod doctor{#muted} aus."
 
 mapart:
-  confiscated: "{prefix} {#risk}Diese Karte wurde entfernt: Ihr Bild ist hier nicht erlaubt."
+  confiscated: "{prefix} {#risk}Diese Karte wurde entfernt, weil ihr Bild hier nicht erlaubt ist."
   blocked: "{prefix} {#risk}Das Bild dieser Karte ist hier nicht erlaubt."
 
 mute:
@@ -307,6 +318,7 @@ alert:
 surface:
   title: "{prefix} {#muted}Wo die lokalen Regeln gelten. Klicke auf eine Einstellung, um sie zu ändern."
   chat-row: "  {#text}Chat{#muted}: wird immer geprüft"
+  chat-row-off: "  {#text}Chat{#muted}: nicht geprüft (moderation.chat.scanAsyncChat)"
   row: "  {#text}{surface}{#muted}: "
   button: "{#faint}[{#muted}{mode}{#faint}] "
   button-current: "{#faint}[{#brand}{mode}{#faint}] "
@@ -333,7 +345,7 @@ allow:
 mode:
   usage: "{prefix} {#muted}Nutze {#brand}/{label} mode <monitor|enforce>{#muted}."
   current: "{prefix} {#muted}Lokale Regeln: {#text}{value}"
-  stats: "{prefix} {#muted}Erkannt in den letzten {#text}{hours}{#muted} Stunden: {#text}{total}"
+  stats: "{prefix} {#muted}Erkannt seit dem Start vor {#text}{since}{#muted}: {#text}{total}"
   stats-line: "  {#faint}{count} {#muted}{what}"
   set-monitor: "{prefix} {#review}Lokale Regeln melden jetzt nur noch ans Team. {#muted}Nichts wird blockiert, bis du {#brand}/nmod mode enforce{#muted} ausführst."
   set-enforce: "{prefix} {#safe}Lokale Regeln blockieren jetzt. {#muted}Aktionen aus {#brand}/nmod action{#muted} laufen auch."
@@ -414,7 +426,7 @@ doctor:
     local-monitor: "nur melden; mit /nmod mode enforce wird blockiert"
     local-surfaces: "im Chat nur melden; Schilder, Bücher und Befehle folgen ihren eigenen Einstellungen"
     local-enforce: "blockieren"
-    rules: "{words} verbotene Wörter, {urls} gesperrte Links, {exceptions} Ausnahmen"
+    rules: "verbotene Wörter: {words}, gesperrte Links: {urls}, Ausnahmen: {exceptions}"
     ads-on: "blockiert"
     ads-off: "erlaubt; setze moderation.offline.blockServerAds auf true, um sie zu blockieren"
     rules-spam-only: "keine Wort- oder Link-Regel; Anti-Spam läuft trotzdem"
@@ -423,10 +435,10 @@ doctor:
     actions-none: "nur blockieren; niemand wird stummgeschaltet, gekickt oder gebannt"
     actions-list: "{actions}"
     off-plain: "aus"
-    spam-on: "{rate} Nachrichten pro 10 s, {repeats} Wiederholungen, {caps} % Großbuchstaben"
-    spam-commands: "{rate} Befehle pro 10 s"
+    spam-on: "Nachrichten pro 10 s: {rate}, Wiederholungen: {repeats}, Großbuchstaben: {caps} %"
+    spam-commands: "Befehle pro 10 s: {rate}"
     spam-idle: "an, aber jedes Limit ist 0"
-    strikes-on: "{rungs} Stufen, zurückgesetzt nach {minutes} Min."
+    strikes-on: "Stufen: {rungs}, zurückgesetzt nach {minutes} Min."
     surfaces-none: "nur Chat. Mit /nmod surface prüfst du auch Schilder und Bücher"
     surfaces-some: "{count} von 4 geprüft"
     cases-on: "an, ohne Nachrichtentext"
@@ -434,6 +446,7 @@ doctor:
     cases-missing: "an, aber diesem Server fehlt der SQLite-Treiber, also wird nichts gespeichert"
     discord-on: "an"
     discord-bad-url: "die URL ist kein Discord-Webhook, also wird nichts gesendet"
+    discord-failing: "Discord hat den letzten Hinweis abgelehnt ({problem}); prüfe, ob der Webhook noch existiert"
     fail-open: "der Chat geht durch (failOpen: true)"
     fail-closed: "der Chat wird zurückgehalten (failOpen: false)"
     timeouts-ok: "{connect} ms zum Verbinden, {read} ms zum Antworten"
@@ -466,7 +479,7 @@ privacy:
   data-text: "jede Chatnachricht"
   data-maps: "jedes Kartenbild"
   data-both: "jede Chatnachricht und jedes Kartenbild"
-  no-cloud: "  {#muted}Kein Cloud-Schlüssel, also verlässt kein Chat und keine Karte diesen Server."
+  no-cloud: "  {#muted}Kein Cloud-Schlüssel, also geht kein Chat und keine Karte an die Cloud."
   cloud-off: "  {#muted}Ein Schlüssel ist gespeichert, aber keine Cloud-Prüfung ist an, also wird nichts gesendet."
   retention: "  {#muted}Cloud-Anfragen sind als {#text}no_store{#muted} markiert: Sie werden nicht gespeichert und nicht zum Training verwendet."
   timeout: "  {#muted}Der Chat wartet höchstens {#text}2,5 s{#muted} auf die Cloud. Wenn sie nicht antworten kann: {#text}{policy}{#muted}."
@@ -478,7 +491,7 @@ privacy:
   discord: "  {#muted}Discord-Hinweise senden den Spieler und die Regel an deinen Webhook, {#text}{message}{#muted}."
   discord-message: "mit einer Vorschau der Nachricht"
   discord-no-message: "ohne den Nachrichtentext"
-  metrics: "  {#muted}bStats bekommt nur Zahlen, nie Chat oder Namen. Abschalten kannst du es in {#text}plugins/bStats/config.yml{#muted}."
+  metrics: "  {#muted}bStats bekommt deine Einstellungen und Zahlen, nie Chat oder Namen. Abschalten kannst du es in {#text}plugins/bStats/config.yml{#muted}."
 
 cases:
   title: "{prefix} {#muted}Fälle{who}. Klicke auf einen, um ihn zu öffnen."
@@ -511,6 +524,7 @@ cases:
     open-hover: "{#muted}Fall #{id} öffnen"
   more: "  {#faint}Ältere Fälle: {#brand}{command}"
   empty: "{prefix} {#muted}Noch nichts erkannt."
+  no-older: "{prefix} {#muted}Keine älteren Fälle."
   not-found: "{prefix} {#risk}Es gibt keinen Fall #{id}."
   disabled: "{prefix} {#muted}Der Fallverlauf ist aus (moderation.cases.enabled)."
   unavailable: "{prefix} {#risk}Der Fallverlauf kann nicht gespeichert werden: Diesem Server fehlt der SQLite-Treiber."
@@ -524,7 +538,7 @@ preset:
   family: "alle Kategorien, am strengsten (0,55)"
   community: "alle Kategorien, ausgewogen (0,70)"
   minimal: "fünf Kategorien, nur eindeutige Fälle (0,80); Belästigung, Betrug und Spam aus"
-  applied: "{prefix} {#safe}Cloud-Stufe {#text}{name}{#safe}: {#text}{categories}{#safe} Kategorien an. {#muted}Lokale Regeln und Aktionen bleiben, wie sie sind."
+  applied: "{prefix} {#safe}Cloud-Stufe {#text}{name}{#safe}, Kategorien an: {#text}{categories}{#safe}. {#muted}Lokale Regeln und Aktionen bleiben, wie sie sind."
 
 discord:
   usage: "{prefix} {#muted}Nutze {#brand}/{label} discord <Webhook-URL|test|off>{#muted}. Einen Webhook erstellst du in Discord unter Kanaleinstellungen, Integrationen, Webhooks."
@@ -542,7 +556,7 @@ discord:
   field-reason: "Warum"
   field-message: "Nachricht"
   field-then: "Danach"
-  more: "und {count} weitere in der letzten Minute"
+  more: "und {count} weitere"
   test-player: "Test"
   test-reason: "ein Test mit /nmod discord test"
   test-message: "Wenn du das lesen kannst, funktionieren die Discord-Hinweise."
@@ -558,7 +572,7 @@ welcome:
   test-hover: "{#muted}Führt /nmod test badword aus. Nichts wird blockiert."
 
 update:
-  available: "{prefix} {#muted}NeoModeration {#text}{latest}{#muted} ist erschienen; dieser Server nutzt {current}. "
+  available: "{prefix} {#muted}NeoModeration {#text}{latest}{#muted} ist erschienen; dieser Server nutzt {current}."
   button: "{#brand}[Herunterladen]"
   hover: "{#muted}Öffnet {url}"
 
@@ -574,14 +588,23 @@ startup:
   active: "Aktiv: {list}."
   inactive: "Nicht aktiv: {list}."
   item-spam: "Anti-Spam"
-  item-rules: "{words} verbotene Wörter und {urls} gesperrte Links"
+  item-rules: "verbotene Wörter ({words}) und gesperrte Links ({urls})"
   item-server-ads: "Sperre für Werbung für andere Server"
-  item-cloud-text: "Cloud-Chatprüfungen in {count} Kategorien"
+  item-cloud-text: "Cloud-Chatprüfungen (Kategorien: {count})"
   item-maps: "Cloud-Prüfungen von Kartenbildern"
   item-nothing: "nichts, jede Prüfung ist in config.yml aus"
   missing-cloud: "Cloud-Prüfungen (kein Schlüssel; /nmod trial startet einen kostenlosen 14-Tage-Test)"
   missing-cloud-off: "Cloud-Prüfungen (alle Kategorien und Kartenbilder sind aus)"
   missing-spam: "Anti-Spam"
   missing-rules: "Wort- und Link-Regeln"
+  missing-server-ads: "Sperre für Werbung für andere Server (moderation.offline.blockServerAds)"
   try: "Probier /nmod test badword. Ein Test blockiert oder bestraft nie jemanden."
   status: "Mit /nmod status siehst du jederzeit, was an ist."
+
+migrated:
+  words: "Die Startliste verbotener Wörter, die du nie geändert hattest, ist aktualisiert: \"scam\" steht nicht mehr darauf, damit Spieler einander vor Betrug warnen können. Neue Wörter: {count}."
+  server-ads: "Werbung für andere Server bleibt auf diesem aktualisierten Server erlaubt (moderation.offline.blockServerAds: false). Setze es auf true, um sie zu blockieren, nachdem du deine eigene Adresse zu allowedUrls hinzugefügt hast."
+  language-packs: "Die Startliste für deine Sprache bleibt auf diesem aktualisierten Server aus (moderation.offline.languagePacks: []). Setze es auf [auto], um sie einzuschalten."
+  tell-players: "Spieler erfahren jetzt, warum eine Nachricht gestoppt wurde (moderation.tellPlayers: true). Setze es auf false, um ohne Hinweis zu blockieren."
+  per-player-on: "Jeder Spieler liest die Texte von NeoModeration jetzt in seiner eigenen Spielsprache (perPlayerLanguage: true)."
+  per-player-off: "Alle Spieler lesen weiter deine geänderten {locale}-Texte (perPlayerLanguage: false). Setze es auf true, damit jeder Spieler seine eigene Spielsprache sieht."

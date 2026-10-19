@@ -25,7 +25,7 @@ class StatusCoverageTest {
         List<String> lines = status(config);
 
         assertTrue(lines.contains("Local rules: nothing to check"), String.join("\n", lines));
-        assertTrue(lines.stream().anyMatch(line -> line.startsWith("Cloud: ") && line.endsWith(", blocking")),
+        assertTrue(lines.stream().anyMatch(line -> line.startsWith("Cloud: blocking, categories on: ")),
                 String.join("\n", lines));
     }
 

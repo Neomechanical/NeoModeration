@@ -43,7 +43,8 @@ public class DoctorCmd implements SubCommand {
         MessageService messages = plugin.messages();
         sender.sendMessage(StatusCmd.dashboard(plugin, sender));
         messages.send(sender, "doctor.title");
-        DoctorChecks.local(settings, plugin.caseLog().isAvailable()).forEach(check -> render(sender, check));
+        String discordProblem = plugin.discordAlerts() == null ? null : plugin.discordAlerts().lastProblem();
+        DoctorChecks.local(settings, plugin.caseLog().isAvailable(), discordProblem).forEach(check -> render(sender, check));
         List<DoctorChecks.Check> cloud = DoctorChecks.cloudSetup(settings,
                 plugin.coordinator().isRemoteCallAllowed(), plugin.coordinator().lastCloudResultKind());
         cloud.forEach(check -> render(sender, check));

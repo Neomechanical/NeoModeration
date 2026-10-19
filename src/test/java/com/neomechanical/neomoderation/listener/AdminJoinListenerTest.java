@@ -1,5 +1,6 @@
 package com.neomechanical.neomoderation.listener;
 
+import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.testing.TestPlugin;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -41,7 +42,7 @@ class AdminJoinListenerTest {
 
     private static Player player(boolean admin) {
         Player player = mock(Player.class);
-        when(player.hasPermission(AdminJoinListener.ADMIN_PERMISSION)).thenReturn(admin);
+        when(player.hasPermission(Permissions.ADMIN)).thenReturn(admin);
         when(player.getUniqueId()).thenReturn(UUID.randomUUID());
         return player;
     }

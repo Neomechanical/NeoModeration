@@ -109,7 +109,7 @@ class ChatModerationCoordinatorTest {
     }
 
     @Test
-    void busyWorkersRejectExcessCloudRequestsWithoutOpeningTheCircuit() throws Exception {
+    void aFullQueueLetsExcessMessagesThroughUncheckedWithoutOpeningTheCircuit() throws Exception {
         CountDownLatch started = new CountDownLatch(2);
         CountDownLatch release = new CountDownLatch(1);
         ModerationApiClient apiClient = mock(ModerationApiClient.class);
@@ -124,7 +124,7 @@ class ChatModerationCoordinatorTest {
         Player player = player();
         ModerationSettings settings = settings("http://127.0.0.1:1", true, 1000);
 
-        try (ChatModerationCoordinator coordinator = new ChatModerationCoordinator(breaker, apiClient)) {
+        try (ChatModerationCoordinator coordinator = new ChatModerationCoordinator(breaker, apiClient, 2, 0)) {
             Future<ModerationApiResult> first = callers.submit(() -> coordinator.checkMessage(player, "first", settings));
             Future<ModerationApiResult> second = callers.submit(() -> coordinator.checkMessage(player, "second", settings));
             assertTrue(started.await(2, TimeUnit.SECONDS), "Both cloud workers must be occupied");

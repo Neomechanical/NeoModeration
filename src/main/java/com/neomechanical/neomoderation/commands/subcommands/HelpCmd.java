@@ -1,6 +1,7 @@
 package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
+import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.commands.SubCommand;
 import com.neomechanical.neomoderation.messages.MenuRenderer;
 import com.neomechanical.neomoderation.messages.MenuRenderer.ClickAction;
@@ -49,6 +50,11 @@ public class HelpCmd implements SubCommand {
     @Override
     public String getName() {
         return "help";
+    }
+
+    @Override
+    public String getPermission() {
+        return Permissions.MODERATE;
     }
 
     @Override

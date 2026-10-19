@@ -21,7 +21,12 @@ public record Outcome(Verdict verdict, List<ModerationAction> actions, int strik
     public enum Verdict {
         BLOCKED,
         CENSORED,
-        REVIEW
+        REVIEW;
+
+        /** The verdict's part of a message key: {@code alert.verdict.<key>}, {@code discord.title-<key>}. */
+        public String key() {
+            return name().toLowerCase(Locale.ROOT);
+        }
     }
 
     public Outcome {
@@ -34,6 +39,11 @@ public record Outcome(Verdict verdict, List<ModerationAction> actions, int strik
             out.append('|').append(action.type().name().toLowerCase(Locale.ROOT));
             if (action.type() == ModerationActionType.MUTE) {
                 out.append(':').append(action.durationSeconds());
+            } else {
+                String command = commandName(action);
+                if (!command.isEmpty()) {
+                    out.append(':').append(command);
+                }
             }
         }
         if (strike > 0) {
@@ -65,10 +75,21 @@ public record Outcome(Verdict verdict, List<ModerationAction> actions, int strik
             if (type.isEmpty()) {
                 return Optional.empty();
             }
-            int seconds = piece.length > 1 ? parseInt(piece[1]) : 0;
-            actions.add(new ModerationAction(type.get(), "", "", seconds, ""));
+            String detail = piece.length > 1 ? piece[1] : "";
+            actions.add(type.get() == ModerationActionType.MUTE
+                    ? new ModerationAction(type.get(), "", "", parseInt(detail), "")
+                    : new ModerationAction(type.get(), detail, "", 0, ""));
         }
         return Optional.of(new Outcome(verdict, actions, strike));
+    }
+
+    /** The name of the command an action ran, safe to store: "tempmute" for "/essentials:tempmute %PLAYER% 1h". */
+    private static String commandName(ModerationAction action) {
+        String command = ChatModerationActionExecutor.commandFor(action).trim();
+        int space = command.indexOf(' ');
+        String name = space < 0 ? command : command.substring(0, space);
+        name = name.substring(name.lastIndexOf(':') + 1);
+        return name.replaceAll("[^A-Za-z0-9_.-]", "");
     }
 
     private static int parseInt(String value) {

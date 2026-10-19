@@ -23,8 +23,8 @@ label:
   "on": "açık"
   "off": "kapalı"
   none: "yok"
-  blocking: "engelle"
-  alert-only: "yalnızca bildir"
+  blocking: "engelleme"
+  alert-only: "yalnızca bildirim"
   not-armed: "denetlenecek bir şey yok"
 
 error:
@@ -34,6 +34,8 @@ error:
   rule-too-long: "{prefix} {#risk}Bu, {max} karakterden uzun."
   player-unknown: "{prefix} {#risk}{#text}{player}{#risk} adlı bir oyuncu burada hiç oynamadı."
 
+  unknown-command: "{prefix} {#risk}/{label} {command} diye bir komut yok. {#muted}Olanlar şunlar:"
+  admin-only: "{prefix} {#muted}/{label} {command} komutunu yalnızca yöneticiler kullanabilir."
 help:
   section:
     start: "{#text}&lBaşlarken"
@@ -43,7 +45,7 @@ help:
   footer: "{#faint}&m                                        "
   dashboard: "{#brand}&lNeoModeration{#faint} {version}{#muted}. Yerel kurallar: {#text}{mode}{#muted}, bulut: {#text}{cloud}{#muted}, başlangıçtan beri {#text}{total}{#muted} yakalama"
   page: "{#faint}Sayfa {page}/2. {#muted}Devamı: {#brand}/nmod help {next}"
-  hint: "{#faint}Çalıştırmak için bir komuta tıklayın. Ne yaptığını görmek için üzerine gelin."
+  hint: "{#faint}Çalıştırmak ya da sohbet kutunuza koymak için bir komuta tıklayın. Ne yaptığını görmek için üzerine gelin."
   entry-usage: "  {#brand}{usage}"
   entry-desc: "  {#muted}{desc}"
   entry-hover: "{#brand}{usage}\n{#muted}{desc}"
@@ -107,10 +109,17 @@ key:
 
 trial:
   pending: "{prefix} {#muted}Bir deneme zaten başlatılıyor. Bitmesini bekleyin."
+  explain-title: "{prefix} {#brand}Ücretsiz 14 günlük bulut denemesi{#muted}, hesap gerekmez."
+  explain-sends: "  {#muted}Deneme süresince her sohbet mesajı ve harita resmi, oyuncunun adı ve UUID'siyle birlikte denetlenmek üzere Neomechanical'a gider. Hiçbiri saklanmaz ya da eğitimde kullanılmaz."
+  explain-monitor: "  {#muted}Bulut kararları, siz {#brand}/nmod cloudmode enforce{#muted} çalıştırana kadar yalnızca yetkililere bildirilir. Kelime listeleriniz şimdiki gibi çalışmaya devam eder."
+  start-button: "  {#brand}[Ücretsiz denemeyi başlat]"
+  start-hover: "{#muted}{command} çalıştırır"
+  start-console: "  {#muted}Başlatmak için {#brand}{command}{#muted} çalıştırın."
   configuration-changed: "{prefix} {#review}Deneme başlarken bulut ayarları değişti, bu yüzden sizinkiler korundu. {#muted}Görmek için {#brand}/nmod trial{#muted} çalıştırın."
   requesting: "{prefix} {#muted}Ücretsiz 14 günlük bulut denemeniz başlatılıyor..."
   activated: "{prefix} {#safe}14 günlük bulut denemeniz {#text}{expires}{#safe} tarihine kadar açık."
   activated-monitor: "{prefix} {#muted}Bulut kararları önce yalnızca yetkililere bildirilir. Güvendiğinizde {#brand}/nmod cloudmode enforce{#muted} çalıştırın."
+  moderation-off: "{prefix} {#review}Moderasyon kapalı, bu yüzden henüz hiçbir şey denetlenmiyor. {#muted}Hazır olduğunuzda {#brand}/nmod on{#muted} çalıştırın."
   already-claimed: "{prefix} {#risk}Bu sunucu ücretsiz denemesini zaten kullandı. {#muted}{#brand}{url}{#muted} adresinden bir anahtar alın."
   rate-limited: "{prefix} {#risk}Bugün bu ağdan çok fazla deneme başlatıldı. {#muted}Yarın yeniden deneyin ya da {#brand}{url}{#muted} adresinden kaydolun."
   failed: "{prefix} {#risk}Deneme başlamadı: {error}."
@@ -122,8 +131,8 @@ trial:
     invalid-endpoint: "moderation.api.endpoint geçerli bir adres değil"
   status-no-key: "{prefix} {#muted}Henüz bulut anahtarı yok. Ücretsiz 14 günlük deneme için {#brand}/nmod trial{#muted} çalıştırın."
   status-checking: "{prefix} {#muted}Bulut denemesi denetleniyor..."
-  status-active: "{prefix} {#safe}Bulut denemesi: {#text}{days}{#safe} gün kaldı, {#text}{expires}{#safe} tarihine kadar."
-  status-caught: "{prefix} {#muted}Bulut, başlangıçtan beri {#text}{count}{#muted} mesaj ve harita yakaladı."
+  status-active: "{prefix} {#safe}Bulut denemesi {#text}{expires}{#safe} tarihine kadar. {#muted}Kalan gün: {#text}{days}"
+  status-caught: "{prefix} {#muted}Başlangıçtan beri bulutun yakaladığı: {#text}{count}"
   status-expired: "{prefix} {#risk}Bulut denemesi {#text}{expires}{#risk} tarihinde bitti. {#muted}Yerel kurallar çalışmaya devam ediyor."
   status-standard: "{prefix} {#safe}Bu sunucu tam bir Neomechanical anahtarı kullanıyor. {#muted}Krediler için {#brand}/nmod usage{#muted} çalıştırın."
   keep-button: "  {#brand}[Bulut moderasyonunu koru]"
@@ -138,7 +147,7 @@ toggle:
 status:
   enabled: "{#muted}Moderasyon: {#text}{value}"
   local: "{#muted}Yerel kurallar: {#text}{value}"
-  rules: "{#muted}Kurallar: {#text}{words}{#muted} yasaklı kelime, {#text}{urls}{#muted} engellenen bağlantı, {#text}{exceptions}{#muted} istisna"
+  rules: "{#muted}Yasaklı kelime: {#text}{words}{#muted}, engellenen bağlantı: {#text}{urls}{#muted}, istisna: {#text}{exceptions}"
   packs: "{#muted}Dil paketleri: {#text}{value}"
   server-ads: "{#muted}Başka sunucu reklamları: {#text}{value}"
   checks: "{#muted}Spam koruması: {#text}{spam}{#muted}, uyarılar: {#text}{strikes}{#muted}, vaka geçmişi: {#text}{cases}"
@@ -161,12 +170,12 @@ status:
     server-ads-off: "serbest"
     surfaces-off: "denetlenmiyor"
     surfaces-on: "4 alandan {count} tanesi denetleniyor"
-    cloud-checks: "{categories} kategori{maps}, {mode}"
+    cloud-checks: "{mode}, açık kategori: {categories}{maps}"
     cloud-maps: " ve harita resimleri"
     cloud-nothing: "anahtar kayıtlı, hiçbir denetim açık değil"
-    local-monitor: "yalnızca yetkililere bildir (monitor)"
-    local-enforce: "engelle"
-    local-surfaces-only: "denetlenen yerlerde engelle; sohbette yalnızca bildir"
+    local-monitor: "yalnızca yetkililere bildirim (monitor)"
+    local-enforce: "engelleme"
+    local-surfaces-only: "denetlenen yerlerde engelleme; sohbette yalnızca bildirim"
 
 reload:
   done: "{prefix} {#safe}config.yml ve metinler yeniden yüklendi."
@@ -179,13 +188,14 @@ rules:
     allowed-url: "İzin verilen bağlantılar"
   usage: "{prefix} {#muted}{#brand}/{label} {command} <add|remove|list> [değer]{#muted} kullanın."
   list: "{prefix} {#muted}{kind}: {#text}{values}"
-  list-packs: "{prefix} {#muted}Ayrıca dil paketlerinden {#text}{count}{#muted} kelime ({packs})."
+  list-packs: "{prefix} {#muted}Dil paketlerinden gelen kelimeler ({packs}): {#text}{count}"
   value-required: "{prefix} {#risk}Kelimeyi ya da bağlantıyı komuttan sonra yazın."
   added: "{prefix} {#safe}{kind}: {#text}{value}{#safe} eklendi."
   removed: "{prefix} {#safe}{kind}: {#text}{value}{#safe} kaldırıldı."
   already-there: "{prefix} {#muted}{kind}: {#text}{value}{#muted} zaten listede."
   not-there: "{prefix} {#muted}{kind}: {#text}{value}{#muted} listede yok."
 
+  in-pack: "{prefix} {#muted}{#text}{value}{#muted} bir dil paketinden geliyor, bu yüzden engellemeye devam ediyor. İzin vermek için {#brand}/{label} allow word add {value}{#muted} çalıştırın."
 action:
   usage: "{prefix} {#muted}{#brand}/{label} action <list|add|remove|reset>{#muted} kullanın."
   add-usage: "{prefix} {#muted}{#brand}/{label} action add <clear|mute|kick|ban> [süre]{#muted} kullanın."
@@ -200,6 +210,7 @@ action:
   bad-duration: "{prefix} {#risk}{#text}{value}{#risk} bir süre değil. {#muted}30s, 5m ya da 1h deneyin (en fazla 30d)."
   reset: "{prefix} {#safe}Eylemler temizlendi. {#muted}Bir engelleme artık yalnızca engeller. Uyarılar ayrıca ayarlanır."
   default-reason: "Uygunsuz sohbet"
+  strike-reason: "Tekrarlanan uygunsuz sohbet"
   strike: "uyarı {count}"
   name:
     clear: "herkesin sohbetini temizle"
@@ -307,6 +318,7 @@ alert:
 surface:
   title: "{prefix} {#muted}Yerel kuralların geçerli olduğu yerler. Değiştirmek için bir ayara tıklayın."
   chat-row: "  {#text}Sohbet{#muted}: her zaman denetlenir"
+  chat-row-off: "  {#text}Sohbet{#muted}: denetlenmiyor (moderation.chat.scanAsyncChat)"
   row: "  {#text}{surface}{#muted}: "
   button: "{#faint}[{#muted}{mode}{#faint}] "
   button-current: "{#faint}[{#brand}{mode}{#faint}] "
@@ -333,7 +345,7 @@ allow:
 mode:
   usage: "{prefix} {#muted}{#brand}/{label} mode <monitor|enforce>{#muted} kullanın."
   current: "{prefix} {#muted}Yerel kurallar: {#text}{value}"
-  stats: "{prefix} {#muted}Son {#text}{hours}{#muted} saatte yakalanan: {#text}{total}"
+  stats: "{prefix} {#muted}{#text}{since}{#muted} önceki başlangıçtan beri yakalanan: {#text}{total}"
   stats-line: "  {#faint}{count} {#muted}{what}"
   set-monitor: "{prefix} {#review}Yerel kurallar artık yalnızca yetkililere bildiriyor. {#muted}{#brand}/nmod mode enforce{#muted} çalıştırılana kadar hiçbir şey engellenmez."
   set-enforce: "{prefix} {#safe}Yerel kurallar artık engelliyor. {#muted}{#brand}/nmod action{#muted} ile ayarlanan eylemler de çalışır."
@@ -378,7 +390,7 @@ test:
   would-censor: "  {#muted}Sonuç: {#review}sansürlenir{#muted}. Yakalanan kısım yıldızlarla gizlenirdi."
   would-enforce: "  {#muted}Sonuç: {#risk}engellenir{#muted}{then}"
   would-then: ", ardından {actions}"
-  would-block-unavailable: "  {#muted}Sonuç: bulut yanıt veremediği sürece {#risk}engellenir{#muted} (fail-closed). Bu yüzden kimse cezalandırılmaz."
+  would-block-unavailable: "  {#muted}Sonuç: bulut yanıt veremediği sürece {#risk}engellenir{#muted} (fail-closed). Bunun için kimse cezalandırılmaz."
   note: "  {#faint}Bu deneme bir bulut isteği kullandı. Hiçbir şey engellenmedi."
 
 doctor:
@@ -414,7 +426,7 @@ doctor:
     local-monitor: "yalnızca yetkililere bildiriyor; engellemek için /nmod mode enforce çalıştırın"
     local-surfaces: "sohbette yalnızca bildiriyor; tabelalar, kitaplar ve komutlar kendi ayarlarını izliyor"
     local-enforce: "engelliyor"
-    rules: "{words} yasaklı kelime, {urls} engellenen bağlantı, {exceptions} istisna"
+    rules: "yasaklı kelime: {words}, engellenen bağlantı: {urls}, istisna: {exceptions}"
     ads-on: "engelleniyor"
     ads-off: "serbest; engellemek için moderation.offline.blockServerAds değerini true yapın"
     rules-spam-only: "kelime ya da bağlantı kuralı yok; spam koruması yine de çalışıyor"
@@ -423,10 +435,10 @@ doctor:
     actions-none: "yalnızca engelle; kimse susturulmaz, atılmaz ya da yasaklanmaz"
     actions-list: "{actions}"
     off-plain: "kapalı"
-    spam-on: "10 sn'de {rate} mesaj, {repeats} tekrar, %{caps} büyük harf"
-    spam-commands: "10 sn'de {rate} komut"
+    spam-on: "10 sn'de mesaj: {rate}, tekrar: {repeats}, büyük harf: %{caps}"
+    spam-commands: "10 sn'de komut: {rate}"
     spam-idle: "açık, ama bütün sınırlar 0"
-    strikes-on: "{rungs} basamak, {minutes} dk sonra sıfırlanır"
+    strikes-on: "basamak: {rungs}, {minutes} dk sonra sıfırlanır"
     surfaces-none: "yalnızca sohbet. Tabelaları ve kitapları da denetlemek için /nmod surface çalıştırın"
     surfaces-some: "4 alandan {count} tanesi denetleniyor"
     cases-on: "açık, mesaj metni olmadan"
@@ -434,6 +446,7 @@ doctor:
     cases-missing: "açık, ama bu sunucuda SQLite sürücüsü yok, bu yüzden hiçbir şey kaydedilmiyor"
     discord-on: "açık"
     discord-bad-url: "URL bir Discord webhook'u değil, bu yüzden hiçbir şey gönderilmiyor"
+    discord-failing: "Discord son uyarıyı reddetti ({problem}); webhook'un hâlâ var olup olmadığını denetleyin"
     fail-open: "sohbet geçer (failOpen: true)"
     fail-closed: "sohbet bekletilir (failOpen: false)"
     timeouts-ok: "bağlanmak için {connect} ms, yanıt için {read} ms"
@@ -466,7 +479,7 @@ privacy:
   data-text: "her sohbet mesajını"
   data-maps: "her harita resmini"
   data-both: "her sohbet mesajını ve harita resmini"
-  no-cloud: "  {#muted}Bulut anahtarı yok, bu yüzden hiçbir sohbet ya da harita bu sunucudan çıkmıyor."
+  no-cloud: "  {#muted}Bulut anahtarı yok, bu yüzden hiçbir sohbet ya da harita buluta gitmiyor."
   cloud-off: "  {#muted}Bir anahtar kayıtlı ama hiçbir bulut denetimi açık değil, bu yüzden hiçbir şey gönderilmiyor."
   retention: "  {#muted}Bulut istekleri {#text}no_store{#muted} olarak işaretlenir: saklanmaz ve eğitimde kullanılmaz."
   timeout: "  {#muted}Sohbet, bulutu en fazla {#text}2,5 sn{#muted} bekler. Bulut yanıt veremezse: {#text}{policy}{#muted}."
@@ -478,7 +491,7 @@ privacy:
   discord: "  {#muted}Discord uyarıları webhook'unuza oyuncuyu ve kuralı gönderir, {#text}{message}{#muted}."
   discord-message: "mesajın bir önizlemesiyle birlikte"
   discord-no-message: "mesaj metni olmadan"
-  metrics: "  {#muted}bStats yalnızca sayıları alır, sohbeti ya da adları asla almaz. {#text}plugins/bStats/config.yml{#muted} içinden kapatabilirsiniz."
+  metrics: "  {#muted}bStats ayarlarınızı ve sayıları alır, sohbeti ya da adları asla almaz. {#text}plugins/bStats/config.yml{#muted} içinden kapatabilirsiniz."
 
 cases:
   title: "{prefix} {#muted}Vakalar{who}. Açmak için birine tıklayın."
@@ -511,6 +524,7 @@ cases:
     open-hover: "{#muted}#{id} numaralı vakayı aç"
   more: "  {#faint}Daha eski vakalar: {#brand}{command}"
   empty: "{prefix} {#muted}Henüz hiçbir şey yakalanmadı."
+  no-older: "{prefix} {#muted}Daha eski vaka yok."
   not-found: "{prefix} {#risk}#{id} numaralı bir vaka yok."
   disabled: "{prefix} {#muted}Vaka geçmişi kapalı (moderation.cases.enabled)."
   unavailable: "{prefix} {#risk}Vaka geçmişi kaydedilemiyor: bu sunucuda SQLite sürücüsü yok."
@@ -524,7 +538,7 @@ preset:
   family: "bütün kategoriler, en katı (0,55)"
   community: "bütün kategoriler, dengeli (0,70)"
   minimal: "beş kategori, yalnızca açık durumlar (0,80); taciz, dolandırıcılık ve spam kapalı"
-  applied: "{prefix} {#safe}Bulut ön ayarı {#text}{name}{#safe}: {#text}{categories}{#safe} kategori açık. {#muted}Yerel kurallar ve eylemler değişmedi."
+  applied: "{prefix} {#safe}Bulut ön ayarı {#text}{name}{#safe}, açık kategori: {#text}{categories}{#safe}. {#muted}Yerel kurallar ve eylemler değişmedi."
 
 discord:
   usage: "{prefix} {#muted}{#brand}/{label} discord <webhook URL'si|test|off>{#muted} kullanın. Discord'da bir webhook oluşturun: kanal ayarları, Entegrasyonlar, Webhook'lar."
@@ -542,7 +556,7 @@ discord:
   field-reason: "Neden"
   field-message: "Mesaj"
   field-then: "Ardından"
-  more: "ve son bir dakikada {count} tane daha"
+  more: "ve {count} tane daha"
   test-player: "Deneme"
   test-reason: "/nmod discord test ile bir deneme"
   test-message: "Bunu okuyabiliyorsanız Discord uyarıları çalışıyor."
@@ -558,7 +572,7 @@ welcome:
   test-hover: "{#muted}/nmod test badword çalıştırır. Hiçbir şey engellenmez."
 
 update:
-  available: "{prefix} {#muted}NeoModeration {#text}{latest}{#muted} çıktı; bu sunucuda {current} çalışıyor. "
+  available: "{prefix} {#muted}NeoModeration {#text}{latest}{#muted} çıktı; bu sunucuda {current} çalışıyor."
   button: "{#brand}[İndir]"
   hover: "{#muted}{url} adresini açar"
 
@@ -574,14 +588,23 @@ startup:
   active: "Çalışanlar: {list}."
   inactive: "Çalışmayanlar: {list}."
   item-spam: "spam koruması"
-  item-rules: "{words} yasaklı kelime ve {urls} engellenen bağlantı"
+  item-rules: "yasaklı kelimeler ({words}) ve engellenen bağlantılar ({urls})"
   item-server-ads: "başka sunucu reklamlarının engellenmesi"
-  item-cloud-text: "{count} kategoride bulut sohbet denetimi"
+  item-cloud-text: "bulut sohbet denetimi (kategori: {count})"
   item-maps: "bulut harita resmi denetimi"
   item-nothing: "hiçbiri, bütün denetimler config.yml içinde kapalı"
   missing-cloud: "bulut denetimleri (anahtar yok; ücretsiz 14 günlük deneme için /nmod trial çalıştırın)"
   missing-cloud-off: "bulut denetimleri (bütün kategoriler ve harita resimleri kapalı)"
   missing-spam: "spam koruması"
   missing-rules: "kelime ve bağlantı kuralları"
+  missing-server-ads: "başka sunucu reklamlarının engellenmesi (moderation.offline.blockServerAds)"
   try: "/nmod test badword deneyin. Bir deneme kimseyi engellemez ya da cezalandırmaz."
   status: "Neyin açık olduğunu görmek için istediğiniz zaman /nmod status çalıştırın."
+
+migrated:
+  words: "Hiç değiştirmediğiniz başlangıç kelime listesi güncellendi: oyuncular birbirini dolandırıcılığa karşı uyarabilsin diye \"scam\" artık listede değil. Eklenen kelime: {count}."
+  server-ads: "Bu güncellenmiş sunucuda başka sunucu reklamlarına izin verilmeye devam ediyor (moderation.offline.blockServerAds: false). Engellemek için önce kendi adresinizi allowedUrls'e ekleyin, sonra true yapın."
+  language-packs: "Dilinizin başlangıç listesi bu güncellenmiş sunucuda kapalı kalıyor (moderation.offline.languagePacks: []). Açmak için [auto] yapın."
+  tell-players: "Oyunculara artık bir mesajın neden durdurulduğu söyleniyor (moderation.tellPlayers: true). Sessizce engellemek için false yapın."
+  per-player-on: "Her oyuncu artık NeoModeration metinlerini kendi oyun dilinde okuyor (perPlayerLanguage: true)."
+  per-player-off: "Bütün oyuncular düzenlediğiniz {locale} metinlerini okumaya devam ediyor (perPlayerLanguage: false). Herkesin kendi oyun dilini görmesi için true yapın."

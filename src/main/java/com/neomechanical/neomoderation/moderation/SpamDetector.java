@@ -19,6 +19,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * together. Thread-safe (chat events arrive async).
  */
 public final class SpamDetector {
+    /** The reason for a message mostly in capitals, which is lower-cased rather than blocked. */
+    public static final String CAPS = "spam:caps";
+
     private static final long WINDOW_MS = 10_000L;
     /**
      * A repeat counts only when it follows the last message within this gap:
@@ -65,11 +68,12 @@ public final class SpamDetector {
             }
         }
 
-        if (s.capsPercent() > 0 && isCapsAbuse(message, playerName, s)) {
-            return Optional.of("spam:caps");
-        }
         if (s.maxCharRun() > 0 && hasCharRun(message, s.maxCharRun())) {
             return Optional.of("spam:flood");
+        }
+        // Last, because shouting is only turned down: the caller sends the message in lower case.
+        if (s.capsPercent() > 0 && isCapsAbuse(message, playerName, s)) {
+            return Optional.of(CAPS);
         }
         return Optional.empty();
     }

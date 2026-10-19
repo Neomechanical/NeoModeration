@@ -1,6 +1,7 @@
 package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
+import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.commands.SubCommand;
 import com.neomechanical.neomoderation.messages.MenuRenderer;
 import com.neomechanical.neomoderation.messages.MessageService;
@@ -29,6 +30,11 @@ public class CasesCmd implements SubCommand {
     @Override
     public String getName() {
         return "cases";
+    }
+
+    @Override
+    public String getPermission() {
+        return Permissions.MODERATE;
     }
 
     @Override
@@ -68,7 +74,8 @@ public class CasesCmd implements SubCommand {
             mark(sender, label, id, action.equals("resolve") ? "resolved" : "dismissed");
             return;
         }
-        Long id = first.isEmpty() ? null : parseLong(first);
+        // A lone number is a case; a player who happens to be named with digits is "<name> page 1".
+        Long id = args.length == 2 ? parseLong(first) : null;
         if (id != null) {
             show(sender, label, id);
             return;
@@ -88,11 +95,14 @@ public class CasesCmd implements SubCommand {
 
     private void list(CommandSender sender, String label, String player, int page) {
         plugin.runAsync(() -> {
-            List<CaseLog.CaseRecord> rows = plugin.caseLog().recent(player, PAGE_SIZE, (page - 1) * PAGE_SIZE);
+            // One row more than a page shows whether an older page exists.
+            List<CaseLog.CaseRecord> fetched = plugin.caseLog().recent(player, PAGE_SIZE + 1, (page - 1) * PAGE_SIZE);
+            boolean older = fetched.size() > PAGE_SIZE;
+            List<CaseLog.CaseRecord> rows = older ? fetched.subList(0, PAGE_SIZE) : fetched;
             plugin.runSync(() -> {
                 MessageService messages = plugin.messages();
                 if (rows.isEmpty()) {
-                    messages.send(sender, "cases.empty");
+                    messages.send(sender, page > 1 ? "cases.no-older" : "cases.empty");
                     return;
                 }
                 String who = player == null ? ""
@@ -100,10 +110,10 @@ public class CasesCmd implements SubCommand {
                 List<MenuRenderer.Line> lines = new ArrayList<>();
                 lines.add(MenuRenderer.text(messages.format(sender, "cases.title", Map.of("who", who))));
                 rows.forEach(row -> lines.add(CaseView.row(messages, sender, row, label)));
-                if (rows.size() == PAGE_SIZE) {
-                    String older = "/" + label + " cases " + (player == null ? "" : player + " ") + "page " + (page + 1);
-                    lines.add(MenuRenderer.clickableLine(messages.format(sender, "cases.more", Map.of("command", older)),
-                            older, "", MenuRenderer.ClickAction.RUN));
+                if (older) {
+                    String next = "/" + label + " cases " + (player == null ? "" : player + " ") + "page " + (page + 1);
+                    lines.add(MenuRenderer.clickableLine(messages.format(sender, "cases.more", Map.of("command", next)),
+                            next, "", MenuRenderer.ClickAction.RUN));
                 }
                 messages.sendMenu(sender, lines);
             });
