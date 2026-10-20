@@ -265,3 +265,5 @@ ur a dyk 3 lol
 # language: nl_nl
 he pak 1
 die pak 1
+# language: pt_br
+vai se fodder

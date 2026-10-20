@@ -72,6 +72,17 @@ class TestCmdCoverageTest {
                 + "moderation.offline.trustPlayerLanguage to true"), transcript);
     }
 
+    @Test
+    void aMessageThatRepeatsAWordIsTestedToTheEnd() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("moderation.enabled", true);
+        config.set("moderation.mode", "enforce");
+        config.set("moderation.offline.bannedWords", List.of("fuck", "fag"));
+
+        assertTrue(test(config, "fuck you fuck you").contains("Result: blocked"));
+        assertTrue(test(config, "fag fag fag").contains("Result: blocked"));
+    }
+
     private static String test(YamlConfiguration config, String message) {
         CommandSender sender = mock(CommandSender.class);
         new TestCmd(TestPlugin.with(config)).execute(sender, "nmod", ("test " + message).split(" "));

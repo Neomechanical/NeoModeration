@@ -434,10 +434,13 @@ class ShippedListsTest {
         assertTrue(OfflineModerationEngine.evaluate("gook", settings).flagged());
         assertTrue(OfflineModerationEngine.evaluate("g o o k", settings).flagged());
 
-        // The server's own spaced word reads a digit between English words as a letter too.
+        // The server's own spaced word reads a digit between English words as a letter too, while
+        // the French pack's spaced "pu tain" leaves English "put 4 in" alone.
         config.set("moderation.offline.bannedWords", List.of("ass hole"));
+        config.set("moderation.offline.languagePacks", List.of("fr"));
         OfflineModerationSettings own = OfflineModerationSettings.from(new BukkitConfigView(config));
         assertTrue(OfflineModerationEngine.evaluate("ur an as 5 hole", own).flagged());
+        assertTrue(OfflineModerationEngine.evaluate("pu tain", own).flagged(), "the French pack is on");
         assertFalse(OfflineModerationEngine.evaluate("put 4 in the furnace", own).flagged());
     }
 

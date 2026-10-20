@@ -132,6 +132,29 @@ class CasesCmdTest {
     }
 
     @Test
+    void withoutTheTextANativeReadingIsStillExplainedAndNotAllowed() {
+        // Servers keep no message text by default, so the case cannot tell French "pute" from Danish "putte".
+        when(caseLog.byId(7)).thenReturn(Optional.of(record(7, "blocked_word:pute", "blocked", "")));
+        when(staff.hasPermission(Permissions.ADMIN)).thenReturn(true);
+
+        run("case", "7");
+
+        String transcript = TestPlugin.transcript(staff);
+        assertTrue(transcript.contains("\"putte\" is an everyday word in Danish and Norwegian."), transcript);
+        assertFalse(transcript.contains("Allow"), transcript);
+    }
+
+    @Test
+    void aMessageThatRepeatsAWordOpensItsCase() {
+        when(caseLog.byId(7)).thenReturn(Optional.of(record(7, "blocked_word:fuck", "blocked", "fuck you fuck you")));
+        when(staff.hasPermission(Permissions.ADMIN)).thenReturn(true);
+
+        run("case", "7");
+
+        assertTrue(TestPlugin.transcript(staff).contains("[Allow \"fuck\"]"), TestPlugin.transcript(staff));
+    }
+
+    @Test
     void theSameBannedWordWrittenAsItselfGetsNoNativeHint() {
         // French "pute" is the slur itself: no Danish speaker wrote "putte" here.
         when(caseLog.byId(7)).thenReturn(Optional.of(record(7, "blocked_word:pute", "blocked", "sale pute")));

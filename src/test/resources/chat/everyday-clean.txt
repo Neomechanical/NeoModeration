@@ -411,3 +411,7 @@ c un 7 sur 10
 # language: nl_nl
 pak 1, het is gratis
 is er nog hout? pak 1 stapel
+# language: en_us
+cannon fodder lol
+# language: da_dk
+jeg er hes i dag, det er slut

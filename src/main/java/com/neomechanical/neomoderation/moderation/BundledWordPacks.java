@@ -9,6 +9,7 @@ import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -166,13 +167,18 @@ public final class BundledWordPacks {
     }
 
     /**
-     * The codes of the languages whose speakers use {@code word} every day
-     * although another language's list bans it, as {@code languages.txt} names
-     * them ({@code da}, {@code pt_pt}): "fag" gives da and no. Empty for any
-     * other word.
+     * The codes of the languages whose speakers use {@code word}, exactly as
+     * written, every day although another language's list bans it, as
+     * {@code languages.txt} names them ({@code da}, {@code pt_pt}): "fag" gives
+     * da and no. Empty for any other word.
      */
     public static List<String> languagesUsing(String word) {
-        return languagesUsing(word, null);
+        String exact = word == null ? "" : word.trim().toLowerCase(Locale.ROOT);
+        return languageLists().entrySet().stream()
+                .filter(entry -> entry.getValue().contains(exact))
+                .map(Map.Entry::getKey)
+                .sorted()
+                .toList();
     }
 
     /**
@@ -180,16 +186,16 @@ public final class BundledWordPacks {
      * {@code written}: a listed word the filter reads as {@code word} only with a
      * letter run collapsed counts when {@code written} holds it, so the banned
      * "pute" finds Danish "putte" in "putte det i kisten" but nothing in a French
-     * "sale pute".
+     * "sale pute". When the text was not kept ({@code null} or blank), such a word
+     * counts, since the player may well have written it.
      */
     public static List<String> languagesUsing(String word, String written) {
         String exact = word == null ? "" : word.trim().toLowerCase(Locale.ROOT);
         String wanted = matchedForm(word);
-        Set<String> writtenWords = written == null ? Set.of()
-                : Set.of(written.toLowerCase(Locale.ROOT).split("[^\\p{L}]+"));
+        Set<String> writtenWords = wordsIn(written);
         return languageLists().entrySet().stream()
                 .filter(entry -> entry.getValue().stream().anyMatch(listed -> listed.equals(exact)
-                        || matchedForm(listed).equals(wanted) && writtenWords.contains(listed)))
+                        || matchedForm(listed).equals(wanted) && (writtenWords == null || writtenWords.contains(listed))))
                 .map(Map.Entry::getKey)
                 .sorted()
                 .toList();
@@ -199,21 +205,29 @@ public final class BundledWordPacks {
      * How the speakers of {@link #languagesUsing(String, String)}'s languages
      * write {@code word}: the word itself when a list holds it, else the
      * doubled-letter spelling {@code written} holds ("putte" for the banned
-     * "pute"), else {@code word}.
+     * "pute"), or the listed one when the text was not kept, else {@code word}.
      */
     public static String nativeSpelling(String word, String written) {
         String exact = word == null ? "" : word.trim().toLowerCase(Locale.ROOT);
         String wanted = matchedForm(word);
-        Set<String> writtenWords = written == null ? Set.of()
-                : Set.of(written.toLowerCase(Locale.ROOT).split("[^\\p{L}]+"));
+        Set<String> writtenWords = wordsIn(written);
         boolean listed = languageLists().values().stream().anyMatch(words -> words.contains(exact));
         if (listed) {
             return exact;
         }
         return languageLists().values().stream().flatMap(List::stream)
-                .filter(listedWord -> matchedForm(listedWord).equals(wanted) && writtenWords.contains(listedWord))
+                .filter(listedWord -> matchedForm(listedWord).equals(wanted)
+                        && (writtenWords == null || writtenWords.contains(listedWord)))
                 .findFirst()
                 .orElse(exact);
+    }
+
+    /** The words of {@code written}, lower-cased, or {@code null} when no text was kept. */
+    private static Set<String> wordsIn(String written) {
+        if (written == null || written.isBlank()) {
+            return null;
+        }
+        return new HashSet<>(Arrays.asList(written.toLowerCase(Locale.ROOT).split("[^\\p{L}]+")));
     }
 
     /** A word as the filter matches it: normalised, with each run of a letter reduced to one. */
