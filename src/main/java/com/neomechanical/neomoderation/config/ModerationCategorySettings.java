@@ -30,9 +30,14 @@ public record ModerationCategorySettings(Map<String, Double> thresholds) {
     public static ModerationCategorySettings from(ConfigView config) {
         Map<String, Double> thresholds = new LinkedHashMap<>();
         for (String key : CATEGORY_KEYS) {
-            thresholds.put(key, parseThreshold(config.get("moderation.categories." + key)));
+            thresholds.put(key, parseThreshold(config.get(ConfigPaths.CATEGORIES + key)));
         }
         return new ModerationCategorySettings(Map.copyOf(thresholds));
+    }
+
+    /** How the moderation API names a category: config.yml's "selfHarm" is "self-harm" there. */
+    public static String platformName(String category) {
+        return "selfHarm".equals(category) ? "self-harm" : category;
     }
 
     public static String[] categoryKeys() {

@@ -1,127 +1,109 @@
 package com.neomechanical.neomoderation.moderation;
 
 import com.neomechanical.neomoderation.config.ModerationMode;
-import com.neomechanical.neomoderation.config.ModerationAction;
 import com.neomechanical.neomoderation.config.ModerationSettings;
+import com.neomechanical.neomoderation.messages.ActionText;
+import com.neomechanical.neomoderation.messages.MessageService;
+import org.bukkit.command.CommandSender;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
- * What the console says when the plugin comes up.
- *
- * A new install blocks local word, URL and spam matches without automatic
- * punishment, and only monitors cloud decisions. The summary makes that
- * distinction visible at the first start.
- *
- * <p>Existing installs are never switched to enforce behind the operator's back:
- * their config.yml keeps whatever it already said. Instead, when this build
- * finds itself monitoring everything, it says so and names the one command that
- * changes it.
- *
- * This states plainly what is running, what is not, and the one command that
- * changes it. Kept as a pure function of settings so it is testable without a
- * server, and deliberately English: it is console output for operators, not
- * player-facing text, so it stays out of the locale files.
+ * What the console says when the plugin starts, in the server's language: what
+ * runs, what does not, and the one command that changes it. A new install
+ * blocks local matches without punishing anyone and only alerts on cloud
+ * decisions; existing installs keep whatever their config.yml says.
  */
 public final class StartupSummary {
 
     private StartupSummary() {
     }
 
-    public static List<String> lines(ModerationSettings settings, String version) {
+    public static List<String> lines(ModerationSettings settings, String version, MessageService messages,
+                                     CommandSender console) {
         List<String> lines = new ArrayList<>();
-        lines.add("NeoModeration " + version + " enabled.");
-
+        lines.add(line(messages, console, "startup.enabled", Map.of("version", version)));
         if (!settings.enabled()) {
-            lines.add("Moderation is disabled in config.yml - nothing will be checked. "
-                    + "Set moderation.enabled to true to switch it on.");
-            lines.add("Run /nmod status at any time for the full picture.");
+            lines.add(line(messages, console, "startup.disabled", Map.of()));
+            lines.add(line(messages, console, "startup.status", Map.of()));
             return lines;
         }
-
         ModerationCoverage coverage = ModerationCoverage.from(settings);
-        boolean monitor = settings.mode() == ModerationMode.MONITOR;
         if (!coverage.hasLocalChecks()) {
-            lines.add("Local mode: " + settings.mode() + " - no local checks are armed.");
-        } else if (monitor) {
-            lines.add("Local mode: MONITOR - local detections alert staff without blocking or punishment. "
-                    + "Run /nmod mode enforce when you are happy with the rules.");
+            lines.add(line(messages, console, "startup.local-none", Map.of()));
+        } else if (settings.mode() == ModerationMode.MONITOR) {
+            lines.add(line(messages, console, "startup.local-monitor", Map.of()));
         } else if (!coverage.localEnforces()) {
-            lines.add("Local mode: ENFORCE - armed surface checks are monitor-only.");
+            lines.add(line(messages, console, "startup.local-surfaces", Map.of()));
         } else {
-            lines.add(settings.actions().isEmpty()
-                    ? "Local mode: ENFORCE - flagged content is blocked; no automatic punishment or chat clearing."
-                    : "Local mode: ENFORCE - flagged content is blocked; extra actions: "
-                            + ModerationAction.describe(settings.actions()) + ".");
+            lines.add(line(messages, console, "startup.local-enforce",
+                    Map.of("actions", ActionText.describe(messages, console, settings.actions()))));
         }
         if (coverage.hasCloudChecks()) {
-            lines.add(settings.cloudMode() == ModerationMode.MONITOR
-                    ? "Cloud mode: MONITOR - cloud decisions are alerted only. "
-                            + "Run /nmod cloudmode enforce once you trust them."
-                    : "Cloud mode: ENFORCE - flagged chat blocks where armed; map art follows its confiscation setting.");
+            lines.add(line(messages, console, settings.cloudMode() == ModerationMode.MONITOR
+                    ? "startup.cloud-monitor" : "startup.cloud-enforce", Map.of()));
         }
-
-        lines.add("Active now: " + String.join(", ", activeProtections(settings, coverage)) + ".");
-
-        List<String> inactive = inactiveProtections(settings, coverage);
+        lines.add(line(messages, console, "startup.active",
+                Map.of("list", String.join(", ", active(settings, coverage, messages, console)))));
+        List<String> inactive = inactive(settings, coverage, messages, console);
         if (!inactive.isEmpty()) {
-            lines.add("Not active: " + String.join(", ", inactive) + ".");
+            lines.add(line(messages, console, "startup.inactive", Map.of("list", String.join(", ", inactive))));
         }
-
-        if (!settings.offline().enabled() || !settings.scanAsyncChat()
-                || !settings.offline().bannedWords().contains("badword")) {
-            lines.add("Use /nmod test <message> to preview configured content rules; tests never execute actions.");
-        } else if (monitor) {
-            lines.add("Try /nmod test badword now: it previews the bundled local rule; local MONITOR "
-                    + "mode never blocks or punishes. Use /nmod mode enforce only when ready.");
-        } else {
-            lines.add("Verify the bundled local rule with /nmod test badword; tests never execute actions.");
-        }
-
-        lines.add("Run /nmod status at any time for the full picture.");
+        lines.add(line(messages, console, "startup.try", Map.of()));
+        lines.add(line(messages, console, "startup.status", Map.of()));
         return lines;
     }
 
-    private static List<String> activeProtections(ModerationSettings settings, ModerationCoverage coverage) {
+    private static List<String> active(ModerationSettings settings, ModerationCoverage coverage,
+                                       MessageService messages, CommandSender console) {
         List<String> active = new ArrayList<>();
         if (coverage.spam()) {
-            active.add("anti-spam checks");
+            active.add(line(messages, console, "startup.item-spam", Map.of()));
         }
         if (coverage.localRules()) {
-            active.add(settings.offline().bannedWords().size() + " word rules and "
-                    + settings.offline().bannedUrls().size() + " URL rules"
-                    + (settings.offline().blockAnyUrl() ? " plus all URLs/IPs" : ""));
+            active.add(line(messages, console, "startup.item-rules", Map.of(
+                    "words", String.valueOf(settings.offline().effectiveWords().size()),
+                    "urls", String.valueOf(settings.offline().bannedUrls().size()))));
+            if (settings.offline().blockServerAds()) {
+                active.add(line(messages, console, "startup.item-server-ads", Map.of()));
+            }
         }
         if (coverage.cloudText()) {
-            active.add("cloud text moderation (" + settings.categories().enabledCount() + " categories)");
+            active.add(line(messages, console, "startup.item-cloud-text",
+                    Map.of("count", String.valueOf(settings.categories().enabledCount()))));
         }
         if (coverage.mapArt()) {
-            active.add("cloud map-art scanning");
+            active.add(line(messages, console, "startup.item-maps", Map.of()));
         }
         if (active.isEmpty()) {
-            active.add("nothing - every check is switched off in config.yml");
+            active.add(line(messages, console, "startup.item-nothing", Map.of()));
         }
         return active;
     }
 
-    private static List<String> inactiveProtections(ModerationSettings settings, ModerationCoverage coverage) {
+    private static List<String> inactive(ModerationSettings settings, ModerationCoverage coverage,
+                                         MessageService messages, CommandSender console) {
         List<String> inactive = new ArrayList<>();
         if (settings.api().apiKey().isBlank()) {
-            // The single biggest capability gap on a fresh install, and the only one
-            // that needs a step outside the server.
-            inactive.add("cloud chat and map-art checks (no API key - "
-                    + "run /nmod trial, or sign up at " + CloudRecovery.SIGNUP_URL
-                    + " and run /nmod setup <key>)");
+            // The biggest gap on a fresh install, and the only one that needs a step outside the server.
+            inactive.add(line(messages, console, "startup.missing-cloud", Map.of()));
         } else if (!coverage.hasCloudChecks()) {
-            inactive.add("cloud checks (text categories and map art are off)");
+            inactive.add(line(messages, console, "startup.missing-cloud-off", Map.of()));
         }
         if (!coverage.spam()) {
-            inactive.add("anti-spam");
+            inactive.add(line(messages, console, "startup.missing-spam", Map.of()));
         }
         if (!coverage.localRules()) {
-            inactive.add("local word and URL rules");
+            inactive.add(line(messages, console, "startup.missing-rules", Map.of()));
+        } else if (!settings.offline().blockServerAds()) {
+            inactive.add(line(messages, console, "startup.missing-server-ads", Map.of()));
         }
         return inactive;
+    }
+
+    private static String line(MessageService messages, CommandSender console, String key, Map<String, String> values) {
+        return MessageService.plain(messages.format(console, key, values));
     }
 }

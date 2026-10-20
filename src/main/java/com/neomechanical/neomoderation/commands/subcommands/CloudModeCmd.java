@@ -2,7 +2,7 @@ package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.commands.ModeSubCommand;
-import com.neomechanical.neomoderation.config.ModerationMode;
+import com.neomechanical.neomoderation.config.ConfigPaths;
 import org.bukkit.command.CommandSender;
 
 import java.util.Map;
@@ -18,7 +18,7 @@ import java.util.Map;
  */
 public class CloudModeCmd extends ModeSubCommand {
     public CloudModeCmd(NeoModerationPlugin plugin) {
-        super(plugin, "moderation.cloudMode", "cloudmode");
+        super(plugin, ConfigPaths.CLOUD_MODE, "cloudmode");
     }
 
     @Override
@@ -27,20 +27,8 @@ public class CloudModeCmd extends ModeSubCommand {
     }
 
     @Override
-    public String getDescription() {
-        return "Set whether cloud decisions block, or only alert.";
-    }
-
-    @Override
-    public String getUsage() {
-        return "/nmod cloudmode [monitor|enforce]";
-    }
-
-    @Override
     protected void showCurrent(CommandSender sender) {
-        plugin.messages().send(sender, "cloudmode.current", Map.of(
-                "value", plugin.settings().cloudMode() == ModerationMode.MONITOR
-                        ? "MONITOR (alert only)" : "ENFORCE"
-        ));
+        plugin.messages().send(sender, "cloudmode.current",
+                Map.of("value", StatusCmd.modeLabel(plugin.messages(), sender, plugin.settings().cloudMode())));
     }
 }

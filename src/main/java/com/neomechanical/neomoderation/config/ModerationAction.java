@@ -10,27 +10,12 @@ public record ModerationAction(
         int durationSeconds,
         String reason
 ) {
-    /** Human summary of a single action, shared across commands and alerts. */
-    public String describe() {
-        return switch (type) {
-            case CLEAR_CHAT -> "clear";
-            case MUTE -> "mute " + com.neomechanical.neomoderation.commands.DurationParser.format(durationSeconds);
-            case KICK -> "kick";
-            case BAN -> "ban";
-            default -> type.name().toLowerCase(java.util.Locale.ROOT);
-        };
-    }
+    /** The reason an action gets when config.yml gives none; players read it in their own language. */
+    public static final String DEFAULT_REASON = "Inappropriate chat message";
 
-    /** Human summary of an action list, shared by status, alerts, test, and doctor. */
-    public static String describe(java.util.List<ModerationAction> actions) {
-        if (actions.isEmpty()) {
-            return "block only";
-        }
-        java.util.List<String> parts = new java.util.ArrayList<>(actions.size());
-        for (ModerationAction action : actions) {
-            parts.add(action.describe());
-        }
-        return String.join(", ", parts);
+    /** The same action with another reason, such as the default one in a player's language. */
+    public ModerationAction withReason(String newReason) {
+        return new ModerationAction(type, command, role, durationSeconds, newReason);
     }
 
     public static Optional<ModerationAction> tryFrom(Map<?, ?> raw) {
@@ -47,13 +32,13 @@ public record ModerationAction(
         if (durationSeconds <= 0) {
             durationSeconds = 300;
         }
-        durationSeconds = Math.min(durationSeconds, com.neomechanical.neomoderation.commands.InputLimits.MAX_MUTE_SECONDS);
+        durationSeconds = Math.min(durationSeconds, InputLimits.MAX_MUTE_SECONDS);
         return Optional.of(new ModerationAction(
                 actionType,
                 command,
                 stringValue(raw.get("role")),
                 durationSeconds,
-                stringValueOrDefault(raw.get("reason"), "Inappropriate chat message")
+                stringValueOrDefault(raw.get("reason"), DEFAULT_REASON)
         ));
     }
 

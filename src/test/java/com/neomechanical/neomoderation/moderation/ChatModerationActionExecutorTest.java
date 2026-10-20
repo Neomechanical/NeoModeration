@@ -36,7 +36,7 @@ class ChatModerationActionExecutorTest {
             bukkit.when(Bukkit::getServer).thenReturn(server);
             bukkit.when(() -> Bukkit.dispatchCommand(any(ConsoleCommandSender.class), any(String.class))).thenReturn(true);
 
-            new ChatModerationActionExecutor("NeoModeration", muteService).execute(player, List.of(
+            new ChatModerationActionExecutor("NeoModeration", muteService, name -> { }).execute(player, List.of(
                     action("MUTE", Map.of("durationSeconds", 30, "reason", "bad chat")),
                     action("TIMEOUT", Map.of("durationSeconds", 60, "reason", "timeout")),
                     action("GIVE_ROLE", Map.of("role", "trusted")),
@@ -55,6 +55,25 @@ class ChatModerationActionExecutorTest {
     }
 
     @Test
+    void aNameWithASpaceNeverReachesAConsoleCommand() {
+        Player player = mockPlayer();
+        when(player.getName()).thenReturn("Steve op Steve");
+        Server server = mock(Server.class);
+        when(server.getConsoleSender()).thenReturn(mock(ConsoleCommandSender.class));
+
+        try (MockedStatic<Bukkit> bukkit = Mockito.mockStatic(Bukkit.class)) {
+            bukkit.when(Bukkit::getServer).thenReturn(server);
+
+            List<String> skipped = new java.util.ArrayList<>();
+            new ChatModerationActionExecutor("NeoModeration", new PlayerMuteService((java.io.File) null), skipped::add)
+                    .execute(player, List.of(action("COMMAND", Map.of("command", "warn %PLAYER%"))));
+
+            bukkit.verify(() -> Bukkit.dispatchCommand(any(), any()), Mockito.never());
+            assertTrue(skipped.contains("Steve op Steve"), "the console is told the action was skipped");
+        }
+    }
+
+    @Test
     void executesKickBanAndClearChatActions() {
         Player player = mockPlayer();
         BanList banList = mock(BanList.class);
@@ -64,7 +83,7 @@ class ChatModerationActionExecutorTest {
             bukkit.when(() -> Bukkit.getBanList(BanList.Type.NAME)).thenReturn(banList);
             bukkit.when(Bukkit::getOnlinePlayers).thenReturn(List.of(player));
 
-            new ChatModerationActionExecutor("NeoModeration", muteService).execute(player, List.of(
+            new ChatModerationActionExecutor("NeoModeration", muteService, name -> { }).execute(player, List.of(
                     action("CLEAR_CHAT", Map.of()),
                     action("KICK", Map.of("reason", "kick reason")),
                     action("BAN", Map.of("reason", "ban reason"))

@@ -10,9 +10,6 @@ import java.util.Locale;
 import java.util.Map;
 
 public class AllowCmd implements SubCommand {
-    private static final String WORDS_PATH = "moderation.offline.allowedWords";
-    private static final String URLS_PATH = "moderation.offline.allowedUrls";
-
     private final NeoModerationPlugin plugin;
 
     public AllowCmd(NeoModerationPlugin plugin) {
@@ -25,24 +22,14 @@ public class AllowCmd implements SubCommand {
     }
 
     @Override
-    public String getDescription() {
-        return "Manage allowed phrases and links (exceptions).";
-    }
-
-    @Override
-    public String getUsage() {
-        return "/nmod allow <word|url> <add|remove|list> [value]";
-    }
-
-    @Override
     public void execute(CommandSender sender, String label, String[] args) {
         if (args.length < 2) {
             plugin.messages().send(sender, "allow.usage", Map.of("label", label));
             return;
         }
         switch (args[1].toLowerCase(Locale.ROOT)) {
-            case "word" -> RuleListEditor.handle(plugin, sender, label, args, 2, WORDS_PATH, "allowed word");
-            case "url" -> RuleListEditor.handle(plugin, sender, label, args, 2, URLS_PATH, "allowed url");
+            case "word" -> RuleListEditor.handle(plugin, sender, label, args, 2, RuleListEditor.RuleList.ALLOWED_WORDS);
+            case "url" -> RuleListEditor.handle(plugin, sender, label, args, 2, RuleListEditor.RuleList.ALLOWED_URLS);
             default -> plugin.messages().send(sender, "allow.usage", Map.of("label", label));
         }
     }

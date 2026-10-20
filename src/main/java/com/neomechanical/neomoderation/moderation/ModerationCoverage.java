@@ -32,7 +32,8 @@ public record ModerationCoverage(
         }
         boolean hasRules = settings.offline().enabled()
                 && (settings.offline().blockAnyUrl()
-                        || !settings.offline().bannedWords().isEmpty()
+                        || settings.offline().blockServerAds()
+                        || !settings.offline().effectiveWords().isEmpty()
                         || !settings.offline().bannedUrls().isEmpty());
         boolean chatRules = hasRules && settings.scanAsyncChat();
         boolean surfaceRules = hasRules && settings.surfaces().enabledCount() > 0;
@@ -57,13 +58,6 @@ public record ModerationCoverage(
                 hasKey && settings.mapArt().enabled()
                         && (settings.mapArt().scanOnHold() || settings.mapArt().scanOnFrameInteract()),
                 localEnforces);
-    }
-
-    public static String cloudDashboardLabel(ModerationSettings settings) {
-        boolean hasKey = settings.api() != null
-                && settings.api().apiKey() != null
-                && !settings.api().apiKey().isBlank();
-        return hasKey ? settings.cloudMode().name() : "OFF";
     }
 
     private static boolean enforces(SurfaceMode mode) {

@@ -28,7 +28,7 @@ public final class PaperAsyncChatBridge {
 
         Listener listener = new Listener() {
         };
-        EventExecutor executor = new PaperAsyncChatExecutor(processor);
+        EventExecutor executor = executor(processor);
         plugin.getServer().getPluginManager().registerEvent(
                 eventClass,
                 listener,
@@ -50,6 +50,11 @@ public final class PaperAsyncChatBridge {
         }
     }
 
+    /** What runs for each Paper chat event; any event with Paper's {@code getPlayer} and {@code message} methods. */
+    static EventExecutor executor(ChatModerationProcessor processor) {
+        return new PaperAsyncChatExecutor(processor);
+    }
+
     private static final class PaperAsyncChatExecutor implements EventExecutor {
         private final ChatModerationProcessor processor;
 
@@ -62,7 +67,8 @@ public final class PaperAsyncChatBridge {
             try {
                 Player player = (Player) event.getClass().getMethod("getPlayer").invoke(event);
                 Object component = event.getClass().getMethod("message").invoke(event);
-                ChatDecision decision = processor.handleAsyncChat(player, plainText(component));
+                // Another plugin can make a player chat from the server thread, which must not wait for the cloud.
+                ChatDecision decision = processor.handleChat(player, plainText(component), event.isAsynchronous());
                 if (decision.type() == ChatDecision.Type.BLOCK && event instanceof Cancellable cancellable) {
                     cancellable.setCancelled(true);
                 } else if (decision.type() == ChatDecision.Type.CENSOR
@@ -71,6 +77,9 @@ public final class PaperAsyncChatBridge {
                     // If Adventure isn't reachable for some reason, blocking is the
                     // safe fallback for a flagged message.
                     cancellable.setCancelled(true);
+                } else if (decision.type() == ChatDecision.Type.SOFTEN && isPlain(component)) {
+                    // Only plain text is softened; colours or hover text another plugin added are kept.
+                    setMessage(event, decision.message());
                 }
             } catch (ReflectiveOperationException exception) {
                 throw new EventException(exception);
@@ -93,6 +102,24 @@ public final class PaperAsyncChatBridge {
             } catch (ReflectiveOperationException ignored) {
                 // Fall through: caller cancels the event instead.
             }
+            return false;
+        }
+    }
+
+    /**
+     * Whether a chat component is bare text, with no style and no parts another
+     * plugin added. Reflects through Adventure's public types: the classes behind
+     * them (StyleImpl) are package-private, so calling through them throws.
+     */
+    private static boolean isPlain(Object component) {
+        try {
+            Class<?> componentType = Class.forName("net.kyori.adventure.text.Component");
+            Class<?> styleType = Class.forName("net.kyori.adventure.text.format.Style");
+            Object children = componentType.getMethod("children").invoke(component);
+            Object style = componentType.getMethod("style").invoke(component);
+            return children instanceof java.util.List<?> list && list.isEmpty()
+                    && Boolean.TRUE.equals(styleType.getMethod("isEmpty").invoke(style));
+        } catch (ReflectiveOperationException | RuntimeException e) {
             return false;
         }
     }

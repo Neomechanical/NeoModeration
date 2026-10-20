@@ -156,6 +156,15 @@ class OfflineModerationEngineTest {
     }
 
     @Test
+    void censorStarsTheLinkItselfAfterALetterThatLowerCasesToTwo() {
+        OfflineModerationSettings s =
+                settings(true, List.of(), List.of(), List.of(), List.of());
+
+        // "İ".toLowerCase() is two characters; the stars must still land on the link.
+        assertEquals("İyi sunucu ******** gel", OfflineModerationEngine.censor("İyi sunucu evil.net gel", s));
+    }
+
+    @Test
     void allowedUrlsSuppressBlockAnyUrlMode() {
         OfflineModerationSettings s =
                 settings(true, List.of(), List.of(), List.of(), List.of("example.com"));

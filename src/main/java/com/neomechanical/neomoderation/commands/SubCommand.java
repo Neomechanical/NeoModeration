@@ -1,21 +1,20 @@
 package com.neomechanical.neomoderation.commands;
 
+import com.neomechanical.neomoderation.Permissions;
 import org.bukkit.command.CommandSender;
 
 import java.util.List;
 import java.util.Locale;
 
 public interface SubCommand {
+    /** The subcommand word; its help text is {@code help.usage.<name>} and {@code help.desc.<name>}. */
     String getName();
-
-    String getDescription();
-
-    String getUsage();
 
     void execute(CommandSender sender, String label, String[] args);
 
+    /** {@link Permissions#ADMIN} unless the command is part of day-to-day moderation. */
     default String getPermission() {
-        return "neomoderation.admin";
+        return Permissions.ADMIN;
     }
 
     default List<String> getAliases() {

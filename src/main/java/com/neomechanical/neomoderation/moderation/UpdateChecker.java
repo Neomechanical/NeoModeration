@@ -8,7 +8,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -27,9 +26,9 @@ import java.util.Optional;
 public final class UpdateChecker {
 
     public static final String RELEASES_API =
-            "https://api.github.com/repos/KyTDK/NeoModeration/releases/latest";
+            "https://api.github.com/repos/Neomechanical/NeoModeration/releases/latest";
     public static final String RELEASES_PAGE =
-            "https://github.com/KyTDK/NeoModeration/releases/latest";
+            "https://github.com/Neomechanical/NeoModeration/releases/latest";
 
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
@@ -43,7 +42,12 @@ public final class UpdateChecker {
      */
     public static Optional<String> findNewerVersion(String currentVersion, String userAgent) {
         try {
-            HttpClient client = HttpClient.newBuilder().connectTimeout(TIMEOUT).build();
+            // The repository moved once already; GitHub answers the old address with a
+            // redirect, which an HTTP client that never follows one reads as "no update".
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(TIMEOUT)
+                    .followRedirects(HttpClient.Redirect.NORMAL)
+                    .build();
             HttpRequest request = HttpRequest.newBuilder(URI.create(RELEASES_API))
                     .timeout(TIMEOUT)
                     .header("Accept", "application/vnd.github+json")
@@ -67,15 +71,6 @@ public final class UpdateChecker {
         } catch (Exception ignored) {
             return Optional.empty();
         }
-    }
-
-    /** The console lines to print for a newer release. */
-    public static List<String> updateLines(String latest, String current) {
-        return List.of(
-                "A newer NeoModeration is available: " + latest + " (this server runs " + current + ").",
-                "Chat evasions change over time, so an old matcher quietly misses more. "
-                        + "Download: " + RELEASES_PAGE
-        );
     }
 
     static String stripLeadingV(String tag) {

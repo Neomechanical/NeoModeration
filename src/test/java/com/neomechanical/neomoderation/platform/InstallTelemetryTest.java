@@ -60,6 +60,13 @@ class InstallTelemetryTest {
     @Test
     void emptyLocalRulesAndDisabledSpamAreNotCountedAsProtection() {
         assertEquals("nothing_armed", InstallTelemetry.protectionState(settings(
+                "moderation.spam.enabled", "false",
+                "moderation.offline.blockServerAds", "false")));
+    }
+
+    @Test
+    void serverAdBlockingAloneCountsAsLocalProtection() {
+        assertEquals("enforce_local_only", InstallTelemetry.protectionState(settings(
                 "moderation.spam.enabled", "false")));
     }
 

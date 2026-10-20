@@ -1,5 +1,7 @@
 package com.neomechanical.neomoderation.moderation;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.neomechanical.neomoderation.config.ModerationApiSettings;
 
 import javax.crypto.Mac;
@@ -11,8 +13,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonElement;
+import java.time.temporal.ChronoUnit;
 
 /**
  * Handles communication with the Neomechanical 14-day trial activation service.
@@ -54,7 +55,7 @@ public final class TrialClient {
             String platformInfo
     ) throws TrialException {
         String endpoint = trialUrl(apiSettings.endpoint());
-        String body = "{\"installId\":\"" + escapeJson(installId) + "\",\"platform\":\"" + escapeJson(platformInfo) + "\"}";
+        String body = "{\"installId\":\"" + JsonStrings.escape(installId) + "\",\"platform\":\"" + JsonStrings.escape(platformInfo) + "\"}";
         long timestamp = Instant.now().getEpochSecond();
         String hmac = computeHmac(installId, timestamp);
 
@@ -148,8 +149,15 @@ public final class TrialClient {
         if (apiKey.isBlank()) {
             throw new TrialException(TrialError.INVALID_RESPONSE, "Missing apiKey in trial response");
         }
-        return new TrialResult(apiKey, stringField(response, "expiresAt", TRIAL_DAYS + " days"),
-                daysField(response, TRIAL_DAYS), stringField(response, "claimUrl", CloudRecovery.SIGNUP_URL));
+        int days = daysField(response, TRIAL_DAYS);
+        return new TrialResult(apiKey, expiresAt(response, days), days,
+                stringField(response, "claimUrl", CloudRecovery.SIGNUP_URL));
+    }
+
+    /** The expiry the service sent, else today plus the days it says are left, so a date can always be shown. */
+    private static String expiresAt(JsonObject response, int daysLeft) throws TrialException {
+        String sent = stringField(response, "expiresAt", "");
+        return sent.isBlank() ? Instant.now().plus(Math.max(0, daysLeft), ChronoUnit.DAYS).toString() : sent;
     }
 
     static TrialStatusResult parseStatusSuccess(String body) throws TrialException {
@@ -164,9 +172,9 @@ public final class TrialClient {
                 || (!isTrial && !status.equals("standard_workspace"))) {
             throw new TrialException(TrialError.INVALID_RESPONSE, "Invalid trial status response");
         }
-        return new TrialStatusResult(isTrial, status, stringField(response, "expiresAt", "unknown"),
-                daysField(response, 0), stringField(response, "upgradeUrl",
-                stringField(response, "claimUrl", CloudRecovery.BILLING_URL)));
+        int days = daysField(response, 0);
+        return new TrialStatusResult(isTrial, status, expiresAt(response, days), days,
+                stringField(response, "upgradeUrl", stringField(response, "claimUrl", CloudRecovery.BILLING_URL)));
     }
 
     private static JsonObject responseObject(String body) throws TrialException {
@@ -206,11 +214,6 @@ public final class TrialClient {
         } catch (ArithmeticException | NumberFormatException ignored) {
         }
         throw new TrialException(TrialError.INVALID_RESPONSE, "Invalid daysRemaining in trial response");
-    }
-
-    private static String escapeJson(String s) {
-        if (s == null) return "";
-        return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     public enum TrialError {

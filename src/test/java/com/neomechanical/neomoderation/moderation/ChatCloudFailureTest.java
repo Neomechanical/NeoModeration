@@ -12,9 +12,13 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class ChatCloudFailureTest {
@@ -34,25 +38,41 @@ class ChatCloudFailureTest {
         when(player.getUniqueId()).thenReturn(UUID.randomUUID());
         ModerationApiResult cloudResult = kind == ModerationApiResult.Kind.FLAGGED
                 ? ModerationApiResult.flagged("harassment") : new ModerationApiResult(kind);
-        when(coordinator.checkMessage(player, "hello", settings)).thenReturn(cloudResult);
+        when(coordinator.checkMessage(eq(player), eq("hello"), eq(settings), any())).thenReturn(cloudResult);
+        doAnswer(call -> {
+            call.<Consumer<ModerationApiResult>>getArgument(3).accept(cloudResult);
+            return null;
+        }).when(coordinator).checkInBackground(eq(player), eq("hello"), eq(settings), any());
+        // A decision that can only alert is asked for as one.
+        DetectionHandler.Disposition requested = cloudMode == ModerationMode.ENFORCE
+                ? DetectionHandler.Disposition.BLOCK : DetectionHandler.Disposition.ALLOW;
         if (cloudResult.isFlagged()) {
             when(handler.handle(player, "chat", "platform:harassment", "hello",
-                    DetectionHandler.Disposition.BLOCK, DetectionHandler.Source.CLOUD))
-                    .thenReturn(cloudMode == ModerationMode.ENFORCE
-                            ? DetectionHandler.Disposition.BLOCK : DetectionHandler.Disposition.ALLOW);
+                    requested, DetectionHandler.Source.CLOUD))
+                    .thenReturn(requested);
         }
 
         ChatDecision result = new ChatModerationProcessor(plugin, coordinator,
-                mock(PlayerMuteService.class), new SpamDetector(), handler).handleAsyncChat(player, "hello");
+                mock(PlayerMuteService.class), new SpamDetector(), handler).handleChat(player, "hello", true);
 
         boolean unavailable = kind != ModerationApiResult.Kind.CLEAR && !cloudResult.isFlagged();
         boolean unavailableBlocked = unavailable && !failOpen && cloudMode == ModerationMode.ENFORCE;
         boolean blocked = unavailableBlocked || (cloudResult.isFlagged() && cloudMode == ModerationMode.ENFORCE);
         assertEquals(blocked ? ChatDecision.block() : ChatDecision.allow(), result);
-        verify(coordinator).checkMessage(player, "hello", settings);
-        if (cloudResult.isFlagged()) {
+        if (cloudMode == ModerationMode.MONITOR) {
+            // A decision that can only alert never holds the message: it is checked in the background.
+            verify(coordinator).checkInBackground(eq(player), eq("hello"), eq(settings), any());
+            verify(coordinator, never()).checkMessage(any(), anyString(), any(), any());
+        } else {
+            verify(coordinator).checkMessage(eq(player), eq("hello"), eq(settings), any());
+        }
+        if (cloudResult.isFlagged() && cloudMode == ModerationMode.MONITOR) {
+            // The message went on at once; the answer that followed it only tells staff.
+            verify(handler).handleAfter(player, "chat", "platform:harassment", "hello", false);
+            verifyNoMoreInteractions(handler);
+        } else if (cloudResult.isFlagged()) {
             verify(handler).handle(player, "chat", "platform:harassment", "hello",
-                    DetectionHandler.Disposition.BLOCK, DetectionHandler.Source.CLOUD);
+                    requested, DetectionHandler.Source.CLOUD);
             verifyNoMoreInteractions(handler);
         } else {
             verifyNoInteractions(handler);
@@ -81,5 +101,92 @@ class ChatCloudFailureTest {
         config.set("moderation.cloudMode", cloudMode.name());
         config.set("moderation.chat.failOpen", failOpen);
         return ModerationSettings.from(new BukkitConfigView(config));
+    }
+
+    @org.junit.jupiter.api.Test
+    void chatFromTheServerThreadNeverWaitsForTheCloudAndCanOnlyAlert() {
+        ModerationSettings settings = settings(false, ModerationMode.ENFORCE);
+        NeoModerationPlugin plugin = mock(NeoModerationPlugin.class);
+        when(plugin.settings()).thenReturn(settings);
+        ChatModerationCoordinator coordinator = mock(ChatModerationCoordinator.class);
+        DetectionHandler handler = mock(DetectionHandler.class);
+        Player player = mock(Player.class);
+        when(player.getName()).thenReturn("Tester");
+        when(player.getUniqueId()).thenReturn(UUID.randomUUID());
+        doAnswer(call -> {
+            call.<Consumer<ModerationApiResult>>getArgument(3).accept(ModerationApiResult.flagged("harassment"));
+            return null;
+        }).when(coordinator).checkInBackground(eq(player), eq("hello"), eq(settings), any());
+
+        ChatDecision decision = new ChatModerationProcessor(plugin, coordinator,
+                mock(PlayerMuteService.class), new SpamDetector(), handler).handleChat(player, "hello", false);
+
+        assertEquals(ChatDecision.allow(), decision);
+        verify(coordinator, never()).checkMessage(any(), anyString(), any(), any());
+        verify(handler).handleAfter(player, "chat", "platform:harassment", "hello", false);
+    }
+
+    @org.junit.jupiter.api.Test
+    void aFlaggedAnswerTooLateForAFailClosedServerIsRecordedAsBlocked() {
+        ModerationSettings settings = settings(false, ModerationMode.ENFORCE);
+        NeoModerationPlugin plugin = mock(NeoModerationPlugin.class);
+        when(plugin.settings()).thenReturn(settings);
+        when(plugin.messages()).thenReturn(mock(MessageService.class));
+        ChatModerationCoordinator coordinator = mock(ChatModerationCoordinator.class);
+        DetectionHandler handler = mock(DetectionHandler.class);
+        Player player = mock(Player.class);
+        when(player.getName()).thenReturn("Tester");
+        when(player.getUniqueId()).thenReturn(UUID.randomUUID());
+        java.util.concurrent.atomic.AtomicReference<Consumer<ModerationApiResult>> late =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        when(coordinator.checkMessage(eq(player), eq("hello"), eq(settings), any())).thenAnswer(call -> {
+            late.set(call.getArgument(3));
+            return ModerationApiResult.transientTransport();
+        });
+
+        ChatDecision decision = new ChatModerationProcessor(plugin, coordinator,
+                mock(PlayerMuteService.class), new SpamDetector(), handler).handleChat(player, "hello", true);
+        late.get().accept(ModerationApiResult.flagged("harassment"));
+
+        assertEquals(ChatDecision.block(), decision);
+        verify(handler).handleAfter(player, "chat", "platform:harassment", "hello", true);
+    }
+
+    @org.junit.jupiter.api.Test
+    void shoutingGoesOnInLowerCaseWithoutBeingBlockedOrReported() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("moderation.enabled", true);
+        config.set("moderation.offline.bannedWords", java.util.List.of("badword"));
+        ModerationSettings settings = ModerationSettings.from(new BukkitConfigView(config));
+        NeoModerationPlugin plugin = mock(NeoModerationPlugin.class);
+        when(plugin.settings()).thenReturn(settings);
+        DetectionHandler handler = mock(DetectionHandler.class);
+        Player player = mock(Player.class);
+        when(player.getName()).thenReturn("Tester");
+        when(player.getUniqueId()).thenReturn(UUID.randomUUID());
+
+        ChatDecision decision = new ChatModerationProcessor(plugin, mock(ChatModerationCoordinator.class),
+                mock(PlayerMuteService.class), new SpamDetector(), handler).handleChat(player, "WHO WANTS TO TRADE", true);
+
+        assertEquals(ChatDecision.soften("who wants to trade"), decision);
+        verifyNoInteractions(handler);
+    }
+
+    @org.junit.jupiter.api.Test
+    void shoutingIsLoweredTheWayThePlayersLanguageWritesItAndLeftAloneInMonitorMode() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("moderation.enabled", true);
+        config.set("moderation.offline.bannedWords", java.util.List.of("badword"));
+        NeoModerationPlugin plugin = mock(NeoModerationPlugin.class);
+        when(plugin.settings()).thenReturn(ModerationSettings.from(new BukkitConfigView(config)));
+        Player turkish = com.neomechanical.neomoderation.testing.TestPlugin.player("Ali", "tr_tr");
+        ChatModerationProcessor processor = new ChatModerationProcessor(plugin, mock(ChatModerationCoordinator.class),
+                mock(PlayerMuteService.class), new SpamDetector(), mock(DetectionHandler.class));
+
+        assertEquals(ChatDecision.soften("ışık nerede"), processor.handleChat(turkish, "IŞIK NEREDE", true));
+
+        config.set("moderation.mode", "monitor");
+        when(plugin.settings()).thenReturn(ModerationSettings.from(new BukkitConfigView(config)));
+        assertEquals(ChatDecision.allow(), processor.handleChat(turkish, "WHERE IS THE LIGHT", true));
     }
 }

@@ -1,164 +1,108 @@
 package com.neomechanical.neomoderation.messages;
 
-import net.md_5.bungee.api.chat.BaseComponent;
-import org.bukkit.ChatColor;
+import com.neomechanical.neomoderation.platform.GameLanguage;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 
+/**
+ * Every word a player or admin reads comes from here, from the locale files.
+ *
+ * <p>Messages go out in the server's {@code locale}. With
+ * {@code perPlayerLanguage} on, a player whose Minecraft language is one of the
+ * bundled locales reads that language instead; the console and every other
+ * player read the server's. A key missing from a locale falls back to English.</p>
+ */
 public final class MessageService {
-    private static final String DEFAULT_LOCALE = "en_US";
+    public static final String DEFAULT_LOCALE = "en_US";
     public static final List<String> BUNDLED_LOCALES = List.of(
             "en_US", "es_ES", "fr_FR", "de_DE", "pt_BR", "tr_TR"
     );
-    private static final Map<String, Map<String, List<String>>> LEGACY_BUNDLED_VALUES = Map.of(
-            "en_US", Map.ofEntries(
-                    Map.entry("prefix", List.of("&8[&x&0&0&F&F&A&ANeoMod&8]")),
-                    Map.entry("help.title", List.of("&8&m----------&r &x&0&0&F&F&A&A&lNeoModeration &8&m----------")),
-                    Map.entry("help.dashboard", List.of(
-                            "&x&0&0&F&F&A&A&lNeoModeration &8v{version} &7● &f{mode} &8| &7Cloud: &f{cloud} &8| &7Detections: &b{total}"
-                    )),
-                    Map.entry("help.page", List.of("&8Page {page}/2 · &7try &b/nmod help {next}")),
-                    Map.entry("help.hint", List.of("&8Click a command to run it · hover any entry for help")),
-                    Map.entry("error.no-api-key", List.of(
-                            "{prefix} &cNo API key configured. Please run &e/nmod setup <apiKey>",
-                            "{prefix} &cNo API key configured. &7Sign up at &f{url}&7, create a key, then run &e/nmod setup <apiKey>"
-                    )),
-                    Map.entry("help.usage.test", List.of("/nmod test <msg>")),
-                    Map.entry("help.desc.test", List.of("preview the bundled rule; never acts")),
-                    Map.entry("setup.usage", List.of(
-                            "{prefix} &cUsage: &e/{label} setup <apiKey>&7. Cloud moderation adds zero-day threat feeds, AI evasion & map-art scanning. Get an evaluation key at &f{url}"
-                    )),
-                    Map.entry("setup.done", List.of(
-                            "{prefix} &a&lSuccess! &7Cloud moderation is now &aactive&7. Chat is being scanned."
-                    )),
-                    Map.entry("trial.requesting", List.of(
-                            "{prefix} &7Connecting to NeoMechanical to activate your 14-day cloud trial..."
-                    )),
-                    Map.entry("trial.already-configured", List.of(
-                            "{prefix} &cThis server already has an active API key configured."
-                    )),
-                    Map.entry("trial.activated", List.of(
-                            "{prefix} &a14-day cloud trial activated (expires &f{expires}&a). Cloud chat and map-art checks start in monitor mode. Run &e/nmod doctor &ato verify."
-                    )),
-                    Map.entry("trial.status-standard", List.of(
-                            "{prefix} &aUsing a standard NeoMechanical workspace key. &7Run &e/nmod usage &7for credits and limits."
-                    )),
-                    Map.entry("key.saved", List.of("{prefix} &aAPI key saved successfully.")),
-                    Map.entry("status.cloud-no-key", List.of(
-                            "&7Cloud setup: &eno key&7. Free evaluation unlocks AI evasion & map-art NSFW scanning at &f{url}&7, then run &e/nmod setup <key>&7."
-                    )),
-                    Map.entry("usage.fetching", List.of("{prefix} &7Fetching usage from NeoMechanical...")),
-                    Map.entry("usage.title", List.of("&8&m----------&r &x&0&0&F&F&A&A&lNeoMechanical Usage &8&m----------")),
-                    Map.entry("usage.error", List.of(
-                            "{prefix} &cFailed to fetch API usage. Check your key or try again later."
-                    )),
-                    Map.entry("test.usage", List.of("{prefix} &cUsage: &e/{label} test <message>")),
-                    Map.entry("test.cloud-error", List.of(
-                            "{prefix} &7Cloud: &cerror &8(&7{detail}, {ms}ms&8)"
-                    )),
-                    Map.entry("test.cloud-skipped-key", List.of(
-                            "{prefix} &7Cloud: &8skipped (no API key; local rules only)",
-                            "{prefix} &7Cloud: &8skipped (no API key). &7Cloud checks can classify individual chat messages and map art: &f{url} &7-> &e/nmod setup <key>&7."
-                    )),
-                    Map.entry("doctor.title", List.of("&8&m----------&r &x&0&0&F&F&A&A&lNeoModeration Doctor &8&m----------")),
-                    Map.entry("privacy.title", List.of("&8&m----------&r &x&0&0&F&F&A&A&lNeoModeration Privacy &8&m----------")),
-                    Map.entry("cases.title", List.of("&8&m----------&r &x&0&0&F&F&A&A&lRecent Cases &8&m----------")),
-                    Map.entry("preset.list-title", List.of("&8&m----------&r &x&0&0&F&F&A&A&lPolicy Presets &8&m----------"))
-            ),
-            "es_ES", Map.ofEntries(
-                    Map.entry("prefix", List.of("&8[&x&0&0&F&F&A&ANeoMod&8]")),
-                    Map.entry("help.title", List.of("&8&m----------&r &x&0&0&F&F&A&A&lNeoModeration &8&m----------")),
-                    Map.entry("help.dashboard", List.of(
-                            "&x&0&0&F&F&A&A&lNeoModeration &8v{version} &7● &f{mode} &8| &7Nube: &f{cloud} &8| &7Detecciones: &b{total}"
-                    )),
-                    Map.entry("help.page", List.of("&8Página {page}/2 · &7prueba &b/nmod help {next}")),
-                    Map.entry("help.hint", List.of(
-                            "&8Haz clic en un comando para ejecutarlo · deja el puntero encima para ver ayuda"
-                    )),
-                    Map.entry("error.no-api-key", List.of(
-                            "{prefix} &cNo hay clave API. Usa &e/nmod setup <apiKey>",
-                            "{prefix} &cNo hay clave API. &7Regístrate en &f{url}&7, crea una clave y ejecuta &e/nmod setup <apiKey>"
-                    )),
-                    Map.entry("help.usage.test", List.of("/nmod test <msj>")),
-                    Map.entry("help.desc.test", List.of("probar la regla incluida; nunca actúa")),
-                    Map.entry("setup.usage", List.of(
-                            "{prefix} &cUso: &e/{label} setup <apiKey>&7. La moderación en la nube añade amenazas de día cero, evasión por IA y análisis de mapas. Obtén una clave de prueba en &f{url}"
-                    )),
-                    Map.entry("setup.done", List.of(
-                            "{prefix} &a&lListo! &7Moderación en la nube &aactiva&7."
-                    )),
-                    Map.entry("trial.requesting", List.of(
-                            "{prefix} &7Conectando con NeoMechanical para activar tu prueba de 14 días..."
-                    )),
-                    Map.entry("trial.already-configured", List.of(
-                            "{prefix} &cEste servidor ya tiene una clave API activa configurada."
-                    )),
-                    Map.entry("trial.activated", List.of(
-                            "{prefix} &aPrueba de 14 días activada (caduca &f{expires}&a). La nube empieza en modo monitor. Ejecuta &e/nmod doctor &apara verificar."
-                    )),
-                    Map.entry("trial.status-standard", List.of(
-                            "{prefix} &aUsando una clave estándar de NeoMechanical. &7Ejecuta &e/nmod usage &7para ver créditos y límites."
-                    )),
-                    Map.entry("key.saved", List.of("{prefix} &aClave API guardada.")),
-                    Map.entry("status.cloud-no-key", List.of(
-                            "&7Configuración de nube: &esin clave&7. Regístrate en &f{url}&7, crea una clave y ejecuta &e/nmod setup <key>&7."
-                    )),
-                    Map.entry("usage.fetching", List.of("{prefix} &7Consultando uso en NeoMechanical...")),
-                    Map.entry("usage.title", List.of("&8&m----------&r &x&0&0&F&F&A&A&lUso de NeoMechanical &8&m----------")),
-                    Map.entry("usage.error", List.of(
-                            "{prefix} &cNo se pudo obtener el uso. Revisa la clave."
-                    )),
-                    Map.entry("test.usage", List.of("{prefix} &cUso: &e/{label} test <mensaje>")),
-                    Map.entry("test.cloud-error", List.of(
-                            "{prefix} &7Nube: &cerror &8(&7{detail}, {ms}ms&8)"
-                    )),
-                    Map.entry("test.cloud-skipped-key", List.of(
-                            "{prefix} &7Nube: &8omitida (sin clave API; solo reglas locales)",
-                            "{prefix} &7Nube: &8omitida (sin clave API). &7Regístrate en &f{url}&7, crea una clave y ejecuta &e/nmod setup <key>&7."
-                    )),
-                    Map.entry("doctor.title", List.of("&8&m----------&r &x&0&0&F&F&A&A&lNeoModeration Doctor &8&m----------")),
-                    Map.entry("privacy.title", List.of("&8&m----------&r &x&0&0&F&F&A&A&lPrivacidad NeoModeration &8&m----------")),
-                    Map.entry("cases.title", List.of("&8&m----------&r &x&0&0&F&F&A&A&lCasos Recientes &8&m----------")),
-                    Map.entry("preset.list-title", List.of("&8&m----------&r &x&0&0&F&F&A&A&lPreajustes &8&m----------"))
-            )
-    );
+    private static final Pattern COLOR_CODE = Pattern.compile("(?i)§[0-9a-fk-orx]");
 
     private final YamlConfiguration fallback;
     private final YamlConfiguration active;
+    private final String activeCode;
+    private final Map<String, YamlConfiguration> playerLocales;
 
-    private MessageService(YamlConfiguration fallback, YamlConfiguration active) {
+    private MessageService(YamlConfiguration fallback, YamlConfiguration active, String activeCode,
+                           Map<String, YamlConfiguration> playerLocales) {
         this.fallback = fallback;
         this.active = active;
+        this.activeCode = activeCode;
+        this.playerLocales = playerLocales;
     }
 
-    public static MessageService load(JavaPlugin plugin, String locale) {
-        java.util.Map<String, YamlConfiguration> bundledConfigs = new java.util.LinkedHashMap<>();
+    /** Messages from one locale over the English fallback, without files; for tools and tests. */
+    public static MessageService of(YamlConfiguration english, YamlConfiguration active, String activeCode) {
+        return new MessageService(english, active, activeCode, Map.of());
+    }
+
+    /** Reads the locale files from disk; {@link LocaleStore#prepare} must have run once before. */
+    public static MessageService load(JavaPlugin plugin, String locale, boolean perPlayerLanguage) {
+        File directory = new File(plugin.getDataFolder(), "locale");
+        Map<String, YamlConfiguration> loaded = new LinkedHashMap<>();
         for (String code : BUNDLED_LOCALES) {
-            bundledConfigs.put(code, ensureLocale(plugin, code));
+            File file = new File(directory, code + ".yml");
+            YamlConfiguration yaml = file.exists() ? LocaleStore.read(plugin, file, false) : null;
+            if (yaml == null) {
+                yaml = LocaleStore.bundled(plugin, code);
+            }
+            if (yaml != null) {
+                loaded.put(code, yaml);
+            }
         }
-        YamlConfiguration fallback = bundledConfigs.get(DEFAULT_LOCALE);
+        YamlConfiguration fallback = loaded.getOrDefault(DEFAULT_LOCALE, new YamlConfiguration());
         String resolved = resolveLocaleCode(locale);
-        YamlConfiguration active = bundledConfigs.get(resolved);
+        YamlConfiguration active = loaded.get(resolved);
         if (active == null) {
-            File localeDir = new File(plugin.getDataFolder(), "locale");
-            File requestedFile = new File(localeDir, resolved + ".yml");
-            active = requestedFile.exists()
-                    ? YamlConfiguration.loadConfiguration(requestedFile)
-                    : fallback;
+            File custom = new File(directory, resolved + ".yml");
+            active = custom.exists() ? LocaleStore.read(plugin, custom, true) : null;
+            if (active == null) {
+                active = fallback;
+            }
         }
-        return new MessageService(fallback, active);
+        shareServerPrefix(plugin, resolved, active, loaded);
+        return new MessageService(fallback, active, resolved, perPlayerLanguage ? Map.copyOf(loaded) : Map.of());
+    }
+
+    /**
+     * An admin who changed the prefix in the server's language changed it for every
+     * player: each language whose own prefix is still the bundled one shows it too.
+     */
+    private static void shareServerPrefix(JavaPlugin plugin, String serverCode, YamlConfiguration server,
+                                          Map<String, YamlConfiguration> loaded) {
+        String prefix = server.getString("prefix");
+        YamlConfiguration shipped = LocaleStore.bundled(plugin, serverCode);
+        if (prefix == null || (shipped != null && prefix.equals(shipped.getString("prefix")))) {
+            return;
+        }
+        for (Map.Entry<String, YamlConfiguration> entry : loaded.entrySet()) {
+            YamlConfiguration own = LocaleStore.bundled(plugin, entry.getKey());
+            if (entry.getValue() != server && own != null
+                    && Objects.equals(entry.getValue().getString("prefix"), own.getString("prefix"))) {
+                entry.getValue().set("prefix", prefix);
+            }
+        }
+    }
+
+    /**
+     * Writes or upgrades the bundled locale files on disk (startup and /nmod reload).
+     * Returns the locales whose file holds texts the server wrote itself.
+     */
+    public static Set<String> prepareFiles(JavaPlugin plugin) {
+        return LocaleStore.prepare(plugin);
     }
 
     /**
@@ -169,10 +113,10 @@ public final class MessageService {
         if (locale == null || locale.isBlank()) {
             return DEFAULT_LOCALE;
         }
-        String normalized = locale.trim().replace('-', '_').toLowerCase(java.util.Locale.ROOT);
+        String normalized = locale.trim().replace('-', '_').toLowerCase(Locale.ROOT);
         return switch (normalized) {
-            case "en", "en_us", "en_gb", "en_au", "en_ca" -> "en_US";
-            case "es", "es_es", "es_mx", "es_ar", "es_419" -> "es_ES";
+            case "en", "en_us", "en_gb", "en_au", "en_ca", "en_nz", "en_ie" -> "en_US";
+            case "es", "es_es", "es_mx", "es_ar", "es_419", "es_cl", "es_co", "es_ve", "es_uy", "es_ec" -> "es_ES";
             case "fr", "fr_fr", "fr_ca", "fr_be", "fr_ch" -> "fr_FR";
             case "de", "de_de", "de_at", "de_ch" -> "de_DE";
             case "pt", "pt_br", "pt_pt" -> "pt_BR";
@@ -181,51 +125,52 @@ public final class MessageService {
         };
     }
 
+    /** {@code text} without colour codes, hex colours included: for the console log, Discord and patterns. */
+    public static String plain(String text) {
+        return text == null ? "" : COLOR_CODE.matcher(text).replaceAll("");
+    }
+
     public void send(CommandSender sender, String key) {
         send(sender, key, Map.of());
     }
 
     public void send(CommandSender sender, String key, Map<String, String> placeholders) {
-        sender.sendMessage(format(key, placeholders));
+        sender.sendMessage(format(sender, key, placeholders));
     }
 
+    /** A message in the server's language. */
     public String format(String key, Map<String, String> placeholders) {
-        String message = active.getString(key, fallback.getString(key, key));
-        for (Map.Entry<String, String> entry : placeholders.entrySet()) {
-            message = message.replace("{" + entry.getKey() + "}", entry.getValue());
-        }
-        // The shared chat prefix is a locale entry so every line stays consistent
-        // and rebrandable from one place.
-        message = message.replace("{prefix}", active.getString("prefix", fallback.getString("prefix", "")));
-        return ChatColor.translateAlternateColorCodes('&', message);
+        return render(active, key, placeholders);
     }
 
     /**
-     * Shared dashboard header line (version, mode, cloud state, detection
-     * count). Every command output opens with this so the plugin reads as one
-     * surface; all wording stays in the {@code help.dashboard} locale key.
+     * A message in the language {@code reader} reads. The console, which cannot
+     * click, reads {@code <key>-console} where a locale has one ("Click one to
+     * open it" becomes "Open one with /nmod case <number>").
      */
-    public String dashboardLine(String version, String mode, String cloud, long total) {
-        return format("help.dashboard", Map.of(
-                "version", version,
-                "mode", mode,
-                "cloud", cloud,
-                "total", String.valueOf(total)));
+    public String format(CommandSender reader, String key, Map<String, String> placeholders) {
+        YamlConfiguration locale = localeOf(reader);
+        return render(locale, reader instanceof Player ? key : forConsole(locale, key), placeholders);
     }
 
-    /** Sends {@link #dashboardLine} as a plain-text line. */
-    public void sendDashboard(CommandSender sender, String version, String mode, String cloud, long total) {
-        sender.sendMessage(dashboardLine(version, mode, cloud, total));
+    private String forConsole(YamlConfiguration locale, String key) {
+        String console = key + "-console";
+        return locale.isString(console) || fallback.isString(console) ? console : key;
     }
 
-    /** Shared closing divider; every command output ends with this. */
-    public String footerLine() {
-        return format("help.footer", Map.of());
+    /** A message with no placeholders, in the language {@code reader} reads. */
+    public String text(CommandSender reader, String key) {
+        return format(reader, key, Map.of());
     }
 
-    /** Sends {@link #footerLine} as a plain-text line. */
+    /** {@link #text} without colour codes, for the console log and Discord. */
+    public String plainText(CommandSender reader, String key) {
+        return plain(text(reader, key));
+    }
+
+    /** Shared closing divider; command output ends with it. */
     public void sendFooter(CommandSender sender) {
-        sender.sendMessage(footerLine());
+        sender.sendMessage(text(sender, "help.footer"));
     }
 
     /**
@@ -233,92 +178,54 @@ public final class MessageService {
      * legacy-text lines to console and other non-player senders.
      */
     public void sendMenu(CommandSender sender, List<MenuRenderer.Line> lines) {
-        if (sender instanceof Player player) {
+        if (sender instanceof Player player && player.spigot() != null) {
             for (MenuRenderer.Line line : lines) {
-                player.spigot().sendMessage(line.player());
+                if (line.player() != null) {
+                    player.spigot().sendMessage(line.player());
+                }
             }
             return;
         }
         for (MenuRenderer.Line line : lines) {
-            sender.sendMessage(line.console());
+            if (line.console() != null) {
+                sender.sendMessage(line.console());
+            }
         }
     }
 
-    /**
-     * Copy bundled locale only when missing, then merge any new default keys without
-     * overwriting operator customizations.
-     */
-    private static YamlConfiguration ensureLocale(JavaPlugin plugin, String locale) {
-        File target = new File(plugin.getDataFolder(), "locale/" + locale + ".yml");
-        if (!target.exists()) {
-            plugin.saveResource("locale/" + locale + ".yml", false);
-            return YamlConfiguration.loadConfiguration(target);
+    private String render(YamlConfiguration locale, String key, Map<String, String> placeholders) {
+        String template = lookup(locale, key);
+        Map<String, String> values = new HashMap<>(placeholders);
+        if (template.contains("{prefix}") && !values.containsKey("prefix")) {
+            values.put("prefix", Templates.render(lookup(locale, "prefix"), Map.of(), name -> color(locale, name)));
         }
-        YamlConfiguration onDisk = YamlConfiguration.loadConfiguration(target);
-        YamlConfiguration bundled = loadBundled(plugin, locale);
-        if (bundled == null) {
-            plugin.getLogger().warning("Could not load bundled locale " + locale
-                    + "; keeping the existing locale values.");
-            return onDisk;
-        }
-        boolean changed = mergeBundledLocale(locale, onDisk, bundled);
-        if (changed) {
-            try {
-                onDisk.save(target);
-            } catch (IOException e) {
-                plugin.getLogger().warning("Could not persist locale " + locale
-                        + " migration to " + target + ": " + e.getMessage()
-                        + ". The merged values remain active until restart.");
-            }
-        }
-        return onDisk;
+        return Templates.render(template, values, name -> color(locale, name));
     }
 
-    /**
-     * Adds new keys and migrates only exact, known bundled values from the previous
-     * release. Any operator-edited value remains untouched.
-     */
-    static boolean mergeBundledLocale(
-            String locale,
-            YamlConfiguration onDisk,
-            YamlConfiguration bundled
-    ) {
-        boolean changed = false;
-        Set<String> keys = bundled.getKeys(true);
-        for (String key : keys) {
-            if (bundled.isConfigurationSection(key)) {
-                continue;
-            }
-            if (!onDisk.contains(key)) {
-                onDisk.set(key, bundled.get(key));
-                changed = true;
-            }
+    private String lookup(YamlConfiguration locale, String key) {
+        String value = locale.getString(key);
+        if (value == null) {
+            value = fallback.getString(key);
         }
-
-        for (Map.Entry<String, List<String>> entry
-                : LEGACY_BUNDLED_VALUES.getOrDefault(locale, Map.of()).entrySet()) {
-            String replacement = bundled.getString(entry.getKey());
-            String current = onDisk.getString(entry.getKey());
-            if (replacement != null
-                    && current != null
-                    && entry.getValue().contains(current)
-                    && !Objects.equals(replacement, current)) {
-                onDisk.set(entry.getKey(), replacement);
-                changed = true;
-            }
-        }
-        return changed;
+        return value == null ? key : value;
     }
 
-    private static YamlConfiguration loadBundled(JavaPlugin plugin, String locale) {
-        try (InputStream stream = plugin.getResource("locale/" + locale + ".yml")) {
-            if (stream == null) {
-                return null;
-            }
-            return YamlConfiguration.loadConfiguration(new InputStreamReader(stream, StandardCharsets.UTF_8));
-        } catch (IOException e) {
-            plugin.getLogger().warning("Could not read bundled locale " + locale + ": " + e.getMessage());
-            return null;
+    private String color(YamlConfiguration locale, String name) {
+        String value = locale.getString("colors." + name);
+        return value != null ? value : fallback.getString("colors." + name, "");
+    }
+
+    private YamlConfiguration localeOf(CommandSender reader) {
+        return playerLocales.getOrDefault(localeCodeOf(reader), active);
+    }
+
+    /** The locale {@code reader} reads, such as {@code fr_FR}: theirs when per-player language applies. */
+    public String localeCodeOf(CommandSender reader) {
+        if (playerLocales.isEmpty() || !(reader instanceof Player player)) {
+            return activeCode;
         }
+        String clientLocale = GameLanguage.of(player);
+        String code = clientLocale == null ? null : resolveLocaleCode(clientLocale);
+        return code != null && playerLocales.containsKey(code) ? code : activeCode;
     }
 }

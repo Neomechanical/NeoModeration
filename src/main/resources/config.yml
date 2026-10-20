@@ -1,26 +1,40 @@
 # ===========================================================================
 #  NeoModeration
-#  Chat + map-art moderation for Minecraft.
+#  Chat and map-art moderation for Minecraft.
 #
 #  Most settings can also be changed in-game with /nmod (no restart needed).
 #  Run "/nmod status" any time to see what is currently active.
 # ===========================================================================
 
-# Language file to use from the /locale folder (en_US, es_ES, fr_FR, de_DE, pt_BR, tr_TR, or your own).
+# Language of the console and of players whose game language has no messages:
+# en_US, es_ES, fr_FR, de_DE, pt_BR, tr_TR, or your own file in /locale. It
+# also picks the starter word list ("languagePacks"). Everyday words of its
+# language pass for everyone: on a da_DK server Danish "fag" (a school
+# subject) passes in any message, "you fag" included.
 locale: "en_US"
 
-# Check GitHub once at startup for a newer NeoModeration and log one line if
-# there is one. Sends nothing about your server and never downloads anything.
-# Word-list moderation ages badly, so an old install quietly misses more.
+# Players read NeoModeration's messages in their own Minecraft language when
+# it is English, Spanish, French, German, Portuguese or Turkish. Set to false
+# to use "locale" for everyone.
+perPlayerLanguage: true
+
+# Check GitHub once at startup for a newer NeoModeration, log one line if there
+# is one, and tell each admin once when they join. The request names only the
+# plugin version and server software, and nothing is ever downloaded.
 updateCheck: true
 
 moderation:
   # Master switch. When false, NeoModeration does nothing.
   enabled: true
 
+  # Tell a player why their message, sign, book, item name or command was
+  # stopped ("It has a word this server blocks."). The text is in the locale
+  # files under "notice" and "why".
+  tellPlayers: true
+
   # How detections are handled:
-  #   monitor = detect, alert staff, and count what WOULD happen, but never
-  #             block a message or punish a player. Great for evaluating.
+  #   monitor = detect, alert staff and count what would happen, but never
+  #             block a message or punish a player.
   #   enforce = block flagged content and run the actions configured below.
   #
   # This is the mode for LOCAL rules: the word and URL lists below, and
@@ -30,34 +44,52 @@ moderation:
   # /nmod mode monitor.
   mode: "enforce"
 
-  # The same setting for CLOUD decisions, which are judgements made by a model
-  # rather than a list you wrote. A new install only ALERTS on these until you
-  # have watched it decide for a while, then run:  /nmod cloudmode enforce
+  # The same setting for CLOUD decisions, which a model makes. A new install
+  # only ALERTS on these until you have watched it decide for a while, then
+  # run:  /nmod cloudmode enforce
   # Remove this key entirely to make cloud decisions follow "mode" above.
   cloudMode: "monitor"
 
   # ---- Local rules (no API key required, evaluate instantly) --------------
   offline:
     enabled: true
-    # Block ANY url, not just the ones listed in bannedUrls.
+    # Block every link, including ones missing from bannedUrls.
     blockAnyUrl: false
+    # Block messages that advertise another Minecraft server: a public IP
+    # address, any address with a port, play./mc./smp. style addresses,
+    # free-host addresses (aternos.me, minehut.gg ...) and "join myserver.net".
+    # Ordinary links such as YouTube or a wiki page are not affected. Add your
+    # own server's address to allowedUrls so players can share it.
+    blockServerAds: true
     # Treat "b4dw0rd" style spellings as their plain-text equivalent.
     normalizeLeetspeak: true
-    # A starter English policy so a new install blocks real abuse immediately.
-    # You should still review and extend it for your server's own standards.
-    # Manage the list in-game with /nmod ban and /nmod allow.
-    # Matching is whole-word, so "assignment" and "Scunthorpe" stay clean;
-    # inflections are listed explicitly rather than matched as prefixes.
-    # "badword" is kept so the documented check /nmod test badword still works.
+    # A starter English list so a new install blocks real abuse immediately.
+    # Review it for your server and change it in-game with /nmod word and
+    # /nmod allow. A word only matches from the start of a word to the end of
+    # one, so "assignment" and "Scunthorpe" stay clean. A word split into
+    # pieces is still caught ("f uck", "f'uck", "k y s"), but everyday words of
+    # English or the server's language stay clean when together they spell a
+    # listed word ("put a torch here"), and for the language packs' words so do
+    # the player's own language's. A word written with a space, such as
+    # "ass hole", is caught however it is spaced.
+    # Inflections are listed explicitly. "badword" is kept so the documented
+    # check /nmod test badword works.
     bannedWords:
       - "badword"
-      - "scam"
       - "fuck"
       - "fucks"
       - "fucked"
       - "fucking"
+      - "fuckin"
+      - "fuk"
       - "fucker"
       - "fuckers"
+      - "fck"
+      - "fcking"
+      - "fvck"
+      - "fvcking"
+      - "phuck"
+      - "phucking"
       - "motherfucker"
       - "motherfuckers"
       - "shit"
@@ -66,6 +98,7 @@ moderation:
       - "bullshit"
       - "bitch"
       - "bitches"
+      - "biatch"
       - "cunt"
       - "cunts"
       - "asshole"
@@ -81,13 +114,50 @@ moderation:
       - "niggers"
       - "nigga"
       - "niggas"
+      - "niqqer"
+      - "niqqa"
       - "faggot"
       - "faggots"
+      - "fag"
+      - "fags"
+      - "tranny"
+      - "trannies"
+      - "dyke"
+      - "dykes"
+      - "kike"
+      - "kikes"
+      - "paki"
+      - "pakis"
+      - "gook"
+      - "gooks"
+      - "wet back"
+      - "wet backs"
+      - "beaner"
+      - "beaners"
       - "retard"
       - "retarded"
       - "wanker"
       - "twat"
       - "kys"
+    # Starter lists in other languages, added to the list above:
+    #   auto           the language of "locale" (English has no extra pack)
+    #   es, fr, de, pt, tr   name the packs you want, for example [auto, es]
+    #   all            every pack, for a server with players from many countries
+    # Use [] for none. Ordinary words that look like a swear word in another
+    # language ("pic", "cono", "Amina") are left out of every pack. The pt
+    # pack follows Brazilian Portuguese. A few words are everyday words in one
+    # language and banned in another, such as French "retard", Spanish "Kike",
+    # Swedish "slut" and Danish "fag" (a school subject).
+    # They pass for everyone when "locale" is that language.
+    languagePacks: [auto]
+    # true also lets such a word pass for a player whose game language it is.
+    # The message then needs more common words of that language than of
+    # English, and no English word that aims an insult ("you", "dirty"). Their
+    # everyday words then excuse a split word too: "vino Mari con su novio"
+    # from a Spanish player stays clean. Players pick their own game language,
+    # so any player could switch it to use these words. Turn this on only if
+    # you trust your players with them.
+    trustPlayerLanguage: false
     bannedUrls:
       - "grabify.link"
       - "iplogger.org"
@@ -114,12 +184,12 @@ moderation:
     allowedUrls: []
 
   # ---- Cloud moderation (requires a Neomechanical API key) -----------------
-  # Run "/nmod trial" in-game or from console to activate a free 14-day cloud
-  # evaluation with zero browser steps. Or sign up at
+  # Run "/nmod trial" in-game or from the console for a free 14-day cloud
+  # trial; it needs no account. Or sign up at
   # https://neomechanical.com/signup?src=neomoderation, create a key with
-  # events:write + usage:read, then run:  /nmod setup <apiKey>
-  # Verify authentication and credits with /nmod doctor. If credits reach zero,
-  # recover at https://neomechanical.com/billing?src=neomoderation_credits.
+  # events:write and usage:read, then run:  /nmod setup <apiKey>
+  # Check the key and credits with /nmod doctor. If credits run out, add more
+  # at https://neomechanical.com/billing?src=neomoderation_credits.
   api:
     endpoint: "https://api.neomechanical.com/v1/events"
     apiKey: ""
@@ -144,27 +214,38 @@ moderation:
     illicit: true
     selfHarm: true
 
-  # ---- Map art (filled maps) scanning -------------------------------------
-  # Scans filled maps for NSFW imagery via the cloud. Requires an API key.
-  # Results are cached per map so each map is only scanned once.
+  # ---- Map art (filled maps) ----------------------------------------------
+  # The cloud checks map pictures against the categories above. Requires an
+  # API key. Each picture is checked once; drawing on a map makes it a new
+  # picture, which is checked again.
   mapArt:
     enabled: true
-    # Scan when a player scrolls to / holds a filled map.
+    # Check a filled map when a player holds it.
     scanOnHold: true
-    # Scan when a player right-clicks an item frame holding a map.
+    # Check a map a player puts in an item frame, or right-clicks in one.
     scanOnFrameInteract: true
-    # Remove the map from the player when it is flagged. When false the player
-    # is warned but keeps the item.
+    # Take a flagged map away from the player holding it (in enforce cloudMode).
+    # A flagged map already hanging in a frame is taken down, and the player who
+    # clicked it is not blamed. When false, staff are alerted and the map stays.
     confiscate: true
     # How many map results to remember (safe + flagged) before old ones drop.
     cacheSize: 1000
+    # Most new pictures one player can have checked in an hour, so nobody can
+    # use up the server's cloud credits by drawing maps. 0 means no limit.
+    checksPerPlayerPerHour: 30
 
   # ---- Extra actions after a message is blocked ---------------------------
   # Empty by default: block the matching message, alert staff, log a case,
-  # but do not mute the player or clear chat for everyone. Opt into extra
-  # actions with /nmod action add ...; order matters.
-  #   type: CLEAR_CHAT | MUTE | KICK | BAN
-  #   MUTE also takes durationSeconds and an optional reason.
+  # but do not mute the player or clear chat for everyone. Add actions with
+  # /nmod action add <clear|mute|kick|ban>; they run in order. They follow a
+  # banned word, link or server ad; spam is only blocked.
+  #   type: CLEAR_CHAT | MUTE | KICK | BAN | COMMAND
+  #   MUTE takes durationSeconds; KICK and BAN take an optional reason, which
+  #   players otherwise read in their own language.
+  #   COMMAND runs "command" from the console, with %PLAYER%, %UUID%,
+  #   %DURATION% and %REASON% filled in. TIMEOUT runs "tempmute", and
+  #   GIVE_ROLE, TAKE_ROLE and TEMP_ROLE run LuckPerms with "role", unless
+  #   "command" says otherwise.
   actions: []
 
   # ---- Local anti-spam (no API key needed, runs before everything) --------
@@ -176,8 +257,9 @@ moderation:
     # Same/similar message this many times in a row gets flagged.
     duplicateLimit: 3
     similarityThreshold: 0.9
-    # Flag messages over this % uppercase (only when at least capsMinLength
-    # letters). Player names don't count.
+    # A message over this % uppercase (with at least capsMinLength letters) is
+    # sent in lower case instead of being blocked. The sender's own name does
+    # not count.
     capsPercent: 70
     capsMinLength: 8
     # Flag runs of the same character longer than this (aaaaaaaaa...).
@@ -197,23 +279,26 @@ moderation:
         type: KICK
         reason: "Repeated inappropriate chat"
 
-  # ---- Extra surfaces (local rules only; the cloud is never blocking here) --
-  # Each can be: off | monitor | censor | block (or change in-game with /nmod surface)
+  # ---- Signs, books, item names and commands (local rules only) -----------
+  # Each can be: off | monitor | censor | block. Change them in-game with
+  # /nmod surface.
   surfaces:
     sign: "off"
     book: "off"
     anvil: "off"
     command: "off"
-    # Which commands' arguments get scanned when command != off.
+    # Which commands' arguments get scanned when command != off. A muted player
+    # cannot use them either, whatever command is set to.
     scannedCommands: [ "msg", "tell", "w", "whisper", "me", "r", "reply" ]
 
   # ---- Local case history ---------------------------------------------------
-  # SQLite log of detections at plugins/NeoModeration/cases.db.
-  # View in-game with /nmod cases [player] and /nmod case <id>.
+  # Every detection is saved in plugins/NeoModeration/cases.db. Browse it
+  # in-game with /nmod cases [player] or /nmod cases <id>, and resolve,
+  # dismiss or allow a word from there.
   cases:
     enabled: true
-    # Store a short preview of the offending content. Off by default so the
-    # log stays privacy-clean (metadata only).
+    # Keep a short preview of what the player wrote. Off by default, so the
+    # history holds who, where and why, never the message.
     storeContent: false
 
   # ---- Staff alerts --------------------------------------------------------
@@ -221,17 +306,23 @@ moderation:
   # in-game alert whenever content is flagged, in both monitor and enforce mode.
   alerts:
     enabled: true
-    # Include a short preview of the offending message in the alert. Set to
-    # false to redact content from staff chat.
+    # Show a short preview of the message in the alert. Set to false to keep
+    # message text out of staff chat and Discord.
     includeMessage: true
+    # A Discord webhook that receives the same alerts, for when no moderator is
+    # online. Set it with /nmod discord <webhook URL>; /nmod discord test sends
+    # one to check it.
+    discordWebhookUrl: ""
 
   chat:
-    # Hook Paper's async chat event for lower-latency scanning.
+    # Check chat messages. When false, chat is not checked at all; signs,
+    # books and commands follow their own settings above.
     scanAsyncChat: true
     # If the cloud is unreachable, let the message through (true) instead of
-    # blocking it (false).
+    # holding it back (false).
     failOpen: true
-    # Replace locally-matched words/links with **** instead of blocking the
+    # Replace locally matched words and links with **** instead of blocking the
     # whole message. Censored messages still count strikes and alert staff,
-    # but skip the punishment actions. Cloud detections always block.
+    # but skip the actions above. Cloud decisions are never censored: they
+    # block or alert, as cloudMode says.
     censorLocalDetections: false

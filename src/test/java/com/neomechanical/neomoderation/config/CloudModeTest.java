@@ -1,7 +1,12 @@
 package com.neomechanical.neomoderation.config;
 
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -30,6 +35,21 @@ class CloudModeTest {
     @Test
     void absentCloudModeFollowsEnforceToo() {
         YamlConfiguration config = new YamlConfiguration();
+        config.set("moderation.enabled", true);
+        config.set("moderation.mode", "enforce");
+
+        assertEquals(ModerationMode.ENFORCE, parse(config).cloudMode());
+    }
+
+    @Test
+    void absentCloudModeFollowsTheLocalModeEvenWithTheBundledDefaultsLoaded()
+            throws IOException, InvalidConfigurationException {
+        // The plugin loads the bundled config.yml as defaults, and it says
+        // cloudMode: monitor. A server that removed the key must still follow mode.
+        YamlConfiguration bundled = new YamlConfiguration();
+        bundled.loadFromString(Files.readString(Path.of("src/main/resources/config.yml")));
+        YamlConfiguration config = new YamlConfiguration();
+        config.setDefaults(bundled);
         config.set("moderation.enabled", true);
         config.set("moderation.mode", "enforce");
 

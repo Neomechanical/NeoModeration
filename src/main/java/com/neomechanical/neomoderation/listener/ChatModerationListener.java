@@ -1,6 +1,5 @@
 package com.neomechanical.neomoderation.listener;
 
-import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.moderation.ChatDecision;
 import com.neomechanical.neomoderation.moderation.ChatModerationProcessor;
 import org.bukkit.event.EventHandler;
@@ -8,35 +7,19 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
 public final class ChatModerationListener implements Listener {
-    private static final AtomicBoolean SYNC_WARNING_LOGGED = new AtomicBoolean();
-
-    private final NeoModerationPlugin plugin;
     private final ChatModerationProcessor processor;
 
-    public ChatModerationListener(
-            NeoModerationPlugin plugin,
-            ChatModerationProcessor processor
-    ) {
-        this.plugin = plugin;
+    public ChatModerationListener(ChatModerationProcessor processor) {
         this.processor = processor;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPlayerChat(AsyncPlayerChatEvent event) {
-        if (!event.isAsynchronous()) {
-            if (SYNC_WARNING_LOGGED.compareAndSet(false, true)) {
-                plugin.getLogger().warning("Skipping synchronous chat moderation to avoid blocking the server thread.");
-            }
-            return;
-        }
-
-        ChatDecision decision = processor.handleAsyncChat(event.getPlayer(), event.getMessage());
+        ChatDecision decision = processor.handleChat(event.getPlayer(), event.getMessage(), event.isAsynchronous());
         switch (decision.type()) {
             case BLOCK -> event.setCancelled(true);
-            case CENSOR -> event.setMessage(decision.message());
+            case CENSOR, SOFTEN -> event.setMessage(decision.message());
             case ALLOW -> {
             }
         }

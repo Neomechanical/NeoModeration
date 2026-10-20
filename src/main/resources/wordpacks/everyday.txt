@@ -1,0 +1,34 @@
+# Everyday phrases every server allows, where a banned word is also an ordinary
+# word inside the phrase. One phrase per line. A phrase lets its banned word
+# through wherever it appears, even inside an insult, so only phrases nobody
+# would insult with belong here. Everyday words of one language written apart
+# ("put a torch", or "Mari con" from a Spanish player) are handled by
+# common-words.txt instead.
+#
+# French: "retard" means late
+en retard
+du retard
+de retard
+le retard
+un retard
+mon retard
+ton retard
+son retard
+au retard
+les retards
+# French: "tapette à mouches", a fly swatter
+tapette a mouches
+tapettes a mouches
+# Games: the bastard sword
+bastard sword
+bastard swords
+bastard schwert
+# British English: a "fag" is a cigarette, "faggots" a dish, a "dyke" an embankment
+fag break
+fag breaks
+having a fag
+faggots and gravy
+faggots with gravy
+dyke broke
+# English: "cannon fodder", which the filter would read as Portuguese "foder"
+cannon fodder

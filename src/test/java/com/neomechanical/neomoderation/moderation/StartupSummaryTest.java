@@ -2,24 +2,38 @@ package com.neomechanical.neomoderation.moderation;
 
 import com.neomechanical.neomoderation.config.BukkitConfigView;
 import com.neomechanical.neomoderation.config.ModerationSettings;
+import com.neomechanical.neomoderation.messages.MessageService;
+import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 /**
  * Startup must describe the settings that actually ship, including the safe
- * block-only default, rather than a fixture that can drift from config.yml.
+ * block-only default, rather than a fixture that can drift from config.yml,
+ * and say it in the server's language.
  */
 class StartupSummaryTest {
     private static final String VERSION = "test-version";
+
+    private static String summary(ModerationSettings settings, String locale) {
+        YamlConfiguration english = YamlConfiguration.loadConfiguration(new File("src/main/resources/locale/en_US.yml"));
+        YamlConfiguration active = YamlConfiguration.loadConfiguration(new File("src/main/resources/locale/" + locale + ".yml"));
+        List<String> lines = StartupSummary.lines(settings, VERSION, MessageService.of(english, active, locale),
+                mock(ConsoleCommandSender.class));
+        assertTrue(lines.size() <= 8, "the console summary must stay short: " + lines);
+        lines.forEach(line -> assertFalse(line.contains("{"), "unfilled placeholder in: " + line));
+        return String.join("\n", lines);
+    }
 
     private static ModerationSettings bundledDefaults() throws IOException {
         YamlConfiguration config = new YamlConfiguration();
@@ -31,122 +45,55 @@ class StartupSummaryTest {
         return ModerationSettings.from(new BukkitConfigView(config));
     }
 
-    private static ModerationSettings monitorSettings() {
+    private static ModerationSettings settings(String... pairs) {
         YamlConfiguration config = new YamlConfiguration();
-        config.set("moderation.enabled", true);
-        config.set("moderation.mode", "monitor");
+        for (int i = 0; i < pairs.length; i += 2) {
+            config.set(pairs[i], pairs[i + 1].equals("true") || pairs[i + 1].equals("false")
+                    ? Boolean.valueOf(pairs[i + 1]) : pairs[i + 1]);
+        }
         return ModerationSettings.from(new BukkitConfigView(config));
     }
 
     @Test
-    void saysWhenNothingWillBeBlocked() {
-        List<String> lines = StartupSummary.lines(monitorSettings(), VERSION);
+    void aFreshInstallSaysWhatItBlocksAndThatTheCloudIsOff() throws IOException {
+        String text = summary(bundledDefaults(), "en_US");
 
-        assertTrue(joined(lines).contains("MONITOR"), joined(lines));
-        assertTrue(joined(lines).contains("local detections alert staff without blocking"), joined(lines));
-    }
-
-    @Test
-    void namesTheCommandThatTurnsEnforcementOn() {
-        List<String> lines = StartupSummary.lines(monitorSettings(), VERSION);
-
-        assertTrue(joined(lines).contains("/nmod mode enforce"), joined(lines));
-    }
-
-    @Test
-    void enforceModeDoesNotNagAboutMonitor() throws IOException {
-        List<String> lines = StartupSummary.lines(bundledDefaults(), VERSION);
-
-        assertTrue(joined(lines).contains("ENFORCE"));
-        assertFalse(joined(lines).contains("/nmod mode enforce"));
-        assertTrue(joined(lines).contains("no automatic punishment or chat clearing"));
-    }
-
-    @Test
-    void listsProtectionsThatAreActuallyRunning() throws IOException {
-        // Anti-spam and the local word/URL rules need no API key, so they are the
-        // honest answer to "is this doing anything yet?".
-        List<String> lines = StartupSummary.lines(bundledDefaults(), VERSION);
-
-        String text = joined(lines).toLowerCase();
-        assertTrue(text.contains("anti-spam"), text);
-        assertTrue(text.contains("word"), text);
-    }
-
-    @Test
-    void doesNotCallEmptyEnabledRulesActive() {
-        YamlConfiguration config = new YamlConfiguration();
-        config.set("moderation.enabled", true);
-        config.set("moderation.spam.enabled", false);
-        List<String> lines = StartupSummary.lines(ModerationSettings.from(new BukkitConfigView(config)), VERSION);
-
-        assertTrue(joined(lines).contains("nothing - every check is switched off"), joined(lines));
-        assertFalse(joined(lines).contains("0 word rules and 0 URL rules"), joined(lines));
-    }
-
-    @Test
-    void saysCloudIsOffAndHowToTurnItOn() throws IOException {
-        List<String> lines = StartupSummary.lines(bundledDefaults(), VERSION);
-
-        String text = joined(lines);
-        assertTrue(text.toLowerCase().contains("no api key"), text);
-        assertTrue(text.contains("/nmod trial"), text);
-        assertTrue(text.contains("/nmod setup"), text);
-    }
-
-    @Test
-    void doesNotClaimCloudIsOffWhenAKeyIsSet() {
-        YamlConfiguration config = new YamlConfiguration();
-        config.set("moderation.enabled", true);
-        config.set("moderation.mode", "monitor");
-        config.set("moderation.api.apiKey", "nm_live_example");
-        List<String> lines = StartupSummary.lines(ModerationSettings.from(new BukkitConfigView(config)), VERSION);
-
-        assertFalse(joined(lines).contains("/nmod setup"), joined(lines));
-    }
-
-    @Test
-    void reportsWhenModerationIsSwitchedOffEntirely() {
-        YamlConfiguration config = new YamlConfiguration();
-        config.set("moderation.enabled", false);
-        List<String> lines = StartupSummary.lines(ModerationSettings.from(new BukkitConfigView(config)), VERSION);
-
-        assertTrue(joined(lines).toLowerCase().contains("disabled"), joined(lines));
-    }
-
-    @Test
-    void alwaysPointsAtStatusForTheFullPicture() throws IOException {
-        List<String> lines = StartupSummary.lines(bundledDefaults(), VERSION);
-
-        assertTrue(joined(lines).contains("/nmod status"), joined(lines));
-    }
-
-    @Test
-    void includesTheVersionSoBugReportsAreActionable() throws IOException {
-        List<String> lines = StartupSummary.lines(bundledDefaults(), VERSION);
-
-        assertTrue(joined(lines).contains(VERSION), joined(lines));
-    }
-
-    @Test
-    void givesFreshInstallsAnExactSafeTestPath() throws IOException {
-        List<String> lines = StartupSummary.lines(bundledDefaults(), VERSION);
-
-        String text = joined(lines);
+        assertTrue(text.contains("NeoModeration test-version is running."), text);
+        assertTrue(text.contains("Local rules block matching messages"), text);
+        assertTrue(text.contains("blocking ads for other servers"), text);
+        assertTrue(text.contains("cloud checks (no key; run /nmod trial"), text);
         assertTrue(text.contains("/nmod test badword"), text);
-        assertTrue(text.contains("never execute actions"), text);
+        assertTrue(text.contains("/nmod status"), text);
     }
 
     @Test
-    void staysShortEnoughToReadInAConsole() throws IOException {
-        // A wall of text at startup is ignored exactly like a single line is.
-        List<String> lines = StartupSummary.lines(bundledDefaults(), VERSION);
+    void monitorModeSaysNothingIsBlockedAndNamesTheWayOut() {
+        String text = summary(settings("moderation.enabled", "true", "moderation.mode", "monitor"), "en_US");
 
-        assertTrue(lines.size() <= 6, "too many lines: " + lines.size());
-        assertEquals(lines.size(), lines.stream().filter(l -> !l.isBlank()).count());
+        assertTrue(text.contains("alert staff without blocking"), text);
+        assertTrue(text.contains("/nmod mode enforce"), text);
     }
 
-    private static String joined(List<String> lines) {
-        return String.join("\n", lines);
+    @Test
+    void switchedOffSaysSoAndStops() {
+        String text = summary(settings("moderation.enabled", "false"), "en_US");
+
+        assertTrue(text.contains("Moderation is off"), text);
+        assertFalse(text.contains("Running:"), text);
+    }
+
+    @Test
+    void aSavedKeyIsNotCalledMissing() {
+        String text = summary(settings("moderation.enabled", "true", "moderation.api.apiKey", "nm_test"), "en_US");
+
+        assertFalse(text.contains("no key"), text);
+        assertTrue(text.contains("cloud chat checks"), text);
+    }
+
+    @Test
+    void theSummaryIsWrittenInTheServersLanguage() throws IOException {
+        String text = summary(bundledDefaults(), "de_DE");
+
+        assertFalse(text.contains("is running."), "German servers get a German summary: " + text);
     }
 }

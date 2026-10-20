@@ -7,8 +7,16 @@ import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 public final class ChatModerationActionExecutor {
+    /**
+     * Names a console command can safely carry. The server refuses anything else at
+     * login unless a proxy turned that check off, and a name with a space in it
+     * would add arguments to the command.
+     */
+    private static final Pattern COMMAND_SAFE_NAME = Pattern.compile("[^\\s§]{1,32}");
     private static final String DEFAULT_TIMEOUT_COMMAND = "tempmute %PLAYER% %DURATION%s %REASON%";
     private static final String DEFAULT_GIVE_ROLE_COMMAND = "lp user %PLAYER% parent add %ROLE%";
     private static final String DEFAULT_TAKE_ROLE_COMMAND = "lp user %PLAYER% parent remove %ROLE%";
@@ -16,10 +24,13 @@ public final class ChatModerationActionExecutor {
 
     private final String sourceName;
     private final PlayerMuteService muteService;
+    private final Consumer<String> unsafeName;
 
-    public ChatModerationActionExecutor(String sourceName, PlayerMuteService muteService) {
+    /** {@code unsafeName} hears the name of a player whose command action was skipped (see {@link #COMMAND_SAFE_NAME}). */
+    public ChatModerationActionExecutor(String sourceName, PlayerMuteService muteService, Consumer<String> unsafeName) {
         this.sourceName = sourceName;
         this.muteService = muteService;
+        this.unsafeName = unsafeName;
     }
 
     public void execute(Player player, List<ModerationAction> actions) {
@@ -34,16 +45,28 @@ public final class ChatModerationActionExecutor {
             case KICK -> player.kickPlayer(action.reason());
             case BAN -> banPlayer(player, action.reason());
             case MUTE -> muteService.mute(player.getUniqueId(), action.durationSeconds());
-            case TIMEOUT -> runCommand(player, action, fallbackOr(action.command(), DEFAULT_TIMEOUT_COMMAND));
-            case GIVE_ROLE -> runCommand(player, action, fallbackOr(action.command(), DEFAULT_GIVE_ROLE_COMMAND));
-            case TAKE_ROLE -> runCommand(player, action, fallbackOr(action.command(), DEFAULT_TAKE_ROLE_COMMAND));
-            case TEMP_ROLE -> runCommand(player, action, fallbackOr(action.command(), DEFAULT_TEMP_ROLE_COMMAND));
-            case COMMAND -> {
-                if (!action.command().isBlank()) {
-                    runCommand(player, action, action.command());
+            case TIMEOUT, GIVE_ROLE, TAKE_ROLE, TEMP_ROLE, COMMAND -> {
+                String command = commandFor(action);
+                if (!command.isBlank()) {
+                    runCommand(player, action, command);
                 }
             }
         }
+    }
+
+    /**
+     * The console command an action runs, placeholders not yet filled: its own
+     * command, else the default for its type. Empty for actions that run none.
+     */
+    public static String commandFor(ModerationAction action) {
+        return switch (action.type()) {
+            case TIMEOUT -> fallbackOr(action.command(), DEFAULT_TIMEOUT_COMMAND);
+            case GIVE_ROLE -> fallbackOr(action.command(), DEFAULT_GIVE_ROLE_COMMAND);
+            case TAKE_ROLE -> fallbackOr(action.command(), DEFAULT_TAKE_ROLE_COMMAND);
+            case TEMP_ROLE -> fallbackOr(action.command(), DEFAULT_TEMP_ROLE_COMMAND);
+            case COMMAND -> action.command() == null ? "" : action.command().trim();
+            case CLEAR_CHAT, MUTE, KICK, BAN -> "";
+        };
     }
 
     private void clearChat() {
@@ -61,6 +84,10 @@ public final class ChatModerationActionExecutor {
     }
 
     private void runCommand(Player player, ModerationAction action, String command) {
+        if (!COMMAND_SAFE_NAME.matcher(player.getName()).matches()) {
+            unsafeName.accept(player.getName());
+            return;
+        }
         ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
         String hydratedCommand = hydrate(command, player, action);
         Bukkit.dispatchCommand(console, hydratedCommand.startsWith("/") ? hydratedCommand.substring(1) : hydratedCommand);
@@ -75,7 +102,7 @@ public final class ChatModerationActionExecutor {
                 .replace("%REASON%", action.reason());
     }
 
-    private String fallbackOr(String maybeEmpty, String fallback) {
+    private static String fallbackOr(String maybeEmpty, String fallback) {
         return maybeEmpty == null || maybeEmpty.trim().isEmpty() ? fallback : maybeEmpty;
     }
 }

@@ -1,0 +1,40 @@
+# Spanish starter list. Severe swearing and slurs only, written without accents
+# (the filter folds accents, so "cabrón" matches "cabron"). A phrase is written
+# with its spaces, such as "hijo de puta", and also matches "hijodeputa". A word
+# written with a space is read across every space, even where its pieces are
+# everyday words, so "mari cones" also catches "mari con es", and "put a as"
+# a stretched spelling of "putas" that is rarely meant as everyday words.
+mierda
+mierdas
+joder
+jodido
+jodete
+puta
+putas
+put a as
+puto
+putos
+putero
+cabron
+cabrones
+cojones
+pendejo
+pendejos
+pendeja
+maricon
+mari cones
+marica
+culiao
+culiaos
+culero
+gilipollas
+hijo de puta
+hijos de puta
+hija de puta
+hdp
+malparido
+malparidos
+chingada
+chingar
+verga
+ctm

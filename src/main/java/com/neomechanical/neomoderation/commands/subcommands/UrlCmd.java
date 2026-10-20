@@ -8,8 +8,6 @@ import org.bukkit.command.CommandSender;
 import java.util.List;
 
 public class UrlCmd implements SubCommand {
-    private static final String PATH = "moderation.offline.bannedUrls";
-
     private final NeoModerationPlugin plugin;
 
     public UrlCmd(NeoModerationPlugin plugin) {
@@ -22,18 +20,8 @@ public class UrlCmd implements SubCommand {
     }
 
     @Override
-    public String getDescription() {
-        return "Manage offline banned URLs.";
-    }
-
-    @Override
-    public String getUsage() {
-        return "/nmod url <add|remove|list> [url]";
-    }
-
-    @Override
     public void execute(CommandSender sender, String label, String[] args) {
-        RuleListEditor.handle(plugin, sender, label, args, 1, PATH, "url");
+        RuleListEditor.handle(plugin, sender, label, args, 1, RuleListEditor.RuleList.BANNED_URLS);
     }
 
     @Override

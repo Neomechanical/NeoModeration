@@ -8,8 +8,6 @@ import org.bukkit.command.CommandSender;
 import java.util.List;
 
 public class WordCmd implements SubCommand {
-    private static final String PATH = "moderation.offline.bannedWords";
-
     private final NeoModerationPlugin plugin;
 
     public WordCmd(NeoModerationPlugin plugin) {
@@ -22,18 +20,8 @@ public class WordCmd implements SubCommand {
     }
 
     @Override
-    public String getDescription() {
-        return "Manage offline banned words.";
-    }
-
-    @Override
-    public String getUsage() {
-        return "/nmod word <add|remove|list> [word]";
-    }
-
-    @Override
     public void execute(CommandSender sender, String label, String[] args) {
-        RuleListEditor.handle(plugin, sender, label, args, 1, PATH, "word");
+        RuleListEditor.handle(plugin, sender, label, args, 1, RuleListEditor.RuleList.BANNED_WORDS);
     }
 
     @Override

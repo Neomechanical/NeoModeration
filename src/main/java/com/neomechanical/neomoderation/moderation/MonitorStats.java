@@ -1,13 +1,14 @@
 package com.neomechanical.neomoderation.moderation;
 
+import com.neomechanical.neomoderation.messages.Reasons;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Since-startup counters of moderation detections, bucketed by reason prefix
- * ({@code blocked_word}, {@code blocked_url}, {@code platform}, {@code map_art}).
- * Backs the "what would have happened" summary shown by /nmod mode and status.
+ * Since-startup counters of moderation detections, bucketed by the kind of rule
+ * ({@link Reasons#bucket}: word, link, server-ad, spam, cloud, map ...). Backs the
+ * "what would have happened" summary shown by /nmod mode and status.
  */
 public final class MonitorStats {
     private final Object lock = new Object();
@@ -29,6 +30,12 @@ public final class MonitorStats {
         }
     }
 
+    public long cloudTotal() {
+        synchronized (lock) {
+            return byReason.getOrDefault("cloud", 0L) + byReason.getOrDefault("map", 0L);
+        }
+    }
+
     public Map<String, Long> byReason() {
         synchronized (lock) {
             return new LinkedHashMap<>(byReason);
@@ -40,10 +47,6 @@ public final class MonitorStats {
     }
 
     private static String bucket(String reason) {
-        if (reason == null || reason.isBlank()) {
-            return "other";
-        }
-        int colon = reason.indexOf(':');
-        return colon > 0 ? reason.substring(0, colon) : reason;
+        return Reasons.bucket(reason);
     }
 }

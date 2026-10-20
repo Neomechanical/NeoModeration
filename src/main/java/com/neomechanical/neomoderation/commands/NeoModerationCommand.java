@@ -1,6 +1,7 @@
 package com.neomechanical.neomoderation.commands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
+import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.commands.subcommands.*;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -43,6 +44,9 @@ public final class NeoModerationCommand implements CommandExecutor, TabCompleter
         registerCommand(new PresetCmd(plugin));
         registerCommand(new PrivacyCmd(plugin));
         registerCommand(new CasesCmd(plugin));
+        registerCommand(new MuteCmd(plugin, false));
+        registerCommand(new MuteCmd(plugin, true));
+        registerCommand(new DiscordCmd(plugin));
 
         // Help command needs reference to other commands
         registerCommand(new HelpCmd(plugin, subCommands));
@@ -57,7 +61,7 @@ public final class NeoModerationCommand implements CommandExecutor, TabCompleter
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!sender.hasPermission("neomoderation.admin")) {
+        if (!mayUse(sender)) {
             plugin.messages().send(sender, "error.no-permission");
             return true;
         }
@@ -71,12 +75,21 @@ public final class NeoModerationCommand implements CommandExecutor, TabCompleter
         SubCommand subCommand = subCommands.get(subCommandName);
 
         if (subCommand == null) {
+            if (!subCommandName.matches("\\d+")) {
+                // "/nmod 2" is a help page; anything else is a typo worth naming.
+                plugin.messages().send(sender, "error.unknown-command", Map.of("command", args[0], "label", label));
+            }
             subCommands.get("help").execute(sender, label, args);
             return true;
         }
 
         if (!sender.hasPermission(subCommand.getPermission())) {
-            plugin.messages().send(sender, "error.no-permission");
+            // Only moderators get here: the command they tried is one of the admins'.
+            if (sender.hasPermission(Permissions.ADMIN)) {
+                plugin.messages().send(sender, "error.no-permission");
+            } else {
+                plugin.messages().send(sender, "error.admin-only", Map.of("command", subCommandName, "label", label));
+            }
             return true;
         }
 
@@ -86,7 +99,7 @@ public final class NeoModerationCommand implements CommandExecutor, TabCompleter
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (!sender.hasPermission("neomoderation.admin")) {
+        if (!mayUse(sender)) {
             return List.of();
         }
 
@@ -108,5 +121,10 @@ public final class NeoModerationCommand implements CommandExecutor, TabCompleter
         }
 
         return List.of();
+    }
+
+    /** Admins and moderators may use /nmod; each subcommand then checks its own permission. */
+    private static boolean mayUse(CommandSender sender) {
+        return sender.hasPermission(Permissions.ADMIN) || sender.hasPermission(Permissions.MODERATE);
     }
 }

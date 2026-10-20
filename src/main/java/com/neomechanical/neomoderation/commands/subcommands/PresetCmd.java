@@ -2,10 +2,13 @@ package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.commands.SubCommand;
-import com.neomechanical.neomoderation.config.ModerationAction;
+import com.neomechanical.neomoderation.config.ConfigPaths;
 import com.neomechanical.neomoderation.config.ModerationCategorySettings;
+import com.neomechanical.neomoderation.messages.MenuRenderer;
+import com.neomechanical.neomoderation.messages.MessageService;
 import org.bukkit.command.CommandSender;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -16,30 +19,13 @@ import java.util.Set;
  * the API key, or an operator's punishment policy.
  */
 public class PresetCmd implements SubCommand {
-    private record Preset(String name, String summary, double defaultThreshold,
-                          Set<String> disabledCategories) {
+    private record Preset(String name, double threshold, Set<String> disabledCategories) {
     }
 
     private static final List<Preset> PRESETS = List.of(
-            new Preset(
-                    "family",
-                    "cloud: all categories at 0.55 (strict)",
-                    0.55D,
-                    Set.of()
-            ),
-            new Preset(
-                    "community",
-                    "cloud: all categories at 0.70",
-                    0.7D,
-                    Set.of()
-            ),
-            new Preset(
-                    "minimal",
-                    "cloud: 0.80, with harassment/scam/spam off",
-                    0.8D,
-                    Set.of("harassment", "scam", "spam")
-            )
-    );
+            new Preset("family", 0.55D, Set.of()),
+            new Preset("community", 0.7D, Set.of()),
+            new Preset("minimal", 0.8D, Set.of("harassment", "scam", "spam")));
 
     private final NeoModerationPlugin plugin;
 
@@ -53,63 +39,37 @@ public class PresetCmd implements SubCommand {
     }
 
     @Override
-    public String getDescription() {
-        return "Apply a cloud threshold preset (family, community, minimal).";
-    }
-
-    @Override
-    public String getUsage() {
-        return "/nmod preset <family|community|minimal>";
-    }
-
-    @Override
     public void execute(CommandSender sender, String label, String[] args) {
+        MessageService messages = plugin.messages();
         if (args.length < 2 || "list".equalsIgnoreCase(args[1])) {
-            plugin.messages().send(sender, "preset.list-title");
-            if (sender instanceof org.bukkit.entity.Player) {
-                java.util.List<com.neomechanical.neomoderation.messages.MenuRenderer.Line> lines = new java.util.ArrayList<>();
-                for (Preset preset : PRESETS) {
-                    String formatted = plugin.messages().format("preset.list-item", Map.of(
-                            "name", preset.name(),
-                            "summary", preset.summary()
-                    ));
-                    String cmd = "/" + label + " preset " + preset.name();
-                    lines.add(com.neomechanical.neomoderation.messages.MenuRenderer.clickableLine(
-                            formatted, cmd, "&b" + cmd + "\n&7" + preset.summary(),
-                            com.neomechanical.neomoderation.messages.MenuRenderer.ClickAction.RUN));
-                }
-                plugin.messages().sendMenu(sender, lines);
-                return;
-            }
+            List<MenuRenderer.Line> lines = new ArrayList<>();
+            lines.add(MenuRenderer.text(messages.format(sender, "preset.list-title", Map.of("label", label))));
             for (Preset preset : PRESETS) {
-                plugin.messages().send(sender, "preset.list-item", Map.of(
-                        "name", preset.name(),
-                        "summary", preset.summary()
-                ));
+                Map<String, String> values = Map.of("name", preset.name(),
+                        "summary", messages.text(sender, "preset." + preset.name()));
+                lines.add(MenuRenderer.clickableLine(messages.format(sender, "preset.list-item", values),
+                        "/" + label + " preset " + preset.name(), messages.format(sender, "preset.list-hover", values),
+                        MenuRenderer.ClickAction.RUN));
             }
+            messages.sendMenu(sender, lines);
             return;
         }
-
         String requested = args[1].toLowerCase(Locale.ROOT);
-        Preset preset = PRESETS.stream().filter(p -> p.name().equals(requested)).findFirst().orElse(null);
+        Preset preset = PRESETS.stream().filter(candidate -> candidate.name().equals(requested)).findFirst().orElse(null);
         if (preset == null) {
-            plugin.messages().send(sender, "preset.usage", Map.of("label", label));
+            messages.send(sender, "preset.usage", Map.of("label", label));
             return;
         }
-
-        for (String category : ModerationCategorySettings.categoryKeys()) {
-            Object value = preset.disabledCategories().contains(category)
-                    ? Boolean.FALSE
-                    : preset.defaultThreshold();
-            plugin.getConfig().set("moderation.categories." + category, value);
-        }
-        plugin.saveAndReload();
-
-        plugin.messages().send(sender, "preset.applied", Map.of(
+        plugin.editConfig(config -> {
+            for (String category : ModerationCategorySettings.categoryKeys()) {
+                config.set(ConfigPaths.CATEGORIES + category,
+                        preset.disabledCategories().contains(category) ? Boolean.FALSE : preset.threshold());
+            }
+            return true;
+        });
+        messages.send(sender, "preset.applied", Map.of(
                 "name", preset.name(),
-                "categories", String.valueOf(plugin.settings().categories().enabledCount()),
-                "actions", ModerationAction.describe(plugin.settings().actions())
-        ));
+                "categories", String.valueOf(plugin.settings().categories().enabledCount())));
     }
 
     @Override

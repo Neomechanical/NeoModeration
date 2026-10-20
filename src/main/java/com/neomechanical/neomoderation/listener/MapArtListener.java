@@ -1,156 +1,147 @@
 package com.neomechanical.neomoderation.listener;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
+import com.neomechanical.neomoderation.Permissions;
 import com.neomechanical.neomoderation.config.MapArtSettings;
+import com.neomechanical.neomoderation.config.ModerationApiSettings;
+import com.neomechanical.neomoderation.config.ModerationCategorySettings;
 import com.neomechanical.neomoderation.config.ModerationMode;
-import com.neomechanical.neomoderation.moderation.DetectionHandler;
 import com.neomechanical.neomoderation.config.ModerationSettings;
+import com.neomechanical.neomoderation.messages.MessageService;
+import com.neomechanical.neomoderation.moderation.DetectionHandler;
+import com.neomechanical.neomoderation.moderation.FixedWindow;
 import com.neomechanical.neomoderation.moderation.MapArtScanner;
 import com.neomechanical.neomoderation.moderation.ModerationApiResult;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.MapMeta;
-import org.bukkit.map.MapView;
 
-import java.lang.reflect.Method;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
-import java.util.HexFormat;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
-import com.neomechanical.neomoderation.config.ModerationApiSettings;
-import com.neomechanical.neomoderation.config.ModerationCategorySettings;
 
 /**
- * Scans filled maps (map art) for NSFW content when players hold them or interact with
- * them in item frames. Verdicts are cached by saved image content and cloud settings;
- * editing a previously scanned map requires a new verdict.
- * Uses reflection so the plugin still compiles against older Bukkit APIs while running on
- * modern Paper.
+ * Checks map art with the cloud when a player holds a filled map, puts one in
+ * an item frame, or right-clicks a framed one. A picture is checked once: its
+ * verdict is cached by its pixels and the cloud settings, so editing a map
+ * means a new check.
+ *
+ * <p>A player holding or placing a flagged map is its owner and is handled
+ * like any detection (alert, case, strike and actions in enforce mode, the map
+ * taken away). A flagged map already hanging in a frame belongs to nobody we
+ * know: it is taken down and staff are told where, the player who clicked it is
+ * not punished, and the cloud is told about the frame rather than the player.</p>
+ *
+ * <p>Each player can have only so many new pictures checked an hour
+ * ({@code checksPerPlayerPerHour}), so nobody can use up the server's cloud
+ * credits by drawing maps.</p>
  */
 public final class MapArtListener implements Listener {
-    private static final String BYPASS_PERMISSION = "neomoderation.bypass";
+    private static final String SURFACE = "map_art";
+    private static final String FRAME_SURFACE = "map_frame";
+    /** Who the cloud is told showed a map that was already hanging: the frame, not whoever clicked it. */
+    private static final String FRAME_ACTOR = "item_frame";
+    private static final long HOUR_MS = 3_600_000L;
+    /** Past this many players, allowances whose hour is over are dropped. */
+    private static final int CLEANUP_THRESHOLD = 256;
 
     private final NeoModerationPlugin plugin;
-    private final Set<CacheKey> scannedMaps;
-    private final Set<CacheKey> flaggedMaps;
+    private final Set<CacheKey> cleanMaps;
+    private final Map<CacheKey, String> flaggedMaps;
     private final Set<Integer> pendingMaps = ConcurrentHashMap.newKeySet();
     private final Semaphore scanSlots = new Semaphore(2);
-    private final Material filledMapMaterial = resolveFilledMapMaterial();
+    private final Map<UUID, FixedWindow> checksThisHour = new HashMap<>();
+    private final Material filledMap = MapArtScanner.resolveFilledMapMaterial();
 
     public MapArtListener(NeoModerationPlugin plugin) {
         this.plugin = plugin;
         int cacheSize = plugin.settings().mapArt().cacheSize();
-        this.scannedMaps = boundedSet(cacheSize);
-        this.flaggedMaps = boundedSet(cacheSize);
+        this.cleanMaps = Collections.newSetFromMap(bounded(cacheSize));
+        this.flaggedMaps = bounded(cacheSize);
     }
 
-    @EventHandler
-    public void onPlayerInteractEntity(PlayerInteractEntityEvent event) {
-        if (!config().enabled() || !config().scanOnFrameInteract()) {
-            return;
+    /**
+     * Where a checked map is: in the player's hands (theirs) or already hanging in
+     * a frame (nobody's), and who the cloud is told showed it.
+     */
+    private record Sighting(Player player, ItemStack item, ItemFrame frame, boolean hanging,
+                            String actorName, String actorId) {
+        static Sighting held(Player player, ItemStack item, ItemFrame frame) {
+            return new Sighting(player, item, frame, false, player.getName(), player.getUniqueId().toString());
         }
-        if (!(event.getRightClicked() instanceof ItemFrame frame)) {
+
+        static Sighting hanging(Player finder, ItemStack item, ItemFrame frame) {
+            return new Sighting(finder, item, frame, true, FRAME_ACTOR, frame.getUniqueId().toString());
+        }
+    }
+
+    private record CacheKey(String pixels, ModerationApiSettings api, ModerationCategorySettings categories) {
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlayerInteractEntity(PlayerInteractEntityEvent event) {
+        if (!config().enabled() || !config().scanOnFrameInteract()
+                || !(event.getRightClicked() instanceof ItemFrame frame)) {
             return;
         }
         Player player = event.getPlayer();
-        ItemStack held = mainHand(player.getInventory());
-        if (!isFilledMap(held)) {
-            held = offHand(player.getInventory());
+        ItemStack held = MapArtScanner.mainHand(player.getInventory());
+        if (MapArtScanner.mapIdOf(held, filledMap) == null) {
+            held = MapArtScanner.offHand(player.getInventory());
         }
-        if (isFilledMap(held)) {
-            handleMapItem(player, held);
-            return;
-        }
-        ItemStack frameItem = frame.getItem();
-        if (isFilledMap(frameItem)) {
-            handleMapItem(player, frameItem);
+        if (MapArtScanner.mapIdOf(held, filledMap) != null) {
+            check(Sighting.held(player, held, frame));
+        } else if (MapArtScanner.mapIdOf(frame.getItem(), filledMap) != null) {
+            check(Sighting.hanging(player, frame.getItem(), frame));
         }
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onItemHeld(PlayerItemHeldEvent event) {
         if (!config().enabled() || !config().scanOnHold()) {
             return;
         }
         ItemStack item = event.getPlayer().getInventory().getItem(event.getNewSlot());
-        if (isFilledMap(item)) {
-            handleMapItem(event.getPlayer(), item);
+        if (MapArtScanner.mapIdOf(item, filledMap) != null) {
+            check(Sighting.held(event.getPlayer(), item, null));
         }
     }
 
-    private void handleMapItem(Player player, ItemStack mapItem) {
-        if (shouldBypass(player)
-                || !plugin.settings().enabled()
-                || mapItem == null
-                || !mapItem.hasItemMeta()) {
+    private void check(Sighting sighting) {
+        ModerationSettings settings = plugin.settings();
+        if (!settings.enabled() || settings.api().apiKey().isBlank()
+                || (!sighting.hanging() && shouldBypass(sighting.player()))) {
             return;
         }
-        if (plugin.settings().api().apiKey().isBlank()) {
-            return;
-        }
-        if (!(mapItem.getItemMeta() instanceof MapMeta meta)) {
-            return;
-        }
-        Integer mapId = resolveMapId(meta);
-        if (mapId == null) {
-            return;
-        }
-        if (!scanSlots.tryAcquire()) {
+        Integer mapId = MapArtScanner.mapIdOf(sighting.item(), filledMap);
+        if (mapId == null || !scanSlots.tryAcquire()) {
             return;
         }
         if (!pendingMaps.add(mapId)) {
             scanSlots.release();
             return;
         }
-        ModerationSettings settings = plugin.settings();
-        String playerName = player.getName();
-        String playerUuid = player.getUniqueId().toString();
+        // Read live pixels here, on the thread that owns the map; the saved file is the fallback.
+        byte[] live = MapArtScanner.livePixels(MapArtScanner.mapView((MapMeta) sighting.item().getItemMeta()));
         plugin.runAsync(() -> {
             try {
-                String base64Image = MapArtScanner.getBase64Image(mapId);
-                if (base64Image == null) {
-                    return;
+                byte[] pixels = live != null ? live : MapArtScanner.savedPixels(mapId);
+                if (pixels != null) {
+                    scan(sighting, mapId, pixels, settings);
                 }
-                CacheKey key = new CacheKey(imageHash(base64Image), settings.api(), settings.categories());
-                if (flaggedMaps.contains(key)) {
-                    plugin.runForEntity(player, () -> applyFlaggedMap(player, mapItem, mapId, settings, "mapart.blocked"));
-                    return;
-                }
-                if (scannedMaps.contains(key) || !plugin.coordinator().isRemoteCallAllowed()) {
-                    return;
-                }
-                ModerationApiResult result = plugin.apiClient().moderateImage(
-                        playerName,
-                        playerUuid,
-                        base64Image,
-                        settings.api(),
-                        settings.categories()
-                );
-                plugin.coordinator().recordApiResult(result);
-                if (!isCacheableResult(result)) {
-                    return;
-                }
-                scannedMaps.add(key);
-                if (!result.isFlagged()) {
-                    return;
-                }
-                // Folia: confiscation edits this player's inventory, so it must run
-                // on that player's entity scheduler rather than any global thread.
-                flaggedMaps.add(key);
-                plugin.runForEntity(player, () -> applyFlaggedMap(player, mapItem, mapId, settings, "mapart.confiscated"));
             } finally {
                 pendingMaps.remove(mapId);
                 scanSlots.release();
@@ -158,70 +149,116 @@ public final class MapArtListener implements Listener {
         });
     }
 
-    private void applyFlaggedMap(Player player, ItemStack mapItem, int mapId,
-                                 ModerationSettings scannedSettings, String messageKey) {
-        ModerationSettings current = plugin.settings();
-        if (current.enabled() && current.mapArt().enabled() && !shouldBypass(player)
-                && current.api().equals(scannedSettings.api())
-                && current.categories().equals(scannedSettings.categories())) {
-            handleFlaggedMap(player, mapItem, mapId, messageKey);
-        }
-    }
-
-    private record CacheKey(String imageHash, ModerationApiSettings api, ModerationCategorySettings categories) { }
-
-    private static String imageHash(String image) {
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                    .digest(image.getBytes(StandardCharsets.US_ASCII)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 unavailable", e);
-        }
-    }
-
-    /** Main thread only. Monitor mode alerts staff instead of messaging/confiscating. */
-    private void handleFlaggedMap(Player player, ItemStack mapItem, int mapId, String messageKey) {
-        ModerationSettings settings = plugin.settings();
-        String reason = "map_art:" + mapId;
-        String preview = "(map " + mapId + ")";
-        String actionText = config().confiscate() ? "confiscate" : "warn";
-        boolean monitor = DetectionHandler.Source.CLOUD.modeIn(settings) == ModerationMode.MONITOR;
-        if (monitor) {
-            plugin.monitorStats().record(reason);
-            if (plugin.notifier() != null) {
-                plugin.notifier().notifyDetection(player, "map_art", reason, preview, settings, actionText, true);
-            }
-            if (plugin.getLogger() != null) {
-                plugin.getLogger().info("MONITOR: map " + mapId + " held by " + player.getName()
-                        + " would be flagged; no action taken.");
-            }
-            recordMapCase(player, reason, preview, settings, actionText, true);
+    /** Off the main thread: the cached verdict, else one cloud check. */
+    private void scan(Sighting sighting, int mapId, byte[] pixels, ModerationSettings settings) {
+        CacheKey key = new CacheKey(MapArtScanner.fingerprint(pixels), settings.api(), settings.categories());
+        String cachedCategory = flaggedMaps.get(key);
+        if (cachedCategory != null) {
+            act(sighting, mapId, cachedCategory, settings);
             return;
         }
-        confiscateIfEnabled(player, mapItem, messageKey);
-        if (plugin.notifier() != null) {
-            plugin.notifier().notifyDetection(player, "map_art", reason, preview, settings, actionText, false);
-        }
-        recordMapCase(player, reason, preview, settings, actionText, false);
-    }
-
-    private void recordMapCase(Player player, String reason, String preview,
-                               ModerationSettings settings, String actionText, boolean monitor) {
-        if (!settings.cases().enabled() || plugin.caseLog() == null) {
+        if (cleanMaps.contains(key) || !plugin.coordinator().isRemoteCallAllowed()
+                || !mayCheck(sighting.player(), settings.mapArt())) {
             return;
         }
+        String image = MapArtScanner.pngBase64(pixels);
+        if (image == null) {
+            return;
+        }
+        ModerationApiResult result = plugin.apiClient().moderateImage(sighting.actorName(), sighting.actorId(),
+                image, settings.api(), settings.categories());
+        plugin.coordinator().recordApiResult(result);
+        if (!isCacheableResult(result)) {
+            return;
+        }
+        if (!result.isFlagged()) {
+            cleanMaps.add(key);
+            return;
+        }
+        String category = result.category() == null ? "" : result.category();
+        flaggedMaps.put(key, category);
+        act(sighting, mapId, category, settings);
+    }
+
+    /**
+     * Counts a new picture against the player's hourly allowance; false once it is
+     * used up, which the console hears the first time each hour.
+     */
+    private boolean mayCheck(Player player, MapArtSettings settings) {
         long now = System.currentTimeMillis();
-        String uuid = player.getUniqueId().toString();
-        String name = player.getName();
-        String storedPreview = settings.cases().storeContent() ? preview : "";
-        String mode = monitor ? "monitor" : "enforce";
-        plugin.runAsync(() -> plugin.caseLog().record(now, uuid, name, "map_art", reason, actionText, mode, storedPreview));
+        int checked;
+        synchronized (checksThisHour) {
+            if (checksThisHour.size() > CLEANUP_THRESHOLD) {
+                checksThisHour.values().removeIf(window -> window.ended(now));
+            }
+            FixedWindow window = checksThisHour.computeIfAbsent(player.getUniqueId(),
+                    ignored -> new FixedWindow(HOUR_MS));
+            checked = window.count(now);
+            // Refused pictures count too, so only the first refusal is logged.
+            window.add(now);
+            if (settings.allowsAnotherCheck(checked)) {
+                return true;
+            }
+        }
+        if (checked == settings.checksPerPlayerPerHour()) {
+            plugin.getLogger().info(MessageService.plain(plugin.messages().format("mapart.capped", Map.of(
+                    "prefix", "", "player", player.getName(),
+                    "limit", String.valueOf(settings.checksPerPlayerPerHour())))).trim());
+        }
+        return false;
     }
 
-    private void confiscateIfEnabled(Player player, ItemStack mapItem, String messageKey) {
-        plugin.messages().send(player, messageKey);
-        if (config().confiscate()) {
-            player.getInventory().remove(mapItem);
+    private void act(Sighting sighting, int mapId, String category, ModerationSettings scanned) {
+        plugin.runForEntity(sighting.player(), () -> {
+            ModerationSettings current = plugin.settings();
+            if (!current.enabled() || !current.mapArt().enabled()
+                    || !current.api().equals(scanned.api()) || !current.categories().equals(scanned.categories())) {
+                return;
+            }
+            String reason = category.isBlank() ? SURFACE : SURFACE + ":" + category;
+            boolean take = current.mapArt().confiscate();
+            DetectionHandler.Disposition requested = take
+                    ? DetectionHandler.Disposition.BLOCK : DetectionHandler.Disposition.ALLOW;
+            if (sighting.hanging()) {
+                takeDownFramed(sighting, mapId, reason, requested);
+            } else {
+                takeFromPlayer(sighting, mapId, reason, requested, current);
+            }
+        });
+    }
+
+    private void takeFromPlayer(Sighting sighting, int mapId, String reason,
+                                DetectionHandler.Disposition requested, ModerationSettings settings) {
+        Player player = sighting.player();
+        DetectionHandler.Disposition done = plugin.detectionHandler().handle(player, SURFACE, reason,
+                "#" + mapId, requested, DetectionHandler.Source.CLOUD);
+        boolean monitor = DetectionHandler.Source.CLOUD.modeIn(settings) == ModerationMode.MONITOR;
+        if (done == DetectionHandler.Disposition.BLOCK) {
+            MapArtScanner.removeMap(player.getInventory(), filledMap, mapId);
+            if (sighting.frame() != null) {
+                // The player was hanging it: it may already be in the frame.
+                plugin.runForEntity(sighting.frame(), () -> clearFrame(sighting.frame(), mapId));
+            }
+            plugin.messages().send(player, "mapart.confiscated");
+        } else if (!monitor) {
+            plugin.messages().send(player, "mapart.blocked");
+        }
+    }
+
+    private void takeDownFramed(Sighting sighting, int mapId, String reason, DetectionHandler.Disposition requested) {
+        Location at = sighting.frame().getLocation();
+        String where = "#" + mapId + " @ " + at.getBlockX() + " " + at.getBlockY() + " " + at.getBlockZ();
+        DetectionHandler.Disposition done = plugin.detectionHandler().handleFound(sighting.player(), FRAME_SURFACE,
+                reason, where, requested, DetectionHandler.Source.CLOUD);
+        if (done == DetectionHandler.Disposition.BLOCK) {
+            plugin.runForEntity(sighting.frame(), () -> clearFrame(sighting.frame(), mapId));
+        }
+    }
+
+    private void clearFrame(ItemFrame frame, int mapId) {
+        Integer framed = MapArtScanner.mapIdOf(frame.getItem(), filledMap);
+        if (framed != null && framed == mapId) {
+            frame.setItem(null);
         }
     }
 
@@ -230,7 +267,7 @@ public final class MapArtListener implements Listener {
     }
 
     static boolean shouldBypass(Player player) {
-        return player.hasPermission(BYPASS_PERMISSION);
+        return player.hasPermission(Permissions.BYPASS);
     }
 
     static boolean isCacheableResult(ModerationApiResult result) {
@@ -238,66 +275,13 @@ public final class MapArtListener implements Listener {
                 || result.kind() == ModerationApiResult.Kind.FLAGGED;
     }
 
-    private boolean isFilledMap(ItemStack item) {
-        return item != null && item.getType() == filledMapMaterial;
-    }
-
-    private static Material resolveFilledMapMaterial() {
-        try {
-            return Material.valueOf("FILLED_MAP");
-        } catch (IllegalArgumentException ignored) {
-            return Material.MAP;
-        }
-    }
-
-    /** A thread-safe, insertion-ordered set that evicts its oldest entry past {@code maxSize}. */
-    private static <T> Set<T> boundedSet(int maxSize) {
-        return Collections.synchronizedSet(Collections.newSetFromMap(
-                new LinkedHashMap<>(16, 0.75f, false) {
-                    @Override
-                    protected boolean removeEldestEntry(Map.Entry<T, Boolean> eldest) {
-                        return size() > maxSize;
-                    }
-                }));
-    }
-
-    private static ItemStack mainHand(PlayerInventory inventory) {
-        try {
-            Method method = inventory.getClass().getMethod("getItemInMainHand");
-            return (ItemStack) method.invoke(inventory);
-        } catch (ReflectiveOperationException ignored) {
-            return inventory.getItemInHand();
-        }
-    }
-
-    private static ItemStack offHand(PlayerInventory inventory) {
-        try {
-            Method method = inventory.getClass().getMethod("getItemInOffHand");
-            return (ItemStack) method.invoke(inventory);
-        } catch (ReflectiveOperationException ignored) {
-            return null;
-        }
-    }
-
-    private static Integer resolveMapId(MapMeta meta) {
-        try {
-            Method getMapView = meta.getClass().getMethod("getMapView");
-            Object view = getMapView.invoke(meta);
-            if (view instanceof MapView mapView) {
-                return (int) mapView.getId();
+    /** A thread-safe, insertion-ordered map that evicts its oldest entry past {@code maxSize}. */
+    private static <K, V> Map<K, V> bounded(int maxSize) {
+        return Collections.synchronizedMap(new LinkedHashMap<>(16, 0.75f, false) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
+                return size() > maxSize;
             }
-        } catch (ReflectiveOperationException ignored) {
-            // Fall through to legacy map id.
-        }
-        try {
-            Method getMapId = meta.getClass().getMethod("getMapId");
-            Object id = getMapId.invoke(meta);
-            if (id instanceof Number number) {
-                return number.intValue();
-            }
-        } catch (ReflectiveOperationException ignored) {
-            // Unsupported on this server version.
-        }
-        return null;
+        });
     }
 }

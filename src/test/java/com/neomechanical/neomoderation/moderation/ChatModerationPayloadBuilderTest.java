@@ -13,7 +13,7 @@ class ChatModerationPayloadBuilderTest {
     void escapesJsonControlCharacters() {
         assertEquals(
                 "line\\nnext\\ttab\\bback\\fform\\rcarriage\\u0001",
-                ModerationPayloadBuilder.escapeJsonString("line\nnext\ttab\bback\fform\rcarriage\u0001")
+                JsonStrings.escape("line\nnext\ttab\bback\fform\rcarriage\u0001")
         );
     }
 

@@ -56,6 +56,13 @@ class ShippedConfigDefaultsTest {
     }
 
     @Test
+    void aConfigWrittenBeforeStrikesExistedKeepsThemOff() {
+        // Configs from before strikes existed have no strikes key; switching on a
+        // kick ladder behind an upgrade would punish players nobody chose to punish.
+        assertTrue(!ModerationSettings.from(new BukkitConfigView(new YamlConfiguration())).strikes().enabled());
+    }
+
+    @Test
     void shippedConfigDocumentsBothModeCommands() throws IOException {
         String raw = Files.readString(Path.of("src/main/resources/config.yml"));
         assertTrue(raw.contains("/nmod mode monitor"),

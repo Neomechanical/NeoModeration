@@ -2,72 +2,89 @@ package com.neomechanical.neomoderation;
 
 import com.neomechanical.neomoderation.commands.NeoModerationCommand;
 import com.neomechanical.neomoderation.config.BukkitConfigView;
+import com.neomechanical.neomoderation.config.ConfigMigrations;
 import com.neomechanical.neomoderation.config.ModerationSettings;
+import com.neomechanical.neomoderation.listener.AdminJoinListener;
 import com.neomechanical.neomoderation.listener.ChatModerationListener;
 import com.neomechanical.neomoderation.listener.MapArtListener;
 import com.neomechanical.neomoderation.listener.PaperAsyncChatBridge;
+import com.neomechanical.neomoderation.listener.PlayerQuitListener;
 import com.neomechanical.neomoderation.listener.SurfaceModerationListener;
 import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.moderation.CaseLog;
 import com.neomechanical.neomoderation.moderation.ChatModerationActionExecutor;
 import com.neomechanical.neomoderation.moderation.ChatModerationCoordinator;
 import com.neomechanical.neomoderation.moderation.ChatModerationProcessor;
+import com.neomechanical.neomoderation.moderation.ClientIdentity;
 import com.neomechanical.neomoderation.moderation.DetectionHandler;
 import com.neomechanical.neomoderation.moderation.DetectionNotifier;
+import com.neomechanical.neomoderation.moderation.DiscordAlerts;
 import com.neomechanical.neomoderation.moderation.ModerationApiClient;
 import com.neomechanical.neomoderation.moderation.MonitorStats;
 import com.neomechanical.neomoderation.moderation.PlayerMuteService;
 import com.neomechanical.neomoderation.moderation.SpamDetector;
 import com.neomechanical.neomoderation.moderation.StartupSummary;
 import com.neomechanical.neomoderation.moderation.StrikeService;
-import com.neomechanical.neomoderation.platform.PlatformScheduler;
-import org.bstats.bukkit.Metrics;
-import org.bstats.charts.SimplePie;
-import com.neomechanical.neomoderation.moderation.ClientIdentity;
-import com.neomechanical.neomoderation.moderation.ModerationApiResult;
 import com.neomechanical.neomoderation.moderation.UpdateChecker;
-import com.neomechanical.neomoderation.platform.InstallTelemetry;
+import com.neomechanical.neomoderation.platform.MetricsRegistrar;
+import com.neomechanical.neomoderation.platform.PlatformScheduler;
+import com.neomechanical.neomoderation.platform.SecretCommandLogFilter;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.configuration.Configuration;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Entity;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 
 public final class NeoModerationPlugin extends JavaPlugin {
     private static final int BSTATS_PLUGIN_ID = 32542;
-    /** Size of the word list shipped in config.yml, used to tell default from customised. */
-    private static final int BUNDLED_WORD_COUNT = 38;
 
     private ChatModerationCoordinator coordinator;
-    private ModerationSettings settings;
-    private MessageService messages;
+    // Swapped whole on reload and read from chat threads, so every reader sees a complete one.
+    /** Held while config.yml is read and changed, so two commands never edit it at once. */
+    private final Object configLock = new Object();
+    private volatile ModerationSettings settings;
+    private volatile MessageService messages;
     private PlayerMuteService muteService;
     private MonitorStats monitorStats;
-    private DetectionNotifier notifier;
     private SpamDetector spamDetector;
-    private StrikeService strikeService;
     private CaseLog caseLog;
     private DetectionHandler detectionHandler;
     private PlatformScheduler scheduler;
+    private DiscordAlerts discordAlerts;
+    private String messagesLocale;
+    /** Bundled locales whose file on disk holds texts this server wrote. */
+    private Set<String> editedLocales = Set.of();
     private final AtomicBoolean trialActivationPending = new AtomicBoolean();
+    private final AtomicReference<String> newerVersion = new AtomicReference<>();
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        // Before any command can run: keys and webhook URLs typed into /nmod stay out of the log.
+        SecretCommandLogFilter.install();
         scheduler = new PlatformScheduler(this);
+        editedLocales = MessageService.prepareFiles(this);
         reloadModerationConfig();
         muteService = new PlayerMuteService(this);
         coordinator = new ChatModerationCoordinator(getLogger());
         monitorStats = new MonitorStats();
-        notifier = new DetectionNotifier(this);
+        discordAlerts = new DiscordAlerts();
         spamDetector = new SpamDetector();
-        strikeService = new StrikeService();
         caseLog = CaseLog.open(getDataFolder().toPath().resolve("cases.db"), getLogger());
         detectionHandler = new DetectionHandler(
                 this,
-                new ChatModerationActionExecutor("NeoModeration", muteService),
+                new ChatModerationActionExecutor("NeoModeration", muteService, player -> getLogger().warning(
+                        MessageService.plain(messages.format("action.unsafe-name", Map.of("player", player))))),
                 monitorStats,
-                notifier,
-                strikeService
+                new DetectionNotifier(this, discordAlerts),
+                new StrikeService()
         );
         ChatModerationProcessor processor = new ChatModerationProcessor(
                 this,
@@ -82,12 +99,14 @@ public final class NeoModerationPlugin extends JavaPlugin {
         // fall back to the legacy listener only on Spigot.
         if (!PaperAsyncChatBridge.registerIfAvailable(this, processor)) {
             getServer().getPluginManager().registerEvents(
-                    new ChatModerationListener(this, processor),
+                    new ChatModerationListener(processor),
                     this
             );
         }
+        getServer().getPluginManager().registerEvents(new PlayerQuitListener(processor), this);
         getServer().getPluginManager().registerEvents(new MapArtListener(this), this);
         getServer().getPluginManager().registerEvents(new SurfaceModerationListener(this, detectionHandler), this);
+        getServer().getPluginManager().registerEvents(new AdminJoinListener(this), this);
         PluginCommand command = getCommand("neomod");
         if (command != null) {
             NeoModerationCommand executor = new NeoModerationCommand(this);
@@ -95,78 +114,32 @@ public final class NeoModerationPlugin extends JavaPlugin {
             command.setTabCompleter(executor);
         }
         ClientIdentity.configure(getDescription().getVersion(), scheduler.platformName());
-        registerMetrics();
+        MetricsRegistrar.register(this, BSTATS_PLUGIN_ID, bundledWordCount());
         checkForUpdates();
         // A fresh install blocks bundled local-rule matches without punishing
         // players, while cloud judgements start in monitor mode. The startup
         // summary makes the active protection and limits visible to admins.
-        StartupSummary.lines(settings, getDescription().getVersion()).forEach(getLogger()::info);
+        StartupSummary.lines(settings, getDescription().getVersion(), messages, getServer().getConsoleSender())
+                .forEach(getLogger()::info);
     }
 
     /**
-     * Registers every custom chart. Each id here must also exist on bstats.org
-     * or its data is silently discarded on arrival -- which is exactly what
-     * happened to the original three charts, leaving no way to tell an armed
-     * install from an inert one.
-     */
-    private void registerMetrics() {
-        Metrics metrics = new Metrics(this, BSTATS_PLUGIN_ID);
-
-        // Retained from earlier versions so their history stays continuous.
-        metrics.addCustomChart(new SimplePie("moderation_mode",
-                () -> settings.mode().name().toLowerCase(java.util.Locale.ROOT)));
-        metrics.addCustomChart(new SimplePie("cloud_enabled",
-                () -> InstallTelemetry.cloudEnabledState(settings)));
-        metrics.addCustomChart(new SimplePie("chat_censor",
-                () -> InstallTelemetry.censorState(settings)));
-
-        // Is this install actually protecting anything?
-        metrics.addCustomChart(new SimplePie("protection_state",
-                () -> InstallTelemetry.protectionState(settings)));
-        metrics.addCustomChart(new SimplePie("has_ever_detected",
-                () -> InstallTelemetry.hasEverDetected(monitorStats.total())));
-        metrics.addCustomChart(new SimplePie("detections_bucket",
-                () -> InstallTelemetry.detectionsBucket(monitorStats.total())));
-
-        // Is the cloud unconfigured, or configured and failing?
-        metrics.addCustomChart(new SimplePie("cloud_state", () -> {
-            ModerationApiResult.Kind kind = coordinator.lastCloudResultKind();
-            return InstallTelemetry.cloudState(
-                    settings,
-                    !coordinator.isRemoteCallAllowed(),
-                    kind == null ? null : kind.name());
-        }));
-
-        // What did the operator actually configure?
-        metrics.addCustomChart(new SimplePie("word_list_state",
-                () -> InstallTelemetry.wordListState(settings, BUNDLED_WORD_COUNT)));
-        metrics.addCustomChart(new SimplePie("surfaces_armed",
-                () -> InstallTelemetry.surfacesArmed(settings)));
-        metrics.addCustomChart(new SimplePie("spam_state",
-                () -> InstallTelemetry.spamState(settings)));
-        metrics.addCustomChart(new SimplePie("strike_state",
-                () -> InstallTelemetry.strikeState(settings)));
-        metrics.addCustomChart(new SimplePie("map_art_state",
-                () -> InstallTelemetry.mapArtState(settings)));
-        metrics.addCustomChart(new SimplePie("locale_state",
-                () -> InstallTelemetry.localeState(getConfig().getString("locale", "en_US"))));
-
-        // Did Folia and proxy support reach anyone?
-        metrics.addCustomChart(new SimplePie("platform_family",
-                () -> InstallTelemetry.platformFamily(getServer().getName(), scheduler.isFolia())));
-    }
-
-    /**
-     * Checks for a newer release once, off the server thread, and says so once.
-     * Never nags and never downloads anything.
+     * Checks for a newer release once, off the server thread. The console hears
+     * about it once; admins see it once each when they join (AdminJoinListener).
+     * Never downloads anything.
      */
     private void checkForUpdates() {
         if (!getConfig().getBoolean("updateCheck", true)) {
             return;
         }
         String current = getDescription().getVersion();
-        runAsync(() -> UpdateChecker.findNewerVersion(current, ClientIdentity.userAgent())
-                .ifPresent(latest -> UpdateChecker.updateLines(latest, current).forEach(getLogger()::warning)));
+        runAsync(() -> UpdateChecker.findNewerVersion(current, ClientIdentity.userAgent()).ifPresent(latest -> {
+            newerVersion.set(latest);
+            // The logger already names the plugin, so the console line goes without the chat prefix.
+            getLogger().warning(MessageService.plain(messages.format("update.available",
+                    Map.of("latest", latest, "current", current, "prefix", ""))).trim()
+                    + " " + UpdateChecker.RELEASES_PAGE);
+        }));
     }
 
     @Override
@@ -174,24 +147,98 @@ public final class NeoModerationPlugin extends JavaPlugin {
         if (coordinator != null) {
             coordinator.close();
         }
+        if (discordAlerts != null) {
+            discordAlerts.close();
+        }
         if (caseLog != null) {
             caseLog.close();
         }
+        if (muteService != null) {
+            muteService.close();
+        }
+        SecretCommandLogFilter.uninstall();
     }
 
+    /**
+     * Re-reads config.yml after it changed. Messages are re-read only when the
+     * language settings changed, so an in-game edit does not parse every locale file.
+     */
     public void reloadModerationConfig() {
-        reloadConfig();
-        settings = ModerationSettings.from(new BukkitConfigView(getConfig()), getLogger());
-        messages = MessageService.load(this, getConfig().getString("locale", "en_US"));
-        if (coordinator != null) {
-            coordinator.resetCircuit();
+        synchronized (configLock) {
+            reloadConfig();
+            String serverLocale = MessageService.resolveLocaleCode(getConfig().getString("locale", "en_US"));
+            // A locale file of the server's own ("my_texts") holds texts it wrote, as an edited bundled one does.
+            boolean ownTexts = editedLocales.contains(serverLocale)
+                    || !MessageService.BUNDLED_LOCALES.contains(serverLocale);
+            List<ConfigMigrations.Change> migrated = ConfigMigrations.apply(getConfig(), ownTexts);
+            if (!migrated.isEmpty()) {
+                saveConfig();
+            }
+            settings = ModerationSettings.from(new BukkitConfigView(getConfig()), getLogger());
+            String locale = getConfig().getString("locale", "en_US") + "|" + perPlayerLanguage();
+            if (messages == null || !locale.equals(messagesLocale)) {
+                loadMessages();
+            }
+            migrated.forEach(change ->
+                    getLogger().info(MessageService.plain(messages.format(change.key(), change.values()))));
+            if (coordinator != null) {
+                coordinator.resetCircuit();
+            }
         }
     }
 
-    /** Persist in-memory config edits and re-apply them atomically. */
-    public void saveAndReload() {
-        saveConfig();
-        reloadModerationConfig();
+    /** /nmod reload: config.yml and every locale file, including files an admin edited by hand. */
+    public void reloadEverything() {
+        synchronized (configLock) {
+            editedLocales = MessageService.prepareFiles(this);
+            messagesLocale = null;
+            reloadModerationConfig();
+        }
+    }
+
+    /**
+     * Changes config.yml and, when {@code edit} returns true, saves and applies it.
+     * Every command that changes a setting comes through here, under one lock: on
+     * Folia, admins in different regions can run commands at the same moment, and
+     * a Bukkit configuration is not safe to share between threads.
+     */
+    public boolean editConfig(Predicate<FileConfiguration> edit) {
+        synchronized (configLock) {
+            if (!edit.test(getConfig())) {
+                return false;
+            }
+            saveConfig();
+            reloadModerationConfig();
+            return true;
+        }
+    }
+
+    /** Sets one value in config.yml, then saves and applies it. */
+    public void setConfig(String path, Object value) {
+        editConfig(config -> {
+            config.set(path, value);
+            return true;
+        });
+    }
+
+    private void loadMessages() {
+        messages = MessageService.load(this, getConfig().getString("locale", "en_US"), perPlayerLanguage());
+        messagesLocale = getConfig().getString("locale", "en_US") + "|" + perPlayerLanguage();
+    }
+
+    private boolean perPlayerLanguage() {
+        return getConfig().getBoolean("perPlayerLanguage", true);
+    }
+
+    /** A newer release found at startup, or {@code null}. */
+    public String newerVersion() {
+        return newerVersion.get();
+    }
+
+    /** Size of the word list in the bundled config.yml, which tells a default list from a customised one. */
+    private int bundledWordCount() {
+        Configuration bundled = getConfig().getDefaults();
+        return bundled == null ? 0 : bundled.getStringList("moderation.offline.bannedWords").size();
     }
 
     public void runAsync(Runnable task) {
@@ -242,16 +289,12 @@ public final class NeoModerationPlugin extends JavaPlugin {
         return monitorStats;
     }
 
-    public DetectionNotifier notifier() {
-        return notifier;
+    public DiscordAlerts discordAlerts() {
+        return discordAlerts;
     }
 
     public SpamDetector spamDetector() {
         return spamDetector;
-    }
-
-    public StrikeService strikeService() {
-        return strikeService;
     }
 
     public CaseLog caseLog() {

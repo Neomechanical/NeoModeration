@@ -6,21 +6,33 @@ active configuration.
 
 ## Local moderation, by default
 
-With no API key configured, **no chat or map content leaves your server**:
+With no API key and no Discord webhook configured, **no chat or map content
+leaves your server**:
 
-- Banned/allowed word and URL rules run entirely in-process.
+- Word, link, server-ad and spam rules run entirely in-process.
 - No accounts, no telemetry about chat content, and no network calls for moderation.
+
+## What stays on your server
+
+- Each detection is saved as a case in `plugins/NeoModeration/cases.db`, with
+  the player, where it happened, the rule and what was done. The message itself
+  is kept only when `moderation.cases.storeContent` is `true` (off by default),
+  as a short preview. For a flagged map found in an item frame, the case keeps
+  the map's number and position.
+- Mutes are saved in `plugins/NeoModeration/mutes.yml` as the player's UUID and
+  when the mute ends. Strikes live in memory and reset on a restart.
 
 ## What the cloud receives (only when you add an API key)
 
-When you enable cloud moderation with `/nmod setup <apiKey>`, each checked chat
-message (or scanned map image) is sent over HTTPS to the configured endpoint
-(default `https://api.neomechanical.com/v1/events`). The request contains:
+When you start the trial (`/nmod trial start`) or add a key
+(`/nmod setup <apiKey>`), each checked chat message (or scanned map image) is
+sent over HTTPS to the configured endpoint (default
+`https://api.neomechanical.com/v1/events`). The request contains:
 
 | Field | Content |
 |---|---|
-| `actor.externalId` | The player's Minecraft UUID |
-| `actor.username` / `displayName` | The player's name |
+| `actor.externalId` | The player's Minecraft UUID; for a map already hanging in an item frame, the frame's ID instead, so the player who clicked it is not named |
+| `actor.username` / `displayName` | The player's name; `item_frame` for a map already hanging in a frame |
 | `content.text` | The chat message being checked |
 | `content.attachments` | For map-art scans only: the rendered map image |
 | `metadata.platformPolicy.thresholds` | Your per-category thresholds |
@@ -45,11 +57,32 @@ regardless of configuration. If the cloud is unreachable the configured
 blocks, and a circuit breaker pauses cloud calls for 60 seconds after repeated
 errors; local rules keep running throughout.
 
-## Staff alerts
+## Staff alerts and Discord
 
 Alerts shown to staff (`neomoderation.notify`) include a short preview of the
-flagged message. Set `moderation.alerts.includeMessage: false` to redact
-content from staff chat while keeping the alerts.
+flagged message. Set `moderation.alerts.includeMessage: false` to keep message
+text out of staff chat while keeping the alerts.
+
+If you set a Discord webhook (`/nmod discord <webhook URL>`), the same alerts
+go to that Discord channel. Each one holds the player's name, where it
+happened, the rule, what was done and, unless `includeMessage` is `false`, a
+short preview of the message. Nothing goes to Discord until you set a webhook;
+`/nmod discord off` stops it.
+
+## The trial request
+
+`/nmod trial start` sends Neomechanical a random install ID and the server
+software and version. The ID is kept in `plugins/NeoModeration/.install-id`, so
+each server can claim one trial. `/nmod trial status` sends only the key. Neither
+carries anything about players.
+
+## Update check
+
+Once at startup NeoModeration asks GitHub's public API for the latest release
+(`api.github.com/repos/Neomechanical/NeoModeration/releases/latest`). Like every
+request the plugin makes, it names the plugin version and server software in its
+User-Agent; it carries nothing about your players. Turn it off with
+`updateCheck: false` in `config.yml`.
 
 ## Plugin usage metrics
 

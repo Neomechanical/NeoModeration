@@ -1,6 +1,7 @@
 package com.neomechanical.neomoderation.moderation;
 
 import java.text.Normalizer;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,9 +21,23 @@ import java.util.Map;
  *
  * <p>Separators are dropped rather than preserved, and each character records
  * whether it began or ended a token in the raw text. A banned word may then be
- * matched across separators — catching {@code f uck} — while still requiring
+ * matched across separators, catching {@code f uck}, while still requiring
  * the match to start and end on token boundaries, which is what keeps
  * {@code scampi}, {@code assignment} and {@code Scunthorpe} clean.</p>
+ *
+ * <p>An apostrophe inside a word splits it but hides nothing: "f'uck" is still
+ * read as one word. Only an English contraction's ending ('s, 're, 't, 'd, 'm,
+ * 've, 'll) never begins a banned word, so "let's hit" is not "s hit". A "re"
+ * before a hyphen is marked as a prefix ("who re-did"), and the word after it is
+ * read on its own; "_", "-", "*", "~", "+" and "/" between letters join pieces
+ * the way an apostrophe does ("put_a"), without making a contraction. A token
+ * made only of digits is a number, so "5 hits" and "455 diamonds" keep their
+ * digits; a lone digit among spelled-out letters such as {@code 5 h 1 t} or
+ * {@code sl u 7} still reads as a letter, but not a quantity after a one-letter
+ * word that follows a word ("put a 5 tick delay"). A lone digit after a piece
+ * of letters reads as that piece's last letter ("shi 7") and never starts a
+ * match; {@link EverydayWords#endsInCount} drops a match it ends when the digit
+ * is a number after all ("put 4 torches", "pak 1 diamant").</p>
  */
 final class TextNormalizer {
 
@@ -32,19 +47,25 @@ final class TextNormalizer {
      * chat with, so folding them cannot change the reading of genuine
      * non-Latin chat: a real Cyrillic word is not spelled entirely from Latin
      * lookalikes, and a mixed-script token is the signature of the evasion.
+     * Turkish dotless {@code ı} folds to {@code i} so the Turkish starter list,
+     * written without it, matches what Turkish players type.
      */
     private static final Map<Character, Character> CONFUSABLES = new HashMap<>();
 
     static {
-        String cyrillic = "авсеhкморѕтхуіјdνq";
-        String cyrillicLatin = "abcehkmopstxyijdvq";
+        String cyrillic = "авсеһкморѕтхуүіјӏԛ";
+        String cyrillicLatin = "abcehkmopstxyyijlq";
         String greek = "αβεζηικνορτυχγ";
         String greekLatin = "abeznikvoptuxy";
-        String other = "օոսցԁԝѡ";
-        String otherLatin = "onugdww";
+        String other = "օոսցհԁԝѡıƒɡɑ";
+        String otherLatin = "onughdwwifga";
+        // Small capitals, as in "ɴɪɢɢᴇʀ".
+        String smallCapitals = "ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘʀꜱᴛᴜᴠᴡʏᴢ";
+        String smallCapitalsLatin = "abcdefghijklmnoprstuvwyz";
         put(cyrillic, cyrillicLatin);
         put(greek, greekLatin);
         put(other, otherLatin);
+        put(smallCapitals, smallCapitalsLatin);
     }
 
     private static void put(String from, String to) {
@@ -57,18 +78,34 @@ final class TextNormalizer {
      * A message reduced to letters and digits, with the provenance needed to
      * map any match back onto the raw text.
      *
-     * @param chars      normalised letters/digits, separators removed
-     * @param rawIndex   for each char, the index it came from in the raw message
-     * @param tokenStart whether each char began a whitespace/punctuation-delimited token
-     * @param tokenEnd   whether each char ended one
-     * @param collapsed  {@code chars} with runs of the same character reduced to
-     *                   one, used only as a cheap necessary-condition prefilter
+     * @param chars        normalised letters/digits, separators removed
+     * @param rawIndex     for each char, the index it came from in the raw message
+     * @param tokenStart   whether each char began a whitespace/punctuation-delimited token
+     * @param tokenEnd     whether each char ended one
+     * @param joinBlocked  whether each char began an English contraction's ending
+     *                     after an apostrophe inside a word ('s, 're, 't, 'd, 'm, 've,
+     *                     'll); a match never starts there
+     * @param apostrophe   whether each char began a token after any apostrophe inside
+     *                     a word, contraction or not ("f'uck", "bad'word"), or after
+     *                     "_", "-", "*", "~", "+" or "/" between letters ("put_a")
+     * @param prefix       whether each char began a "re" written before a hyphen
+     *                     ("re-did"), which is an English prefix rather than a word piece
+     * @param noStart      whether each char is a lone digit read as the last letter of
+     *                     the piece before it ("shi 7"); a match may end there, never start
+     * @param leet         whether each char was typed as a digit or symbol ("g0" for "go")
+     * @param collapsed    {@code chars} with runs of the same character reduced to
+     *                     one, used only as a cheap necessary-condition prefilter
      */
     record Normalized(
             char[] chars,
             int[] rawIndex,
             boolean[] tokenStart,
             boolean[] tokenEnd,
+            boolean[] joinBlocked,
+            boolean[] apostrophe,
+            boolean[] prefix,
+            boolean[] noStart,
+            boolean[] leet,
             String collapsed
     ) {
         int length() {
@@ -80,18 +117,15 @@ final class TextNormalizer {
     }
 
     static Normalized normalize(String value, boolean normalizeLeetspeak) {
-        int capacity = Math.max(16, value.length() + 8);
-        char[] chars = new char[capacity];
-        int[] rawIndex = new int[capacity];
-        boolean[] startsToken = new boolean[capacity];
-        int count = 0;
+        Builder out = new Builder(value.length());
         boolean atTokenStart = true;
+        boolean afterInWordApostrophe = false;
+        boolean afterInWordJoiner = false;
 
         for (int i = 0; i < value.length(); ) {
             int codePoint = value.codePointAt(i);
-            int width = Character.charCount(codePoint);
             int rawAt = i;
-            i += width;
+            i += Character.charCount(codePoint);
 
             // Zero-width joiners, soft hyphens, byte-order marks: invisible to a
             // reader, so they must be invisible to the filter too. Dropping them
@@ -101,10 +135,31 @@ final class TextNormalizer {
                     || Character.isIdentifierIgnorable(codePoint)) {
                 continue;
             }
+            if (isBlankFiller(codePoint)) {
+                // Drawn as nothing, so it reads as the space it stands for: "putㅤa" is "put a".
+                atTokenStart = true;
+                afterInWordApostrophe = false;
+                afterInWordJoiner = false;
+                continue;
+            }
+            if (isHyphen(codePoint) && i < value.length() && Character.isLetter(value.codePointAt(i))
+                    && out.endsWithWord("re")) {
+                out.markPrefix(2);  // "re-did": a prefix, and "did" is read on its own
+            }
+            if (isApostrophe(codePoint) || isJoiner(codePoint)) {
+                // The first mark of a run ("--", "'_") decides, by the next character a reader sees.
+                if (!atTokenStart) {
+                    boolean inWord = nextVisibleIsLetter(value, i);
+                    // Only an apostrophe makes a contraction: "who-re" is no "who're".
+                    afterInWordApostrophe = inWord && isApostrophe(codePoint);
+                    afterInWordJoiner = inWord && !afterInWordApostrophe;
+                }
+                atTokenStart = true;
+                continue;
+            }
 
             String decomposed = Normalizer.normalize(
                     new String(Character.toChars(codePoint)), Normalizer.Form.NFKD);
-
             for (int k = 0; k < decomposed.length(); k++) {
                 char raw = decomposed.charAt(k);
                 if (Character.getType(raw) == Character.NON_SPACING_MARK) {
@@ -115,6 +170,8 @@ final class TextNormalizer {
                 if (folded != null) {
                     c = folded;
                 }
+                char digit = c >= '0' && c <= '9' ? c : 0;
+                boolean typedAsLetter = Character.isLetter(c);
                 if (normalizeLeetspeak) {
                     // '!' is a leetspeak 'i' inside a word ("b!tch") but ordinary
                     // punctuation at a boundary; converting it unconditionally
@@ -123,43 +180,111 @@ final class TextNormalizer {
                         c = normalizeLeet(c);
                     }
                 }
-                if (Character.isLetterOrDigit(c)) {
-                    if (count == chars.length) {
-                        chars = java.util.Arrays.copyOf(chars, count * 2);
-                        rawIndex = java.util.Arrays.copyOf(rawIndex, count * 2);
-                        startsToken = java.util.Arrays.copyOf(startsToken, count * 2);
+                if (c == 'ß') {
+                    // German sharp s is spelled "ss" in every word list.
+                    out.add('s', rawAt, atTokenStart, atTokenStart && afterInWordApostrophe, (char) 0, false);
+                    if (atTokenStart && afterInWordJoiner) {
+                        out.markJoined();
                     }
-                    chars[count] = c;
-                    rawIndex[count] = rawAt;
-                    startsToken[count] = atTokenStart;
-                    count++;
+                    out.add('s', rawAt, false, false, (char) 0, false);
                     atTokenStart = false;
+                    afterInWordApostrophe = false;
+                    afterInWordJoiner = false;
+                } else if (Character.isLetterOrDigit(c)) {
+                    out.add(c, rawAt, atTokenStart, atTokenStart && afterInWordApostrophe, digit,
+                            !typedAsLetter && Character.isLetter(c));
+                    if (atTokenStart && afterInWordJoiner) {
+                        out.markJoined();
+                    }
+                    atTokenStart = false;
+                    afterInWordApostrophe = false;
+                    afterInWordJoiner = false;
                 } else {
                     atTokenStart = true;
+                    afterInWordApostrophe = false;
+                    afterInWordJoiner = false;
                 }
             }
         }
-
-        char[] finalChars = java.util.Arrays.copyOf(chars, count);
-        int[] finalRaw = java.util.Arrays.copyOf(rawIndex, count);
-        boolean[] finalStart = java.util.Arrays.copyOf(startsToken, count);
-        boolean[] finalEnd = new boolean[count];
-        for (int i = 0; i < count; i++) {
-            finalEnd[i] = (i == count - 1) || finalStart[i + 1];
-        }
-
-        StringBuilder collapsed = new StringBuilder(count);
-        for (int i = 0; i < count; i++) {
-            if (i == 0 || finalChars[i] != finalChars[i - 1]) {
-                collapsed.append(finalChars[i]);
-            }
-        }
-        return new Normalized(finalChars, finalRaw, finalStart, finalEnd, collapsed.toString());
+        return out.build();
     }
 
-    /** The separator-free, run-collapsed spelling of a configured rule. */
-    static String collapsedForm(String value, boolean normalizeLeetspeak) {
-        return normalize(value, normalizeLeetspeak).collapsed();
+    private static boolean isHyphen(int codePoint) {
+        return codePoint == '-' || codePoint == '\u2010' || codePoint == '\u2011';
+    }
+
+    /**
+     * Punctuation that joins two pieces of one word when typed between letters:
+     * "put_a", "go-ok" and "go–ok" are read like "put'a", never as everyday words.
+     * Fullwidth forms count as the marks they are drawn as ("put＿a").
+     */
+    private static boolean isJoiner(int codePoint) {
+        if (Character.isLetterOrDigit(codePoint) || Character.isWhitespace(codePoint)) {
+            return false;
+        }
+        int mark = codePoint;
+        if (codePoint >= 0x80) {
+            String folded = Normalizer.normalize(new String(Character.toChars(codePoint)), Normalizer.Form.NFKC);
+            if (folded.codePointCount(0, folded.length()) == 1) {
+                mark = folded.codePointAt(0);
+            }
+        }
+        return JOINER_MARKS.indexOf(codePoint) >= 0 || isHyphen(mark) || "_*~+/".indexOf(mark) >= 0
+                || JOINER_MARKS.indexOf(mark) >= 0;
+    }
+
+    /** Dashes, dots and quotation marks typed inside a word: – — ― − ‒ · ‧ • ‚ „ “ ” ‟ ‹ › « » ‴ ‶ ״ ¨ ῭ ΅ ῀ ῁ `. */
+    private static final String JOINER_MARKS = "\u2013\u2014\u2015\u2212\u2012\u00B7\u2027\u2022\u201A\u201E"
+            + "\u201C\u201D\u201F\u2039\u203A\u00AB\u00BB\u2034\u2036\u05F4\u00A8\u1FED\u0385\u1FC0\u1FC1"
+            + "\u1FEF";
+
+    /**
+     * Whether the next character a reader sees after {@code index} is a letter,
+     * past invisible characters, accents and more joining marks: "go--ok", and
+     * "go-ok" with a zero-width space after the hyphen, join "go" and "ok".
+     */
+    private static boolean nextVisibleIsLetter(String value, int index) {
+        for (int i = index; i < value.length(); ) {
+            int codePoint = value.codePointAt(i);
+            int type = Character.getType(codePoint);
+            if (type == Character.FORMAT || Character.isIdentifierIgnorable(codePoint)
+                    || type == Character.NON_SPACING_MARK || type == Character.ENCLOSING_MARK
+                    || isApostrophe(codePoint) || isJoiner(codePoint)) {
+                i += Character.charCount(codePoint);
+                continue;
+            }
+            return Character.isLetter(codePoint);
+        }
+        return false;
+    }
+
+    private static boolean isApostrophe(int codePoint) {
+        return codePoint == '\'' || codePoint == '’' || codePoint == '‘'
+                || codePoint == 'ʼ' || codePoint == '`'
+                // Marks typed or drawn as an apostrophe: ´ ′ ‵ ＇ ׳ ՚ ՙ ⸯ ॱ, the Greek ´ ΄ ʹ ᾿ ῾,
+                // ｀ ‛ ″ ❛ ❜ and ՛.
+                || codePoint == 0x00B4 || codePoint == 0x2032 || codePoint == 0x2035 || codePoint == 0xFF07
+                || codePoint == 0x05F3 || codePoint == 0x055A || codePoint == 0x0559 || codePoint == 0x2E2F
+                || codePoint == 0x0971 || codePoint == 0x1FFD || codePoint == 0x0384 || codePoint == 0x0374
+                || codePoint == 0x1FBF || codePoint == 0x1FFE || codePoint == 0xFF40 || codePoint == 0x201B
+                || codePoint == 0x2033 || codePoint == 0x275B || codePoint == 0x275C || codePoint == 0x055B
+                // Modifier letters and tone marks drawn as ticks, accents or dots (ʹ ʻ ˈ ˌ ː ˮ ꞌ ꜀),
+                // but never one that folds to a letter: ˡ ˢ ˣ are the l, s and x of "tiny text".
+                || ((codePoint >= 0x02B9 && codePoint <= 0x02FF || codePoint >= 0xA700 && codePoint <= 0xA71F
+                        || codePoint == 0xA788 || codePoint == 0xA78B || codePoint == 0xA78C
+                        || codePoint == 0x07F4 || codePoint == 0x07F5) && !foldsToLetter(codePoint));
+    }
+
+    /** Whether a character has a compatibility form that is a letter, as ˢ is "s" (ʻ has none). */
+    private static boolean foldsToLetter(int codePoint) {
+        String original = new String(Character.toChars(codePoint));
+        String folded = Normalizer.normalize(original, Normalizer.Form.NFKD);
+        return !folded.equals(original) && folded.codePoints().anyMatch(Character::isLetter);
+    }
+
+    /** Hangul fillers, which draw nothing and so can hide inside a word. */
+    private static boolean isBlankFiller(int codePoint) {
+        return codePoint == 0x115F || codePoint == 0x1160 || codePoint == 0x3164 || codePoint == 0xFFA0;
     }
 
     private static boolean isBetweenWordCharacters(String value, int index) {
@@ -180,5 +305,233 @@ final class TextNormalizer {
             case '7' -> 't';
             default -> c;
         };
+    }
+
+    /** What follows the apostrophe of an English contraction: let's, who're, don't, I'd, I'm, we've, it'll. */
+    private static final java.util.Set<String> CONTRACTION_ENDINGS = java.util.Set.of("s", "re", "t", "d", "m", "ve", "ll");
+    /** Letters that are words on their own ("a", "i", "u"), never part of a spelled-out word beside a digit. */
+    private static final java.util.Set<Character> ONE_LETTER_WORDS = java.util.Set.of('a', 'e', 'i', 'o', 'u', 'y');
+
+    /** Collects normalised characters, then derives token ends and restores numbers. */
+    private static final class Builder {
+        private char[] chars;
+        private int[] rawIndex;
+        private boolean[] tokenStart;
+        private boolean[] joinBlocked;
+        /** Per char, whether it begins a piece joined to the one before by "_", "-" or the like ("put_a"). */
+        private boolean[] joined;
+        private boolean[] prefix;
+        private boolean[] leet;
+        private char[] digits;
+        private int count;
+
+        Builder(int rawLength) {
+            int capacity = Math.max(16, rawLength + 8);
+            chars = new char[capacity];
+            rawIndex = new int[capacity];
+            tokenStart = new boolean[capacity];
+            joinBlocked = new boolean[capacity];
+            joined = new boolean[capacity];
+            prefix = new boolean[capacity];
+            leet = new boolean[capacity];
+            digits = new char[capacity];
+        }
+
+        void add(char c, int rawAt, boolean startsToken, boolean blocked, char digit, boolean typedAsSymbol) {
+            if (count == chars.length) {
+                int capacity = count * 2;
+                chars = Arrays.copyOf(chars, capacity);
+                rawIndex = Arrays.copyOf(rawIndex, capacity);
+                tokenStart = Arrays.copyOf(tokenStart, capacity);
+                joinBlocked = Arrays.copyOf(joinBlocked, capacity);
+                joined = Arrays.copyOf(joined, capacity);
+                prefix = Arrays.copyOf(prefix, capacity);
+                leet = Arrays.copyOf(leet, capacity);
+                digits = Arrays.copyOf(digits, capacity);
+            }
+            chars[count] = c;
+            rawIndex[count] = rawAt;
+            tokenStart[count] = startsToken;
+            joinBlocked[count] = blocked;
+            leet[count] = typedAsSymbol;
+            digits[count] = digit;
+            count++;
+        }
+
+        /** Marks the character just added as the start of a piece joined to the one before ("put_a"). */
+        void markJoined() {
+            joined[count - 1] = true;
+        }
+
+        /** Marks the token being built, {@code length} characters long, as a prefix. */
+        void markPrefix(int length) {
+            prefix[count - length] = true;
+        }
+
+        /** Whether the token being built so far is exactly {@code word}. */
+        boolean endsWithWord(String word) {
+            int begin = count - word.length();
+            if (begin < 0 || !tokenStart[begin]) {
+                return false;
+            }
+            for (int i = 0; i < word.length(); i++) {
+                if (chars[begin + i] != word.charAt(i) || (i > 0 && tokenStart[begin + i])) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        Normalized build() {
+            char[] finalChars = Arrays.copyOf(chars, count);
+            boolean[] finalStart = Arrays.copyOf(tokenStart, count);
+            boolean[] finalEnd = new boolean[count];
+            for (int i = 0; i < count; i++) {
+                finalEnd[i] = (i == count - 1) || finalStart[i + 1];
+            }
+            boolean[] trailing = trailingDigits(finalStart, finalEnd);
+            restoreNumbers(finalChars, finalStart, finalEnd, trailing);
+            boolean[] apostrophe = Arrays.copyOf(joinBlocked, count);
+            for (int i = 0; i < count; i++) {
+                apostrophe[i] |= joined[i];
+            }
+            keepContractionEndingsOnly(finalChars, finalEnd);
+
+            StringBuilder collapsed = new StringBuilder(count);
+            for (int i = 0; i < count; i++) {
+                if (i == 0 || finalChars[i] != finalChars[i - 1]) {
+                    collapsed.append(finalChars[i]);
+                }
+            }
+            return new Normalized(finalChars, Arrays.copyOf(rawIndex, count), finalStart, finalEnd,
+                    Arrays.copyOf(joinBlocked, count), apostrophe, Arrays.copyOf(prefix, count), trailing,
+                    Arrays.copyOf(leet, count), collapsed.toString());
+        }
+
+        /**
+         * Puts the digits back in every all-digit token, except a single digit
+         * among spelled-out letters, which is how "5 h 1 t", "r e 7 ard" and
+         * "sl u 7" are typed (one beside a one-character token), and a digit read
+         * as the last letter of the piece before it ({@code trailing}). A digit
+         * right after a one-letter word is a quantity, and stays one, when no
+         * spelled letter follows it and a word comes before that letter (three
+         * letters or more, an English word or a contraction's ending) or the
+         * message starts with it: "put a 5 tick delay", "it's a 5 hit combo".
+         */
+        private void restoreNumbers(char[] out, boolean[] starts, boolean[] ends, boolean[] trailing) {
+            int begin = 0;
+            while (begin < count) {
+                int end = begin;
+                while (!ends[end]) {
+                    end++;
+                }
+                if (allDigits(begin, end) && !spelledOut(begin, end, starts, ends) && !trailing[begin]) {
+                    for (int i = begin; i <= end; i++) {
+                        out[i] = digits[i];
+                    }
+                }
+                begin = end + 1;
+            }
+        }
+
+        /**
+         * Keeps {@code joinBlocked} only on an English contraction's ending: after
+         * any other apostrophe ("f'uck", French "l'enculé") a word may begin or run on.
+         */
+        private void keepContractionEndingsOnly(char[] out, boolean[] ends) {
+            for (int begin = 0; begin < count; begin++) {
+                if (!joinBlocked[begin]) {
+                    continue;
+                }
+                int end = begin;
+                while (!ends[end]) {
+                    end++;
+                }
+                joinBlocked[begin] = CONTRACTION_ENDINGS.contains(new String(out, begin, end + 1 - begin));
+            }
+        }
+
+        private boolean allDigits(int begin, int end) {
+            for (int i = begin; i <= end; i++) {
+                if (digits[i] == 0) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private boolean spelledOut(int begin, int end, boolean[] starts, boolean[] ends) {
+            if (begin != end) {
+                return false;
+            }
+            int before = 0;  // one-character tokens right before the digit
+            for (int i = begin - 1; i >= 0 && single(i, starts, ends); i--) {
+                before++;
+            }
+            int after = 0;
+            for (int i = end + 1; i < count && single(i, starts, ends); i++) {
+                after++;
+            }
+            if (before == 0 && after == 0) {
+                return false;
+            }
+            // "put a 5 tick", "it's a 5 hit combo": a quantity after a one-letter word that follows a word,
+            // unless a spelled letter follows it ("is a 5 h i t", "dickh e 4 d").
+            boolean afterLetterWord = before == 1 && digits[begin - 1] == 0
+                    && ONE_LETTER_WORDS.contains(chars[begin - 1]);
+            boolean quantity = afterLetterWord && after == 0 && (begin - 1 == 0 || wordEndsAt(begin - 2, starts));
+            return !quantity;
+        }
+
+        /**
+         * Marks each lone digit after a piece of letters as that piece's last
+         * letter: "shi 7" reads "shi" and "t", so "shit" matches across them, and
+         * so does "s hi 7". A match may end at such a digit but never start there,
+         * so "lvl 5 hit" stays clean, and the digit stays its own token, so
+         * "badword 1" still holds "badword". A match it ends counts only when the
+         * digit is no number ({@link EverydayWords#endsInCount}): "put 4 torches"
+         * holds no "puta".
+         */
+        private boolean[] trailingDigits(boolean[] starts, boolean[] ends) {
+            boolean[] trailing = new boolean[count];
+            for (int d = 1; d < count; d++) {
+                if (!starts[d] || !ends[d] || digits[d] == 0 || starts[d - 1]) {
+                    continue;  // a lone digit after a token of two characters or more
+                }
+                if (d + 1 < count && starts[d + 1] && ends[d + 1]) {
+                    continue;  // a spelled-out run continues: "sh 1 t"
+                }
+                int begin = d - 1;
+                while (begin > 0 && !starts[begin]) {
+                    begin--;
+                }
+                boolean letters = true;
+                for (int i = begin; i < d; i++) {
+                    letters &= digits[i] == 0 && Character.isLetter(chars[i]);
+                }
+                trailing[d] = letters && Character.isLetter(chars[d]);
+            }
+            return trailing;
+        }
+
+        /** A one-character token that is no contraction's ending (the "s" of "it's"). */
+        private boolean single(int at, boolean[] starts, boolean[] ends) {
+            return starts[at] && ends[at] && !contractionEnding(at, at);
+        }
+
+        private boolean contractionEnding(int begin, int end) {
+            return joinBlocked[begin] && CONTRACTION_ENDINGS.contains(new String(chars, begin, end + 1 - begin));
+        }
+
+        /** Whether the token that ends at {@code end} is a word: English, three letters or more, or "'s". */
+        private boolean wordEndsAt(int end, boolean[] starts) {
+            int begin = end;
+            while (begin > 0 && !starts[begin]) {
+                begin--;
+            }
+            String token = new String(chars, begin, end + 1 - begin);
+            return contractionEnding(begin, end) || token.length() >= 3
+                    || BundledWordPacks.everydayWords(BundledWordPacks.ENGLISH).contains(token);
+        }
     }
 }

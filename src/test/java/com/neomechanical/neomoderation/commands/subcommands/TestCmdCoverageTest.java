@@ -1,19 +1,16 @@
 package com.neomechanical.neomoderation.commands.subcommands;
 
-import com.neomechanical.neomoderation.NeoModerationPlugin;
-import com.neomechanical.neomoderation.config.BukkitConfigView;
 import com.neomechanical.neomoderation.config.ModerationCategorySettings;
-import com.neomechanical.neomoderation.config.ModerationSettings;
-import com.neomechanical.neomoderation.messages.MessageService;
-import com.neomechanical.neomoderation.moderation.MonitorStats;
+import com.neomechanical.neomoderation.testing.TestPlugin;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.plugin.PluginDescriptionFile;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 class TestCmdCoverageTest {
     @Test
@@ -21,21 +18,14 @@ class TestCmdCoverageTest {
         YamlConfiguration config = new YamlConfiguration();
         config.set("moderation.enabled", true);
         config.set("moderation.chat.scanAsyncChat", false);
-        config.set("moderation.offline.bannedWords", java.util.List.of("badword"));
-        NeoModerationPlugin plugin = mock(NeoModerationPlugin.class);
-        MessageService messages = mock(MessageService.class);
-        CommandSender sender = mock(CommandSender.class);
-        when(plugin.settings()).thenReturn(ModerationSettings.from(new BukkitConfigView(config)));
-        when(plugin.messages()).thenReturn(messages);
-        when(plugin.monitorStats()).thenReturn(mock(MonitorStats.class));
-        PluginDescriptionFile description = mock(PluginDescriptionFile.class);
-        when(description.getVersion()).thenReturn("1.6.1");
-        when(plugin.getDescription()).thenReturn(description);
+        config.set("moderation.offline.bannedWords", List.of("badword"));
 
-        new TestCmd(plugin).execute(sender, "nmod", new String[]{"test", "badword"});
+        String transcript = test(config, "badword");
 
-        verify(messages).send(sender, "test.chat-disabled");
-        verify(messages).send(sender, "test.would-allowed");
+        assertTrue(transcript.contains("Chat checks are off (moderation.chat.scanAsyncChat), so nothing would be checked."),
+                transcript);
+        assertTrue(transcript.contains("Result: allowed"), transcript);
+        assertFalse(transcript.contains("Local rules: caught"), transcript);
     }
 
     @Test
@@ -47,19 +37,55 @@ class TestCmdCoverageTest {
         for (String category : ModerationCategorySettings.categoryKeys()) {
             config.set("moderation.categories." + category, false);
         }
-        NeoModerationPlugin plugin = mock(NeoModerationPlugin.class);
-        MessageService messages = mock(MessageService.class);
+
+        String transcript = test(config, "hello");
+
+        assertTrue(transcript.contains("Cloud: every category is off"), transcript);
+        assertTrue(transcript.contains("Result: allowed"), transcript);
+    }
+
+    @Test
+    void aLocalCatchNamesTheWordAndWhatWouldHappen() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("moderation.enabled", true);
+        config.set("moderation.mode", "enforce");
+        config.set("moderation.offline.bannedWords", List.of("badword"));
+
+        String transcript = test(config, "this is a badword");
+
+        assertTrue(transcript.contains("Local rules: caught (banned word \"badword\")"), transcript);
+        assertTrue(transcript.contains("Cloud: not asked, local rules already caught it"), transcript);
+        assertTrue(transcript.contains("Result: blocked"), transcript);
+        assertFalse(transcript.contains("test."), transcript);
+    }
+
+    @Test
+    void aWordAnotherLanguageUsesEveryDaySaysWhereItPasses() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("moderation.enabled", true);
+        config.set("moderation.offline.bannedWords", List.of("fag"));
+
+        String transcript = test(config, "hvilket fag har du");
+
+        assertTrue(transcript.contains("Local rules: caught (banned word \"fag\")"), transcript);
+        assertTrue(transcript.contains("\"fag\" is an everyday word in Danish and Norwegian. Set "
+                + "moderation.offline.trustPlayerLanguage to true"), transcript);
+    }
+
+    @Test
+    void aMessageThatRepeatsAWordIsTestedToTheEnd() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("moderation.enabled", true);
+        config.set("moderation.mode", "enforce");
+        config.set("moderation.offline.bannedWords", List.of("fuck", "fag"));
+
+        assertTrue(test(config, "fuck you fuck you").contains("Result: blocked"));
+        assertTrue(test(config, "fag fag fag").contains("Result: blocked"));
+    }
+
+    private static String test(YamlConfiguration config, String message) {
         CommandSender sender = mock(CommandSender.class);
-        when(plugin.settings()).thenReturn(ModerationSettings.from(new BukkitConfigView(config)));
-        when(plugin.messages()).thenReturn(messages);
-        when(plugin.monitorStats()).thenReturn(mock(MonitorStats.class));
-        PluginDescriptionFile description = mock(PluginDescriptionFile.class);
-        when(description.getVersion()).thenReturn("1.6.1");
-        when(plugin.getDescription()).thenReturn(description);
-
-        new TestCmd(plugin).execute(sender, "nmod", new String[]{"test", "hello"});
-
-        verify(messages).send(sender, "test.cloud-skipped-categories");
-        verify(messages).send(sender, "test.would-allowed");
+        new TestCmd(TestPlugin.with(config)).execute(sender, "nmod", ("test " + message).split(" "));
+        return TestPlugin.transcript(sender);
     }
 }

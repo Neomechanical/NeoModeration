@@ -1,0 +1,417 @@
+# Ordinary game chat that must never be blocked by the shipped English list and
+# every language pack together, with server-ad blocking on. One line per message.
+# "# language: xx_yy" names the game language of the players below it.
+#
+# language: en_us
+go ok
+lets go ok?
+put a torch on the wall
+can u put a sign there
+just put a slab on top
+im gonna put a farm here
+put as many as you want
+put a 1 block gap
+put a 2 block gap between the walls
+can u put a 4 in the hopper
+just put a b on the sign
+put a x where the portal goes
+put a 3x3 there
+put a 5 tick delay on the repeater
+put a 5 block gap
+put a 5 stack of iron in the chest
+who re-did the roof?
+who re-joined just now
+who're you talking to
+we're almost done
+they'll never find the base
+i'd rather not
+it doesn't matter
+you can't build there
+landed a 5 hit combo
+he called me a bad word
+took 5 hits to kill it
+455 diamonds in the chest
+let's hit him from behind
+he's hit by a creeper
+the hoe is on the table
+analysis paralysis
+assassin's creed is great
+Scunthorpe united won
+gg wp everyone
+i found a bastard sword
+time for a fag break
+she cooked faggots with gravy
+the dyke broke near the river
+version 1.20.4 is out
+coords 120 64 -340
+check config.yml and server.properties
+my ping to 1.1.1.1 is bad
+use 8.8.8.8 as dns
+join twitch.tv/streamer to watch
+join kick.com/streamer
+watch me on youtube.com/xyz
+our discord is discord.gg/abc
+the ip is 127.0.0.1
+lets play skribbl.io
+wanna play krunker.io later
+play agar.io with me
+we should play chess.com tonight
+play geoguessr.com its fun
+play roblox.com instead
+# language: fr_fr
+désolé je suis en retard
+le retard du train
+quel retard ce train
+votre retard est excusé
+ce retard me tue
+sans retard svp
+des retards partout
+retard du serveur
+aucun retard aujourd'hui
+j'ai pu te dire la vérité
+j'ai pas pu, t'es où ?
+désolé j'ai pas pu, t'as raison
+gros retard
+la mer de sable est loin
+la mer des caraïbes
+la ville en foire
+passe-moi la tapette à mouches
+re tout le monde
+# language: es_es
+ni que fuera tonto
+vi a dos creepers detrás de tu casa
+ayer vi a dos jugadores robando en la base
+hacemos una porra para la final
+hola kike que tal
+Kike es mi hermano
+vino Mari con su novio
+la Mari con el perro
+Mari con Juan en el server
+mi tia Mari con su hija
+qué pasa con el mapa
+# language: pt_br
+a via do metrô
+vi a do lado da sua casa
+eu vi a dos meninos
+pela via dos fundos
+cadê o mapa
+# language: pt_pt
+os putos estão a jogar
+o puto é bom
+estou na bicha do pão
+# language: de_de
+jo der ist gut
+das ist doch scheinbar richtig
+ich habe ein Bastard-Schwert
+# language: sv_se
+det är slut nu
+jag fick en present
+# language: tr_tr
+sıkış tıkış olduk
+kapıda sıkış
+sıkıştım burada
+# language: da_dk
+hvilket fag har du
+# language: hr_hr
+dva puta sam pao
+# language: ca_es
+quin retard porta el tren
+# language: it_it
+ho letto un libro di Verga
+# Chat written the way players write it, not from the word lists.
+# language: en_us
+anyone wanna trade diamonds for netherite
+where is the nearest village
+can someone help me build my house
+brb gotta eat dinner
+lol that creeper blew up my whole base
+who wants to do the ender dragon fight
+i need 3 more iron for a bucket
+how do i claim land here
+is pvp on in this world
+gg that was close
+sell me some wheat pls
+my pet wolf died :(
+dont put a bed in the nether lol
+thx for the help man
+can u tp to me
+whats the server ip again
+im lagging so bad rn
+nice build bro
+i got killed by a skeleton in the cave
+the bastion has so much gold
+lets go mining at y -59
+anyone have a spare elytra
+oops wrong chat
+put a hopper under the chest
+go kill the wither
+pass me the sugar cane
+# language: es_es
+alguien me ayuda con la granja
+donde esta la aldea
+vamos a la cueva
+me mataron los zombies jaja
+quien quiere hacer equipo
+que buena casa
+dale vamos
+gracias amigo
+Kike ven aca
+# language: fr_fr
+quelqu'un veut échanger des diamants
+je suis en retard pour le dîner
+il est où le village
+merci beaucoup
+tu viens avec moi
+on va miner
+désolé du retard
+# language: de_de
+wer will mit mir spielen
+ich bin gleich wieder da
+wo ist das dorf
+danke dir
+hat jemand eisen
+# language: pt_br
+alguém quer trocar diamantes
+vamos minerar
+onde fica a vila
+valeu mano
+kkkkk que isso
+# language: sv_se
+vem vill spela
+jag fick en diamant
+det är slut på mat
+# language: tr_tr
+kim oynamak ister
+köy nerede
+teşekkürler kanka
+sıkıntı yok
+# language: da_dk
+hvem vil spille
+hvilket fag kan du bedst lide
+# language: nb_no
+det er slutt for i dag
+kan du kikke på basen min?
+# language: da_dk
+kan du putte det i kisten
+# language: sv_se
+kan du putta in den i kistan
+# language: nl_nl
+kan ik een plot huren?
+wat kost het om een shop te huren
+# Players writing in their own language, written by a reviewer before the word lists were read.
+# language: fr_fr
+désolé pour le retard, j'avais du lag
+y'a du retard sur le serveur
+le spawn a du retard
+retard de 2 secondes sur la redstone
+en retard pour l'event pvp
+je suis en retard, je farm encore
+il a du retard, il est afk
+pardon du retard les gars
+excusez le retard, mon wifi a crash
+Steve est en retard
+le build a pris du retard
+quel idiot, je suis en retard
+désolé du retard, le serveur a lag
+# language: ca_es
+perdó pel retard, tenia lag
+arribo amb retard al servidor
+# language: es_es
+Kike, ven al spawn
+kike tiene la base cerca del nether
+kike me robó el loot
+oye kike, haz tp a mi casa
+kike está afk
+kike es el admin del server
+mi primo kike juega bedwars
+# language: es_mx
+kike ya llegó al end
+# language: sv_se
+slut på diamanter
+det är slut på mat i basen
+slut för idag, jag loggar ut
+jag fick 64 diamanter
+fick du loot från bossen?
+jag fick lag hela tiden
+fick en elytra idag
+nu är det slut på pvp eventet
+vilken idiot, det är slut på mat
+jag fick en idiot i laget
+# language: nb_no
+det er slutt på jern
+kan du kikke på farmen min?
+kan du putte det i kista
+hvilket fag liker du best
+jeg har slutt på mat, noen som har steak?
+# language: da_dk
+hvilket fag har du i morgen
+jeg har fag i morgen tidlig så jeg logger af
+fag og skole er kedeligt
+# language: nl_nl
+ik wil een plot huren in de stad
+kan ik een shop huren bij spawn?
+huren kost 50 coins
+# language: it_it
+Giovanni Verga è il mio scrittore preferito
+ho letto Verga a scuola
+# language: hr_hr
+koliko puta si umro?
+tri puta sam pao u lavu
+dva puta sam ubio endermana
+sto puta sam rekao
+# language: pt_pt
+o puto ganhou o pvp
+o puto está afk
+aquele puto tem uma base enorme
+puto, anda ao spawn
+# language: pt_br
+eu via a do lado todo dia
+entra no google.com.br e pesquisa
+# language: es_es
+entra a marca.com para leer la noticia
+# language: de_de
+das kommt auf amazon.de an
+# language: en_us
+a 5 hit combo
+putㅤa torch here
+# A quantity after a one-letter word, and contractions before it.
+# language: en_us
+it's a 5 hit combo
+that's a 5 hit combo
+what's a 5 hit combo
+do a 5 hit combo
+is a 5 hit combo good?
+it is a 5 hit combo
+in a 5 hit combo you win
+so a 5 hit combo?
+there's 5 hits left
+it's 5 hits to kill him
+that's 5 hits in a row
+he's 5 hits from dying
+lvl 5 hit
+gg 2 ez
+brb 5 min
+afk 2 sec
+tp 2 spawn pls
+omg 5 hits in a row
+# Natives' lines with words English frames an insult with, and thin lists.
+# language: ca_es
+perdó pel retard, he tingut lag
+he arribat amb retard a l'event
+# language: da_dk
+jeg har ikke mere is, det er slut
+jeg kan ikke få fat i mere jern, det er slut
+# language: nb_no
+slutt på is til isveien
+# language: sv_se
+ta några ur kistan, jag har slut på järn
+hämta ur kistan, jag har slut på mat
+min netherite tog slut
+fick 3 elytras från end city
+# language: nl_nl
+hé, wil je mijn farm huren?
+# language: es_es
+kike tp porfa
+entren a minecraft-mp.com y voten por el server
+estoy entre hypixel.net y mush.com.br
+entra en mcpedl.com para descargar el addon
+# language: it_it
+verga noiosissimo, meglio minecraft
+# language: pt_pt
+a bicha no servidor demora 5 min
+puto, passa-me a espada
+# language: pt_br
+entrem no minecraftservers.org pra votar
+entra no minecraftskins.com e pega a skin
+# language: nl_nl
+pak 1 diamant en kom
+pak 1 stack ijzer uit mijn kist
+ik wil een huis huren voor een uur
+hoeveel kost huren per week?
+huren kost 10 coins per uur
+# language: en_us
+ur a 5 hit kill lol
+is a 5 x 5 room ok?
+# language: da_dk
+dyk 3 blokke ned
+fag 5 er svært
+jeg har fag 5 timer i dag
+slut 5 min, så går vi
+mine ure er gået i stå, så det er slut
+# language: sv_se
+hur 3 gånger?
+när tar eventet slut?
+fick 4 elytras idag
+fick inget loot från kistan, typiskt
+# language: es_es
+dale a kike 5 diamantes
+pásale a kike 5 de hierro
+kike tiene 100 likes en su video
+# language: hr_hr
+umro sam 3 puta danas
+umro sam 5 puta u netheru
+# language: pt_pt
+o puto ganhou 2 vezes
+a bicha tem 5 pessoas
+o puto tem full diamond armor e sharpness 5
+# language: fr_fr
+retard de 5 min dsl
+# language: ca_es
+retard de 5 minuts, espereu-me
+quin retard més gros, tio
+# language: it_it
+guarda questa immagine di Verga, sembra mio nonno
+# language: fr_fr
+j'arrive, petit retard
+# language: ca_es
+tinc retard, comenceu sense mi
+# language: hr_hr
+pet puta dnevno idem u nether
+Marica je na spawnu
+# language: nl_nl
+huren is duur op deze server
+# language: da_dk
+jeg har ikke mere foder til kyllingerne
+# language: sv_se
+foder till hästarna finns i ladan
+# language: nl_nl
+hoeveel wil je? pak 1
+pak 1 lol
+ja, pak 1
+per week huren of per uur?
+# language: da_dk
+hvor dybt skal jeg? dyk 3
+bare dyk 3
+dyk 3 haha
+# language: sv_se
+eventet tar slut till kvällen
+# language: en_us
+re-log and it works
+wait for the re-spawn
+s/he hit me first
+my e-mail is down
+co-op is more fun
+# language: ca_es
+he anat al col·legi amb retard
+# language: nl_nl
+pak 1, heel snel
+hee, pak 1 voor mij
+# language: sv_se
+ge hästen lite foder
+# language: en_us
+put 4 torches there
+gg 4 real
+hi 5 bro
+# language: en_us
+put 4 in the furnace
+put 4 as the amount
+gg 0 ok
+# language: fr_fr
+c un 7 sur 10
+# language: nl_nl
+pak 1, het is gratis
+is er nog hout? pak 1 stapel
+# language: en_us
+cannon fodder lol
+# language: da_dk
+jeg er hes i dag, det er slut

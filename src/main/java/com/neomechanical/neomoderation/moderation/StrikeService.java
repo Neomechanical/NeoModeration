@@ -17,15 +17,21 @@ public final class StrikeService {
     public record Result(int strikes, Optional<ModerationAction> escalation) {
     }
 
+    /** Past this many players, counts that have already decayed are dropped. */
+    private static final int CLEANUP_THRESHOLD = 1_000;
+
     private final Map<UUID, State> states = new ConcurrentHashMap<>();
 
     public Result recordStrike(UUID player, StrikeSettings settings, long now) {
         if (!settings.enabled()) {
             return new Result(0, Optional.empty());
         }
+        long decayMs = settings.decayMinutes() * 60_000L;
+        if (states.size() > CLEANUP_THRESHOLD) {
+            states.values().removeIf(stale -> now - stale.lastStrike > decayMs);
+        }
         State state = states.computeIfAbsent(player, ignored -> new State());
         synchronized (state) {
-            long decayMs = settings.decayMinutes() * 60_000L;
             if (state.count > 0 && now - state.lastStrike > decayMs) {
                 state.count = 0;
             }
@@ -40,15 +46,9 @@ public final class StrikeService {
         }
     }
 
-    public int current(UUID player, StrikeSettings settings, long now) {
-        State state = states.get(player);
-        if (state == null || !settings.enabled()) {
-            return 0;
-        }
-        synchronized (state) {
-            long decayMs = settings.decayMinutes() * 60_000L;
-            return now - state.lastStrike > decayMs ? 0 : state.count;
-        }
+    /** How many players a count is held for. */
+    int tracked() {
+        return states.size();
     }
 
     private static final class State {

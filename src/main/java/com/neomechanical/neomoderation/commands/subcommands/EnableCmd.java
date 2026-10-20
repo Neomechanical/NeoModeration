@@ -2,12 +2,12 @@ package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.commands.SubCommand;
+import com.neomechanical.neomoderation.config.ConfigPaths;
 import org.bukkit.command.CommandSender;
 
 import java.util.List;
 
 public class EnableCmd implements SubCommand {
-    private static final String ENABLED_PATH = "moderation.enabled";
 
     private final NeoModerationPlugin plugin;
 
@@ -21,24 +21,13 @@ public class EnableCmd implements SubCommand {
     }
 
     @Override
-    public String getDescription() {
-        return "Enable NeoModeration checks.";
-    }
-
-    @Override
-    public String getUsage() {
-        return "/nmod on";
-    }
-
-    @Override
     public List<String> getAliases() {
         return List.of("enable");
     }
 
     @Override
     public void execute(CommandSender sender, String label, String[] args) {
-        plugin.getConfig().set(ENABLED_PATH, true);
-        plugin.saveAndReload();
+        plugin.setConfig(ConfigPaths.ENABLED, true);
         plugin.messages().send(sender, "toggle.on");
     }
 }

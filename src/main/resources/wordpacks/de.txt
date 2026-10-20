@@ -1,0 +1,33 @@
+# German starter list. Severe swearing and slurs only, with umlauts and the
+# sharp s written out (the filter folds "Arschlöcher" to "arschlocher" and
+# "Scheiße" to "scheisse").
+arschloch
+arschlocher
+hurensohn
+hurenkind
+hurensohne
+fotze
+fotzen
+schlampe
+schlampen
+wichser
+scheisse
+scheiss
+fick
+ficken
+fick dich
+bastard
+bastarde
+spast
+spasti
+spastiker
+missgeburt
+missgeburten
+hure
+huren
+drecksack
+kackbratze
+schwuchtel
+neger
+vollidiot
+vollidioten

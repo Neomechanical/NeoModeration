@@ -40,7 +40,6 @@ public final class PlatformScheduler {
     private Method asyncRunNow;
     private Method entityGetScheduler;
     private Method entityExecute;
-    private Method globalRunDelayed;
 
     public PlatformScheduler(Plugin plugin) {
         this.plugin = plugin;
@@ -74,7 +73,6 @@ public final class PlatformScheduler {
             globalRegionScheduler = Bukkit.class.getMethod("getGlobalRegionScheduler");
             Class<?> globalType = globalRegionScheduler.getReturnType();
             globalExecute = globalType.getMethod("execute", Plugin.class, Runnable.class);
-            globalRunDelayed = globalType.getMethod("runDelayed", Plugin.class, Consumer.class, long.class);
 
             asyncScheduler = Bukkit.class.getMethod("getAsyncScheduler");
             asyncRunNow = asyncScheduler.getReturnType().getMethod("runNow", Plugin.class, Consumer.class);
@@ -140,20 +138,5 @@ public final class PlatformScheduler {
             }
         }
         plugin.getServer().getScheduler().runTask(plugin, task);
-    }
-
-    /** Global work after a tick delay. */
-    public void runGlobalLater(Runnable task, long delayTicks) {
-        long delay = Math.max(1L, delayTicks);
-        if (folia && globalRunDelayed != null) {
-            try {
-                globalRunDelayed.invoke(globalRegionScheduler.invoke(null), plugin,
-                        (Consumer<Object>) ignored -> task.run(), delay);
-                return;
-            } catch (ReflectiveOperationException ignored) {
-                // fall through
-            }
-        }
-        plugin.getServer().getScheduler().runTaskLater(plugin, task, delay);
     }
 }

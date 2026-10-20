@@ -42,7 +42,7 @@ class ChatModerationDisabledCategoriesTest {
         when(player.getName()).thenReturn("Tester");
 
         ChatDecision result = new ChatModerationProcessor(plugin, coordinator, muteService,
-                spamDetector, handler).handleAsyncChat(player, "hello");
+                spamDetector, handler).handleChat(player, "hello", true);
 
         assertEquals(ChatDecision.allow(), result);
         verify(coordinator, never()).checkMessage(any(Player.class), anyString(), any(ModerationSettings.class));

@@ -5,15 +5,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/**
- * A {@link ConfigView} over a nested {@code Map} such as SnakeYAML produces.
- * Used by the Velocity and BungeeCord entry points, and by tests that want to
- * exercise settings parsing without starting a server.
- *
- * <p>Coercion is deliberately forgiving in the same places Bukkit is forgiving:
- * a number written as a quoted string still parses, and a malformed value falls
- * back to the caller's default rather than throwing on an admin's typo.
- */
+/** A {@link ConfigView} over a parsed YAML map, for tests that build settings without Bukkit. */
 public final class MapConfigView implements ConfigView {
 
     private final Map<String, Object> root;

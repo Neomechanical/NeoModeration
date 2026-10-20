@@ -1,7 +1,5 @@
 package com.neomechanical.neomoderation.config;
 
-
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -23,13 +21,20 @@ public record ModerationSettings(
         StrikeSettings strikes,
         SurfaceSettings surfaces,
         CaseSettings cases,
-        boolean chatCensorLocal
+        boolean chatCensorLocal,
+        boolean tellPlayers
 ) {
-    public record AlertSettings(boolean enabled, boolean includeMessage) {
+    public record AlertSettings(boolean enabled, boolean includeMessage, String discordWebhookUrl) {
+        public AlertSettings(boolean enabled, boolean includeMessage) {
+            this(enabled, includeMessage, "");
+        }
+
         public static AlertSettings from(ConfigView config) {
+            String rawWebhook = config.getString(ConfigPaths.DISCORD_WEBHOOK, "");
             return new AlertSettings(
                     config.getBoolean("moderation.alerts.enabled", true),
-                    config.getBoolean("moderation.alerts.includeMessage", true)
+                    config.getBoolean("moderation.alerts.includeMessage", true),
+                    rawWebhook == null ? "" : rawWebhook.trim()
             );
         }
     }
@@ -40,8 +45,8 @@ public record ModerationSettings(
 
     public static ModerationSettings from(ConfigView config, Logger logger) {
         return new ModerationSettings(
-                config.getBoolean("moderation.enabled", false),
-                ModerationMode.parse(config.getString("moderation.mode", "enforce")),
+                config.getBoolean(ConfigPaths.ENABLED, false),
+                ModerationMode.parse(config.getString(ConfigPaths.MODE, "enforce")),
                 parseCloudMode(config),
                 ModerationApiSettings.from(config),
                 OfflineModerationSettings.from(config),
@@ -55,7 +60,8 @@ public record ModerationSettings(
                 StrikeSettings.from(config),
                 SurfaceSettings.from(config),
                 CaseSettings.from(config),
-                config.getBoolean("moderation.chat.censorLocalDetections", false)
+                config.getBoolean("moderation.chat.censorLocalDetections", false),
+                config.getBoolean("moderation.tellPlayers", true)
         );
     }
 
@@ -72,16 +78,16 @@ public record ModerationSettings(
      * nothing.
      */
     private static ModerationMode parseCloudMode(ConfigView config) {
-        Object raw = config.get("moderation.cloudMode");
+        Object raw = config.get(ConfigPaths.CLOUD_MODE);
         if (raw == null) {
-            return ModerationMode.parse(config.getString("moderation.mode", "enforce"));
+            return ModerationMode.parse(config.getString(ConfigPaths.MODE, "enforce"));
         }
         return ModerationMode.parse(String.valueOf(raw));
     }
 
     private static List<ModerationAction> loadActions(ConfigView config, Logger logger) {
         List<ModerationAction> loaded = new ArrayList<>();
-        List<Map<?, ?>> rawActions = config.getMapList("moderation.actions");
+        List<Map<?, ?>> rawActions = config.getMapList(ConfigPaths.ACTIONS);
         for (Map<?, ?> rawAction : rawActions) {
             ModerationAction.tryFrom(rawAction).ifPresentOrElse(
                     loaded::add,

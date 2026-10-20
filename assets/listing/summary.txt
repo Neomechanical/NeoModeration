@@ -1,1 +1,1 @@
-Minecraft chat filter by Neomechanical. Blocks swearing, slurs, scam links and spam with no setup.
+Anti-swear chat filter: profanity, slurs, spam, scam links and server ads. No account needed.

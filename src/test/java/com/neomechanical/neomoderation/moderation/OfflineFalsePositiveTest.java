@@ -129,6 +129,13 @@ class OfflineFalsePositiveTest {
             "the dog barked at the postman",
             "he is a nice person to work with",
             "the fan in the corner is broken",
+            // Contractions and numbers that used to be read as banned words
+            "let's hit the nether fortress tonight",
+            "he's hit by a skeleton every time",
+            "that's hit or miss honestly",
+            "who're you talking to",
+            "it took 5 hits to kill the warden",
+            "i have 455 diamonds in the chest",
     };
 
     @Test

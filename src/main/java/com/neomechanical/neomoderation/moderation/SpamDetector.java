@@ -19,7 +19,15 @@ import java.util.concurrent.ConcurrentHashMap;
  * together. Thread-safe (chat events arrive async).
  */
 public final class SpamDetector {
+    /** The reason for a message mostly in capitals, which is lower-cased rather than blocked. */
+    public static final String CAPS = "spam:caps";
+
     private static final long WINDOW_MS = 10_000L;
+    /**
+     * A repeat counts only when it follows the last message within this gap:
+     * "gg" after each of three games an hour apart is not spam.
+     */
+    private static final long REPEAT_GAP_MS = 30_000L;
     private static final long STALE_MS = 600_000L;
     private static final int CLEANUP_THRESHOLD = 1_000;
 
@@ -46,23 +54,26 @@ public final class SpamDetector {
             if (s.duplicateLimit() > 0) {
                 String normalized = normalize(message);
                 if (state.lastMessage != null
+                        && now - state.lastMessageAt <= REPEAT_GAP_MS
                         && similarity(state.lastMessage, normalized) >= s.similarityThreshold()) {
                     state.repeats++;
                 } else {
                     state.repeats = 1;
                 }
                 state.lastMessage = normalized;
+                state.lastMessageAt = now;
                 if (state.repeats >= s.duplicateLimit()) {
                     return Optional.of("spam:duplicate");
                 }
             }
         }
 
-        if (s.capsPercent() > 0 && isCapsAbuse(message, playerName, s)) {
-            return Optional.of("spam:caps");
-        }
         if (s.maxCharRun() > 0 && hasCharRun(message, s.maxCharRun())) {
             return Optional.of("spam:flood");
+        }
+        // Last, because shouting is only turned down: the caller sends the message in lower case.
+        if (s.capsPercent() > 0 && isCapsAbuse(message, playerName, s)) {
+            return Optional.of(CAPS);
         }
         return Optional.empty();
     }
@@ -88,7 +99,7 @@ public final class SpamDetector {
     static boolean isCapsAbuse(String message, String playerName, SpamSettings s) {
         String sample = playerName == null || playerName.isBlank()
                 ? message
-                : message.replaceAll("(?i)" + java.util.regex.Pattern.quote(playerName), "");
+                : removeIgnoringCase(message, playerName);
         int letters = 0;
         int uppers = 0;
         for (int i = 0; i < sample.length(); i++) {
@@ -101,6 +112,19 @@ public final class SpamDetector {
             }
         }
         return letters >= s.capsMinLength() && uppers * 100 > letters * s.capsPercent();
+    }
+
+    private static String removeIgnoringCase(String text, String needle) {
+        StringBuilder out = new StringBuilder(text.length());
+        int index = 0;
+        while (index < text.length()) {
+            if (text.regionMatches(true, index, needle, 0, needle.length())) {
+                index += needle.length();
+            } else {
+                out.append(text.charAt(index++));
+            }
+        }
+        return out.toString();
     }
 
     static boolean hasCharRun(String message, int maxRun) {
@@ -161,6 +185,7 @@ public final class SpamDetector {
         final Deque<Long> messageTimes = new ArrayDeque<>();
         final Deque<Long> commandTimes = new ArrayDeque<>();
         String lastMessage;
+        long lastMessageAt;
         int repeats;
         long lastSeen;
     }
