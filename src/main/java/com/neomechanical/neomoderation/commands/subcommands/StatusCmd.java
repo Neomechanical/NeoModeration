@@ -77,6 +77,9 @@ public class StatusCmd implements SubCommand {
         messages.send(sender, "status.packs", Map.of("value", settings.offline().languagePacks().isEmpty()
                 ? messages.text(sender, "label.none")
                 : String.join(", ", settings.offline().languagePacks())));
+        messages.send(sender, "status.player-language", Map.of("value", messages.text(sender,
+                settings.offline().trustPlayerLanguage() ? "status.value.player-language-on"
+                        : "status.value.player-language-off")));
         messages.send(sender, "status.server-ads", Map.of("value", messages.text(sender,
                 settings.offline().blockServerAds() ? "status.value.server-ads-on" : "status.value.server-ads-off")));
         messages.send(sender, "status.surfaces", Map.of("value", settings.surfaces().enabledCount() == 0

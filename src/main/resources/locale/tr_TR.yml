@@ -151,6 +151,7 @@ status:
   local: "{#muted}Yerel kurallar: {#text}{value}"
   rules: "{#muted}Yasaklı kelime: {#text}{words}{#muted}, engellenen bağlantı: {#text}{urls}{#muted}, istisna: {#text}{exceptions}"
   packs: "{#muted}Dil paketleri: {#text}{value}"
+  player-language: "{#muted}Oyuncuların oyun dilleri: {#text}{value}"
   server-ads: "{#muted}Başka sunucu reklamları: {#text}{value}"
   checks: "{#muted}Spam koruması: {#text}{spam}{#muted}, uyarılar: {#text}{strikes}{#muted}, vaka geçmişi: {#text}{cases}"
   surfaces: "{#muted}Tabelalar, kitaplar, eşya adları, komutlar: {#text}{value}"
@@ -172,6 +173,8 @@ status:
     alerts-hidden: "açık, mesaj gizli"
     server-ads-on: "engelleniyor"
     server-ads-off: "serbest"
+    player-language-on: "dikkate alınıyor (moderation.offline.trustPlayerLanguage)"
+    player-language-off: "dikkate alınmıyor (moderation.offline.trustPlayerLanguage)"
     surfaces-off: "denetlenmiyor"
     surfaces-on: "4 alandan {count} tanesi denetleniyor"
     cloud-checks: "{mode}, açık kategori: {categories}{maps}"
@@ -290,6 +293,8 @@ reason:
   map: "harita resmi: {detail}"
   map-plain: "harita resmi"
   other: "{detail}"
+  language-word: "  {#muted}\"{detail}\" şu dillerde gündelik bir kelime: {languages}. Oyuncuların kendi dillerinde yazarken kullanabilmesi için {#brand}moderation.offline.trustPlayerLanguage{#muted} değerini true yapın."
+  language-word-trusted: "  {#muted}\"{detail}\" şu dillerde gündelik bir kelime: {languages}. Yalnızca oyuncunun kendi dilinde yazılmış bir mesajda geçer."
 
 category:
   sexual: "cinsel içerik"
@@ -633,3 +638,4 @@ migrated:
   per-player-on: "Her oyuncu artık NeoModeration metinlerini kendi oyun dilinde okuyor (perPlayerLanguage: true)."
   per-player-off: "Bütün oyuncular düzenlediğiniz {locale} metinlerini okumaya devam ediyor (perPlayerLanguage: false). Herkesin kendi oyun dilini görmesi için true yapın."
   map-art-cap: "Bulut artık oyuncu başına saatte en fazla {count} yeni harita resmini denetliyor (moderation.mapArt.checksPerPlayerPerHour: {count}); böylece kimse harita çizerek kredilerinizi tüketemez. Sınır olmaması için 0 yapın."
+  trust-language: "Kelime listenizde başka dillerde gündelik olan kelimeler var ({words}). Oyuncuların kendi dillerinde yazarken bunları kullanabilmesi için moderation.offline.trustPlayerLanguage değerini true yapın."

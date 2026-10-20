@@ -94,10 +94,11 @@ public final class OfflineModerationEngine {
 
     /**
      * Whether the server trusts the speaker's {@code language} and the text holds
-     * no English word an insult is framed with that the language does not use.
+     * no English word an insult is framed with, even one the language shares ("he").
      */
     private static boolean unframed(TextNormalizer.Normalized text, String language) {
-        return language != null && !EverydayWords.framedInEnglish(text, BundledWordPacks.everydayWords(language));
+        return language != null
+                && !EverydayWords.framedInEnglish(text, BundledWordPacks.everydayWords(language), true);
     }
 
     /**

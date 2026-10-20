@@ -150,6 +150,7 @@ status:
   local: "{#muted}Local rules: {#text}{value}"
   rules: "{#muted}Banned words: {#text}{words}{#muted}, blocked links: {#text}{urls}{#muted}, exceptions: {#text}{exceptions}"
   packs: "{#muted}Language packs: {#text}{value}"
+  player-language: "{#muted}Players' game languages: {#text}{value}"
   server-ads: "{#muted}Ads for other servers: {#text}{value}"
   checks: "{#muted}Anti-spam {#text}{spam}{#muted}, strikes {#text}{strikes}{#muted}, case history {#text}{cases}"
   surfaces: "{#muted}Signs, books, item names, commands: {#text}{value}"
@@ -171,6 +172,8 @@ status:
     alerts-hidden: "on, message hidden"
     server-ads-on: "blocked"
     server-ads-off: "allowed"
+    player-language-on: "trusted (moderation.offline.trustPlayerLanguage)"
+    player-language-off: "not trusted (moderation.offline.trustPlayerLanguage)"
     surfaces-off: "not checked"
     surfaces-on: "{count} of 4 checked"
     cloud-checks: "{mode}, categories on: {categories}{maps}"
@@ -289,6 +292,8 @@ reason:
   map: "map art: {detail}"
   map-plain: "map art"
   other: "{detail}"
+  language-word: "  {#muted}\"{detail}\" is everyday in {languages}. Set {#brand}moderation.offline.trustPlayerLanguage: true{#muted} to let players use it when they write in their own language."
+  language-word-trusted: "  {#muted}\"{detail}\" is everyday in {languages}. It passes only in a message written in the player's own language."
 
 category:
   sexual: "sexual content"
@@ -631,3 +636,4 @@ migrated:
   per-player-on: "Each player now reads NeoModeration's messages in their own game language (perPlayerLanguage: true)."
   per-player-off: "Every player keeps reading your edited {locale} messages (perPlayerLanguage: false). Set it to true to show each player their own game language."
   map-art-cap: "The cloud now checks at most {count} new map pictures per player an hour (moderation.mapArt.checksPerPlayerPerHour: {count}), so nobody can use up your credits by drawing maps. Set it to 0 for no limit."
+  trust-language: "Your word list has words that are everyday in other languages ({words}). Set moderation.offline.trustPlayerLanguage to true to let players use them when they write in their own language."

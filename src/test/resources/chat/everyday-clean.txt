@@ -393,3 +393,12 @@ my e-mail is down
 co-op is more fun
 # language: ca_es
 he anat al col·legi amb retard
+# language: nl_nl
+pak 1, heel snel
+hee, pak 1 voor mij
+# language: sv_se
+ge hästen lite foder
+# language: en_us
+put 4 torches there
+gg 4 real
+hi 5 bro

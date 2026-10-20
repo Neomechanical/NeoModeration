@@ -4,8 +4,9 @@
 # "locale" or, on a server that sets trustPlayerLanguage, the player's game
 # language: "put a torch here" stays clean, and there for a Spanish player so
 # does "vino Mari con su novio". A word on the server's own list only takes
-# English or the server's language as its excuse. Pieces
-# from different languages are still read as one word ("bean er"), and so are
+# English or the server's language as its excuse, though a number after a
+# trusted player's word stays a number ("pak 1"). Pieces from different
+# languages are still read as one word ("bean er"), and so are
 # pieces that are not words ("f uck", "ni gger", "k y s"). A banned word written
 # with a space ("ass hole") is always read across spaces.
 #
@@ -128,12 +129,12 @@ nl: de het een en je jij we ze is in te van dat die niet wat ja nee met voor ik 
 nl: maar dan nog ook hoe waar wie mijn jouw zijn haar ons hun heb heeft hebben ben bent waren
 nl: wordt moet moeten wil willen ga gaat gaan kom komt komen doe doen spelen huis goed dank
 nl: bedankt hoi hallo doei jullie zij hij zo nu hier daar alles niks iets iemand plot shop
-nl: he uur hoeveel per pak duur deze of week
+nl: he uur hoeveel per pak duur deze of week heel hee
 # Swedish
 sv: och att det som en pa ar av for med har jag du han hon vi ni de nu inte men eller ja nej tack
 sv: hej var vad hur nar kan ska vill hade kom vem spela mat diamant present den
 sv: in
-sv: is ur hel min tog från ta några city tar idag till finns kvällen kväll dyk
+sv: is ur hel min tog från ta några city tar idag till finns kvällen kväll dyk ge lite
 # Polish
 pl: i w z na nie to jest ze sie co jak tak ale po do od za
 # Danish

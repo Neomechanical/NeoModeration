@@ -310,6 +310,7 @@ migrated.per-player-off	32461391d55a109b
 migrated.per-player-on	0097c2a6f5a921e3
 migrated.server-ads	538f495b863a55e4
 migrated.tell-players	8678bce8f9ed04f4
+migrated.trust-language	6192e1b161df4b3a
 migrated.words	09f91301bd27a196
 mode.current	183a8b0acfdedf22,9591e53b6757abc4,a75b3a8542d267e0
 mode.set-enforce	227fb49c45012e94,326e45a3682da01b,ae62eedee2215d0a
@@ -365,6 +366,8 @@ privacy.title	8627a779a9f8d00f,a7efb76118df14bc,bdb4a2f954e55d39,dc31d8f4c3e8404
 reason.any-link	4b6dfc9848f41c98
 reason.cloud	6877deb68ea5934d
 reason.cloud-plain	17a6099bfbba1fac
+reason.language-word	5e6bde892adf3fb8
+reason.language-word-trusted	ec5acb5082ec372d
 reason.link	8dc0f5ac418cc90c
 reason.map	b996b8928969e0cf
 reason.map-plain	3c7996f8c17de97d
@@ -454,6 +457,7 @@ status.local	bd42e7d56721b27c
 status.mode	0ce417d90f90322d,49478d31fbcec3c7
 status.offline	ee16cc72cfb6415c
 status.packs	6435a2d39750c6d1
+status.player-language	e69c640855ded8ed
 status.rules	150779c1f0b3ec5c,1f2ef0c491ca7b50,bc6a1369fc1b0a4f,da186e5cb2ca883a,f31186c2813c9f5c
 status.server-ads	9929405934263333
 status.surfaces	2849194bef7cc25b
@@ -466,6 +470,8 @@ status.value.cloud-nothing	f1df7d9b7e210093
 status.value.local-enforce	2d97cebab47a1313,7565525bc4305f84
 status.value.local-monitor	5bbcb9f87da757eb,8df98b9abdfb1146
 status.value.local-surfaces-only	1c56308148c1a385,99c0142df4735614
+status.value.player-language-off	6d53407cb9413673
+status.value.player-language-on	3feee78f8ecdf0db
 status.value.server-ads-off	2eecf5ae5c0693c6
 status.value.server-ads-on	281fbd5f4ab928da
 status.value.surfaces-off	a364ff051de7ad09

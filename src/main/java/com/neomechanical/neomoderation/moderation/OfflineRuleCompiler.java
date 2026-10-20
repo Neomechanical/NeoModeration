@@ -21,7 +21,8 @@ final class OfflineRuleCompiler {
      * written with a space ("ass hole"), which reads it across every space.
      * {@code ownList} when it is on the server's own list rather than only in a
      * language pack: only English and the server's language can show it was two
-     * everyday words, never a language a player picks for their game.
+     * everyday words, never a language a player picks for their game (a number
+     * after a trusted player's word stays a number, though: "pak 1").
      */
     record CompiledWord(String original, char[] runChars, int[] runLengths, String collapsed, boolean spaced,
                         boolean ownList) {
@@ -137,7 +138,7 @@ final class OfflineRuleCompiler {
         while ((match = findMatch(text, word, masked, from)) != null) {
             // A word written with a space is read across every space, unless a French elision inside
             // the match shows French words: "j'ai pas pu, t'es où ?" is no "pu tes".
-            boolean readAsWords = everyday.endsInCount(match[1])
+            boolean readAsWords = everyday.endsInCount(match[0], match[1])
                     || (!word.spaced() || everyday.throughElision(match[0], match[1]))
                     && everyday.innocent(match[0], match[1], !word.ownList());
             if (!readAsWords) {

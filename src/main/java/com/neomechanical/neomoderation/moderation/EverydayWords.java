@@ -9,10 +9,12 @@ import java.util.Set;
  *
  * <p>A match that runs across a space is everyday words, not one disguised word,
  * when every piece of it is an everyday word of one language, written plainly,
- * and that language is English, the server's or the speaker's: "put a torch" is
- * no "puta", and for a Spanish speaker "Mari con" is no "maricon". A word on the
- * server's own list can only be read as English or the server's language, never
- * as a language a player picks for their game. Pieces from different languages
+ * and that language is English, the server's or a trusted speaker's: "put a
+ * torch" is no "puta", and for a Spanish speaker "Mari con" is no "maricon". A
+ * word on the server's own list can only be read as English or the server's
+ * language, never as a language a player picks for their game, except that a
+ * number after a trusted speaker's word stays a number ("pak 1", see
+ * {@link #endsInCount}). Pieces from different languages
  * ("pa ki", "bean er"), pieces that are not words ("f uck"), pieces typed
  * with digits or symbols ("g0 ok") and pieces joined by an apostrophe inside a
  * word ("go'ok", which nobody writes for two words) are still read as one word.
@@ -61,10 +63,9 @@ final class EverydayWords {
     private final OfflineRuleCompiler.Scope scope;
     /**
      * Whether the server trusts the speaker's language and the text holds no
-     * English word an insult is framed with that their language does not use.
+     * English word an insult is framed with, even one their language shares.
      */
     private final boolean unframed;
-    private List<int[]> tokens;
     private int[] tokenAt;
     private int[] languagesOf;
     /** Per token, whether it follows an apostrophe inside a word that is no English contraction. */
@@ -104,22 +105,35 @@ final class EverydayWords {
     }
 
     /**
-     * Whether the match ends at a digit read as the last letter of the word before
-     * it while that word is an everyday word of English or the server's language,
-     * or of a trusted speaker's language in a message with no English insult
-     * framing, so the digit is a number wherever it stands: from a trusted Dutch
-     * or Swedish player, "hoeveel wil je? pak 1" and "hur 3 gånger?" hold no
-     * "paki" or "hure", while their "go home pak 1" does. After any other piece
-     * the digit is a letter, whatever follows: "shi 7", "shi 7 lool", "go home
-     * pak 1" from anyone else.
+     * Whether the match from {@code start} ends at a digit read as the last letter
+     * of the word before it while the digit is a number: every piece of the match
+     * before the digit is an everyday word of one language in scope. "put 4
+     * torches" holds no "puta", and from a trusted Dutch player "hoeveel wil je?
+     * pak 1" holds no "paki". The speaker's language counts here only in a message
+     * with no English insult framing ({@code unframed}), since a word they share
+     * with the frame ("ure", "he") still frames it: "he pak 1" stays caught.
+     * After any other piece the digit is a letter, whatever follows: "shi 7",
+     * "s hi 7", "shi 7 lool", "go home pak 1".
      */
-    boolean endsInCount(int end) {
+    boolean endsInCount(int start, int end) {
         if (!text.noStart()[end - 1]) {
             return false;
         }
         index();
-        int languages = languagesOf[tokenAt[end - 1] - 1];
-        return (languages & ~scope.speakerOnly()) != 0 || (languages != 0 && unframed);
+        int digit = tokenAt[end - 1];
+        int shared = unframed ? -1 : ~scope.speakerOnly();
+        boolean anyWord = false;
+        for (int token = tokenAt[start]; token < digit; token++) {
+            if (token > tokenAt[start] && apostropheBefore[token]) {
+                return false;
+            }
+            shared &= languagesOf[token];
+            anyWord |= languagesOf[token] != STRETCH;
+            if (shared == 0) {
+                return false;
+            }
+        }
+        return anyWord;
     }
 
     /**
@@ -137,7 +151,7 @@ final class EverydayWords {
      * slut på" do not.
      */
     static boolean writtenIn(TextNormalizer.Normalized text, Set<String> words, Set<String> judged) {
-        if (words.isEmpty() || framedInEnglish(text, words)) {
+        if (words.isEmpty() || framedInEnglish(text, words, false)) {
             return false;
         }
         Set<String> english = BundledWordPacks.everydayWords(BundledWordPacks.ENGLISH);
@@ -171,11 +185,14 @@ final class EverydayWords {
      * Whether a word of the text, however stretched or typed with digits, is an
      * English word an insult is framed with that the language whose everyday
      * words are {@code words} does not use itself: "y0u", "dirty", "get out".
+     * With {@code shared}, a frame word the language uses too frames the text as
+     * well ("ure", clocks in Danish), unless it only collapses to one ("gros").
      */
-    static boolean framedInEnglish(TextNormalizer.Normalized text, Set<String> words) {
+    static boolean framedInEnglish(TextNormalizer.Normalized text, Set<String> words, boolean shared) {
         for (int[] token : OfflineRuleCompiler.tokensOf(text)) {
             String letters = new String(text.chars(), token[0], token[1] - token[0]);
-            if (!words.contains(letters) && INSULT_FRAMES.contains(collapse(letters))) {
+            if (INSULT_FRAMES.contains(collapse(letters))
+                    && (!words.contains(letters) || shared && INSULT_FRAME_WORDS.contains(letters))) {
                 return true;
             }
         }
@@ -198,7 +215,7 @@ final class EverydayWords {
         if (tokenAt != null) {
             return;
         }
-        tokens = OfflineRuleCompiler.tokensOf(text);
+        List<int[]> tokens = OfflineRuleCompiler.tokensOf(text);
         List<Set<String>> languages = scope.languages();
         tokenAt = new int[text.length()];
         languagesOf = new int[tokens.size()];

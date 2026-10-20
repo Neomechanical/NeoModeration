@@ -7,7 +7,10 @@
 # ===========================================================================
 
 # Language of the console and of players whose game language has no messages:
-# en_US, es_ES, fr_FR, de_DE, pt_BR, tr_TR, or your own file in /locale.
+# en_US, es_ES, fr_FR, de_DE, pt_BR, tr_TR, or your own file in /locale. It
+# also picks the starter word list ("languagePacks") and the language whose
+# everyday words pass for everyone: on a da_DK server Danish "fag" (a school
+# subject) passes in any message, "you fag" included.
 locale: "en_US"
 
 # Players read NeoModeration's messages in their own Minecraft language when
@@ -150,9 +153,10 @@ moderation:
     # true also lets such a word pass for a player whose game language it is.
     # The message then needs more common words of that language than of
     # English, and no English word that aims an insult ("you", "dirty"). Their
-    # language's everyday words then count as English ones do. Players pick
-    # their own game language, so any player could switch it to use these
-    # words. Turn this on only if you trust your players with them.
+    # everyday words then excuse a split word too: "vino Mari con su novio"
+    # from a Spanish player stays clean. Players pick their own game language,
+    # so any player could switch it to use these words. Turn this on only if
+    # you trust your players with them.
     trustPlayerLanguage: false
     bannedUrls:
       - "grabify.link"

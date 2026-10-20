@@ -50,6 +50,16 @@ class StatusCoverageTest {
     }
 
     @Test
+    void statusSaysWhetherPlayersGameLanguagesAreTrusted() {
+        assertTrue(status(new YamlConfiguration()).contains(
+                "Players' game languages: not trusted (moderation.offline.trustPlayerLanguage)"));
+        YamlConfiguration trusting = new YamlConfiguration();
+        trusting.set("moderation.offline.trustPlayerLanguage", true);
+        assertTrue(status(trusting).contains(
+                "Players' game languages: trusted (moderation.offline.trustPlayerLanguage)"));
+    }
+
+    @Test
     void theHeaderAndEveryLineReadAsWords() {
         String transcript = String.join("\n", status(new YamlConfiguration()));
 

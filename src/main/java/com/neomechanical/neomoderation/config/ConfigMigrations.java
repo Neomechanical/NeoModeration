@@ -28,6 +28,7 @@ public final class ConfigMigrations {
     static final String TELL_PLAYERS_PATH = "moderation.tellPlayers";
     static final String PER_PLAYER_PATH = "perPlayerLanguage";
     static final String MAP_ART_CAP_PATH = "moderation.mapArt.checksPerPlayerPerHour";
+    static final String TRUST_LANGUAGE_PATH = "moderation.offline.trustPlayerLanguage";
 
     /**
      * The starter word list shipped from 1.5.0 to 1.6.6. It blocked "scam", so a
@@ -89,6 +90,17 @@ public final class ConfigMigrations {
             // Only a server with a cloud key checks map art, so only there is it news.
             if (!config.getString("moderation.api.apiKey", "").isBlank()) {
                 changes.add(new Change("migrated.map-art-cap", Map.of("count", String.valueOf(cap))));
+            }
+        }
+        if (!config.isSet(TRUST_LANGUAGE_PATH)) {
+            // 1.6.6 read no game language, so nothing changes; the console names the words this concerns.
+            add(config, TRUST_LANGUAGE_PATH, false);
+            List<String> everyday = (config.isSet(WORDS_PATH) ? config.getStringList(WORDS_PATH) : List.<String>of())
+                    .stream()
+                    .filter(word -> !BundledWordPacks.languagesUsing(word).isEmpty())
+                    .toList();
+            if (!everyday.isEmpty()) {
+                changes.add(new Change("migrated.trust-language", Map.of("words", String.join(", ", everyday))));
             }
         }
         if (!config.isSet(PER_PLAYER_PATH)) {

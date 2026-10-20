@@ -126,7 +126,8 @@ public class CasesCmd implements SubCommand {
         plugin.runAsync(() -> {
             Optional<CaseLog.CaseRecord> found = plugin.caseLog().byId(id);
             plugin.runSync(() -> found.ifPresentOrElse(
-                    row -> plugin.messages().sendMenu(sender, CaseView.detail(plugin.messages(), sender, row, label)),
+                    row -> plugin.messages().sendMenu(sender, CaseView.detail(plugin.messages(), sender, row, label,
+                            plugin.settings().offline().trustPlayerLanguage())),
                     () -> plugin.messages().send(sender, "cases.not-found", Map.of("id", String.valueOf(id)))));
         });
     }

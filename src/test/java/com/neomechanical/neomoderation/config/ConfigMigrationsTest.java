@@ -30,6 +30,7 @@ class ConfigMigrationsTest {
         config.set(ConfigMigrations.PACKS_PATH, List.of("auto"));
         config.set(ConfigMigrations.TELL_PLAYERS_PATH, true);
         config.set(ConfigMigrations.PER_PLAYER_PATH, true);
+        config.set(ConfigMigrations.TRUST_LANGUAGE_PATH, false);
         if (words != null) {
             config.set(ConfigMigrations.WORDS_PATH, words);
         }
@@ -62,6 +63,30 @@ class ConfigMigrationsTest {
         assertEquals(String.valueOf(words.size() - ConfigMigrations.STARTER_WORDS_1_5.size() + 1),
                 changes.get(0).values().get("count"));
         assertTrue(ConfigMigrations.apply(config, false).isEmpty(), "a migrated list is not migrated again");
+    }
+
+    @Test
+    void anUpgradedServerGetsTheGameLanguageSettingAndTheWordsItConcerns() throws Exception {
+        YamlConfiguration config = upgradedFrom166("en_US");
+        config.set(ConfigMigrations.WORDS_PATH, ConfigMigrations.STARTER_WORDS_1_5);
+
+        List<ConfigMigrations.Change> changes = ConfigMigrations.apply(config, false);
+
+        assertTrue(config.isSet(ConfigMigrations.TRUST_LANGUAGE_PATH));
+        assertFalse(config.getBoolean(ConfigMigrations.TRUST_LANGUAGE_PATH), "1.6.6 read no game language");
+        ConfigMigrations.Change trust = changes.stream()
+                .filter(change -> change.key().equals("migrated.trust-language")).findFirst().orElseThrow();
+        for (String word : List.of("kike", "fag", "retard", "slut")) {
+            assertTrue(trust.values().get("words").contains(word), trust.values().get("words"));
+        }
+        assertFalse(trust.values().get("words").contains("fuck"), trust.values().get("words"));
+
+        YamlConfiguration plain = upgradedFrom166("en_US");
+        plain.set(ConfigMigrations.WORDS_PATH, List.of("badword", "fuck"));
+        assertTrue(ConfigMigrations.apply(plain, false).stream()
+                        .noneMatch(change -> change.key().equals("migrated.trust-language")),
+                "a list with no word another language uses says nothing");
+        assertFalse(plain.getBoolean(ConfigMigrations.TRUST_LANGUAGE_PATH));
     }
 
     @Test

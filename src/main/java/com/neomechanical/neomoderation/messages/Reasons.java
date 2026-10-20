@@ -1,9 +1,13 @@
 package com.neomechanical.neomoderation.messages;
 
+import com.neomechanical.neomoderation.moderation.BundledWordPacks;
 import org.bukkit.command.CommandSender;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Turns the reason a detector gives into words for staff and players.
@@ -98,6 +102,37 @@ public final class Reasons {
                 + (parsed.spaced() && !parsed.split() && parsed.kind() == Kind.WORD ? "-spaced" : "")
                 + (unlabelled ? "-plain" : "");
         return messages.format(reader, key, Map.of("detail", detail));
+    }
+
+    /**
+     * A line saying that the word a reason names is an everyday word in other
+     * languages, and when it passes there, in the language {@code reader} reads:
+     * "fag" is everyday in Danish and Norwegian. {@code trusted} when the server
+     * trusts players' game languages. Empty for any other reason.
+     */
+    public static Optional<String> languageWordHint(MessageService messages, CommandSender reader, String reason,
+                                                    boolean trusted) {
+        Parsed parsed = parse(reason);
+        List<String> codes = parsed.kind() == Kind.WORD ? BundledWordPacks.languagesUsing(parsed.detail()) : List.of();
+        if (codes.isEmpty()) {
+            return Optional.empty();
+        }
+        Locale readerLocale = Locale.forLanguageTag(messages.localeCodeOf(reader).replace('_', '-'));
+        String languages = codes.stream()
+                .map(code -> languageName(code, readerLocale))
+                .distinct()
+                .collect(Collectors.joining(", "));
+        return Optional.of(messages.format(reader, trusted ? "reason.language-word-trusted" : "reason.language-word",
+                Map.of("detail", parsed.detail(), "languages", languages)));
+    }
+
+    /** A language's name in the reader's language: "da" is "Danish", and Bokmål and Nynorsk are Norwegian. */
+    private static String languageName(String code, Locale reader) {
+        String language = code.contains("_") ? code.substring(0, code.indexOf('_')) : code;
+        if (language.equals("nb") || language.equals("nn")) {
+            language = "no";
+        }
+        return Locale.forLanguageTag(language).getDisplayLanguage(reader);
     }
 
     /** A cloud category in words: "self-harm". */

@@ -7,6 +7,7 @@ import com.neomechanical.neomoderation.messages.MenuRenderer.Button;
 import com.neomechanical.neomoderation.messages.MenuRenderer;
 import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.messages.Reasons;
+import com.neomechanical.neomoderation.moderation.BundledWordPacks;
 import com.neomechanical.neomoderation.moderation.CaseLog.CaseRecord;
 import com.neomechanical.neomoderation.moderation.CaseLog;
 import com.neomechanical.neomoderation.moderation.Outcome;
@@ -31,7 +32,13 @@ final class CaseView {
                 MenuRenderer.ClickAction.RUN);
     }
 
-    static List<MenuRenderer.Line> detail(MessageService messages, CommandSender reader, CaseRecord row, String label) {
+    /**
+     * A case with its buttons. {@code trusted} tells whether the server trusts
+     * players' game languages, which decides how a word another language uses
+     * every day is explained.
+     */
+    static List<MenuRenderer.Line> detail(MessageService messages, CommandSender reader, CaseRecord row, String label,
+                                          boolean trusted) {
         Map<String, String> values = common(messages, reader, row);
         List<MenuRenderer.Line> lines = new ArrayList<>();
         lines.add(MenuRenderer.text(messages.format(reader, "cases.detail", values)));
@@ -45,6 +52,8 @@ final class CaseView {
         if (row.preview() != null && !row.preview().isBlank()) {
             lines.add(MenuRenderer.text(messages.format(reader, "cases.preview", Map.of("value", row.preview()))));
         }
+        Reasons.languageWordHint(messages, reader, row.reason(), trusted)
+                .ifPresent(hint -> lines.add(MenuRenderer.text(hint)));
         List<Button> buttons = buttons(messages, reader, row, label);
         lines.add(MenuRenderer.buttons(buttons).forConsole(MenuRenderer.withCommands(buttons)));
         return lines;
@@ -59,7 +68,10 @@ final class CaseView {
         Reasons.Parsed reason = Reasons.parse(row.reason());
         // Allowing a word changes config.yml, which only admins may do. A word read across a space or
         // across messages is not offered: allowing it would let the word itself through, not what was written.
+        // Nor is a word another language uses every day ("fag"): allowing it would let the slur through for
+        // everyone, and the hint above names the setting that lets those players use it.
         if (reason.kind() == Reasons.Kind.WORD && !reason.split() && !reason.spaced() && !reason.detail().isBlank()
+                && BundledWordPacks.languagesUsing(reason.detail()).isEmpty()
                 && reader.hasPermission(Permissions.ADMIN)) {
             buttons.add(button(messages, reader, "allow", Map.of("word", reason.detail()),
                     "/" + label + " allow word add " + reason.detail()));

@@ -155,11 +155,7 @@ public final class BundledWordPacks {
         if (locale == null || locale.isBlank()) {
             return List.of();
         }
-        Map<String, List<String>> lists = languageWords;
-        if (lists == null) {
-            lists = byLanguage("languages");
-            languageWords = lists;
-        }
+        Map<String, List<String>> lists = languageLists();
         String code = locale.trim().replace('-', '_').toLowerCase(Locale.ROOT);
         String language = language(code);
         List<String> words = new ArrayList<>(lists.getOrDefault(language, List.of()));
@@ -167,6 +163,29 @@ public final class BundledWordPacks {
             words.addAll(lists.getOrDefault(code, List.of()));
         }
         return List.copyOf(words);
+    }
+
+    /**
+     * The languages whose speakers use {@code word} every day although another
+     * language's list bans it, as {@code languages.txt} names them ({@code da},
+     * {@code pt_pt}): "fag" gives Danish and Norwegian. Empty for any other word.
+     */
+    public static List<String> languagesUsing(String word) {
+        String lower = word == null ? "" : word.trim().toLowerCase(Locale.ROOT);
+        return languageLists().entrySet().stream()
+                .filter(entry -> entry.getValue().contains(lower))
+                .map(Map.Entry::getKey)
+                .sorted()
+                .toList();
+    }
+
+    private static Map<String, List<String>> languageLists() {
+        Map<String, List<String>> lists = languageWords;
+        if (lists == null) {
+            lists = byLanguage("languages");
+            languageWords = lists;
+        }
+        return lists;
     }
 
     /** The language part of a code such as {@code pt_PT}, {@code pt-br} or {@code sv}, in lower case; empty for {@code null}. */

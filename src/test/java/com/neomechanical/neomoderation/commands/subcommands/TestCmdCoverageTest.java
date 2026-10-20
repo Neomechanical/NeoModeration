@@ -59,6 +59,19 @@ class TestCmdCoverageTest {
         assertFalse(transcript.contains("test."), transcript);
     }
 
+    @Test
+    void aWordAnotherLanguageUsesEveryDaySaysWhereItPasses() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("moderation.enabled", true);
+        config.set("moderation.offline.bannedWords", List.of("fag"));
+
+        String transcript = test(config, "hvilket fag har du");
+
+        assertTrue(transcript.contains("Local rules: caught (banned word \"fag\")"), transcript);
+        assertTrue(transcript.contains("\"fag\" is everyday in Danish, Norwegian. Set "
+                + "moderation.offline.trustPlayerLanguage: true"), transcript);
+    }
+
     private static String test(YamlConfiguration config, String message) {
         CommandSender sender = mock(CommandSender.class);
         new TestCmd(TestPlugin.with(config)).execute(sender, "nmod", ("test " + message).split(" "));

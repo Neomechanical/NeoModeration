@@ -151,6 +151,7 @@ status:
   local: "{#muted}Lokale Regeln: {#text}{value}"
   rules: "{#muted}Verbotene Wörter: {#text}{words}{#muted}, gesperrte Links: {#text}{urls}{#muted}, Ausnahmen: {#text}{exceptions}"
   packs: "{#muted}Sprachpakete: {#text}{value}"
+  player-language: "{#muted}Spielsprachen der Spieler: {#text}{value}"
   server-ads: "{#muted}Werbung für andere Server: {#text}{value}"
   checks: "{#muted}Anti-Spam {#text}{spam}{#muted}, Verwarnungen {#text}{strikes}{#muted}, Fallverlauf {#text}{cases}"
   surfaces: "{#muted}Schilder, Bücher, Item-Namen, Befehle: {#text}{value}"
@@ -172,6 +173,8 @@ status:
     alerts-hidden: "an, Nachricht verborgen"
     server-ads-on: "blockiert"
     server-ads-off: "erlaubt"
+    player-language-on: "werden berücksichtigt (moderation.offline.trustPlayerLanguage)"
+    player-language-off: "werden ignoriert (moderation.offline.trustPlayerLanguage)"
     surfaces-off: "nicht geprüft"
     surfaces-on: "{count} von 4 geprüft"
     cloud-checks: "{mode}, Kategorien an: {categories}{maps}"
@@ -290,6 +293,8 @@ reason:
   map: "Kartenbild: {detail}"
   map-plain: "Kartenbild"
   other: "{detail}"
+  language-word: "  {#muted}„{detail}“ ist ein Alltagswort auf {languages}. Setze {#brand}moderation.offline.trustPlayerLanguage{#muted} auf true, damit Spieler es benutzen können, wenn sie in ihrer eigenen Sprache schreiben."
+  language-word-trusted: "  {#muted}„{detail}“ ist ein Alltagswort auf {languages}. Es geht nur in einer Nachricht durch, die in der Sprache des Spielers geschrieben ist."
 
 category:
   sexual: "sexuelle Inhalte"
@@ -633,3 +638,4 @@ migrated:
   per-player-on: "Jeder Spieler liest die Texte von NeoModeration jetzt in seiner eigenen Spielsprache (perPlayerLanguage: true)."
   per-player-off: "Alle Spieler lesen weiter deine geänderten {locale}-Texte (perPlayerLanguage: false). Setze es auf true, damit jeder Spieler seine eigene Spielsprache sieht."
   map-art-cap: "Die Cloud prüft jetzt höchstens {count} neue Kartenbilder pro Spieler und Stunde (moderation.mapArt.checksPerPlayerPerHour: {count}), damit niemand mit Kartenmalen dein Guthaben aufbraucht. Mit 0 gibt es keine Grenze."
+  trust-language: "Deine Wortliste enthält Wörter, die in anderen Sprachen alltäglich sind ({words}). Setze moderation.offline.trustPlayerLanguage auf true, damit Spieler sie benutzen können, wenn sie in ihrer eigenen Sprache schreiben."

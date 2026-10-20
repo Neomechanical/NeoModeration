@@ -102,6 +102,28 @@ class ShippedListsTest {
         assertTrue(blocked.isEmpty(), () -> "Ordinary chat sent word by word was blocked:\n" + String.join("\n", blocked));
     }
 
+    /** The shipped default trusts no game language, and English chat still passes everywhere. */
+    @Test
+    void englishChatPassesTheShippedDefault() throws Exception {
+        YamlConfiguration config = new YamlConfiguration();
+        config.loadFromString(Files.readString(Path.of("src/main/resources/config.yml")));
+        List<String> blocked = new ArrayList<>();
+        for (List<String> packs : List.of(List.of("auto"), List.of("all"))) {
+            config.set("moderation.offline.languagePacks", packs);
+            OfflineModerationSettings settings = OfflineModerationSettings.from(new BukkitConfigView(config));
+            for (Line line : lines("everyday-clean.txt")) {
+                if (line.speaker() != null && line.speaker().startsWith("en")) {
+                    OfflineModerationResult result = OfflineModerationEngine.evaluate(line.text(), settings,
+                            line.speaker());
+                    if (result.flagged()) {
+                        blocked.add(packs + " " + line.text() + "  ->  " + result.reason());
+                    }
+                }
+            }
+        }
+        assertTrue(blocked.isEmpty(), () -> "English chat was blocked by default:\n" + String.join("\n", blocked));
+    }
+
     /** Abuse sent one word per message is caught by a message or by the split window. */
     @Test
     void abuseSentAsQuickShortMessagesIsStillCaught() throws Exception {
@@ -139,8 +161,9 @@ class ShippedListsTest {
     /**
      * Every banned word that everyday words of one language spell, written
      * "language: pieces = word", including spellings that stretch a letter
-     * across the gap ("put to" for "puto"). These pass for players who write
-     * that language (English everywhere), so a split that is not ordinary chat
+     * across the gap ("put to" for "puto"). These pass on servers in that
+     * language and, where the server trusts game languages, for players who
+     * write it (English everywhere), so a split that is not ordinary chat
      * in that language is an evasion: adding an everyday word that makes a new
      * one fails here until someone decides whether players of that language say
      * it. A word that is never innocent is listed with its space instead

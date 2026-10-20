@@ -35,9 +35,9 @@ import java.util.Map;
  * digits; a lone digit among spelled-out letters such as {@code 5 h 1 t} or
  * {@code sl u 7} still reads as a letter, but not a quantity after a one-letter
  * word that follows a word ("put a 5 tick delay"). A lone digit after a piece
- * that is no English word reads as that piece's last letter ("shi 7") and never
- * starts a match; {@link EverydayWords#endsInCount} drops a match it ends when
- * the digit is a number after all ("pak 1 diamant").</p>
+ * of letters reads as that piece's last letter ("shi 7") and never starts a
+ * match; {@link EverydayWords#endsInCount} drops a match it ends when the digit
+ * is a number after all ("put 4 torches", "pak 1 diamant").</p>
  */
 final class TextNormalizer {
 
@@ -229,7 +229,8 @@ final class TextNormalizer {
                 mark = folded.codePointAt(0);
             }
         }
-        return isHyphen(mark) || "_*~+/".indexOf(mark) >= 0 || JOINER_MARKS.indexOf(mark) >= 0;
+        return JOINER_MARKS.indexOf(codePoint) >= 0 || isHyphen(mark) || "_*~+/".indexOf(mark) >= 0
+                || JOINER_MARKS.indexOf(mark) >= 0;
     }
 
     /** Dashes, dots and quotation marks typed inside a word: – — ― − ‒ · ‧ • ‚ „ “ ” ‟ ‹ › « » ‴ ‶ ״ ¨ ῭ ΅ ῀ ῁ `. */
@@ -483,11 +484,13 @@ final class TextNormalizer {
         }
 
         /**
-         * Marks each lone digit after a piece that is no English word as that
-         * piece's last letter: "shi 7" reads "shi" and "t", so "shit" matches
-         * across them. A match may end at such a digit but never start there, so
-         * "lvl 5 hit" stays clean, and the digit stays its own token, so
-         * "badword 1" still holds "badword". "took 5 hits" keeps a number.
+         * Marks each lone digit after a piece of letters as that piece's last
+         * letter: "shi 7" reads "shi" and "t", so "shit" matches across them, and
+         * so does "s hi 7". A match may end at such a digit but never start there,
+         * so "lvl 5 hit" stays clean, and the digit stays its own token, so
+         * "badword 1" still holds "badword". A match it ends counts only when the
+         * digit is no number ({@link EverydayWords#endsInCount}): "put 4 torches"
+         * holds no "puta".
          */
         private boolean[] trailingDigits(boolean[] starts, boolean[] ends) {
             boolean[] trailing = new boolean[count];
@@ -506,8 +509,7 @@ final class TextNormalizer {
                 for (int i = begin; i < d; i++) {
                     letters &= digits[i] == 0 && Character.isLetter(chars[i]);
                 }
-                trailing[d] = letters && Character.isLetter(chars[d]) && !BundledWordPacks.everydayWords(
-                        BundledWordPacks.ENGLISH).contains(new String(chars, begin, d - begin));
+                trailing[d] = letters && Character.isLetter(chars[d]);
             }
             return trailing;
         }

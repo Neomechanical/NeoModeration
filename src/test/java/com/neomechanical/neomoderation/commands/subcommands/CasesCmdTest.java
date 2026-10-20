@@ -102,6 +102,20 @@ class CasesCmdTest {
     }
 
     @Test
+    void aWordAnotherLanguageUsesEveryDayPointsToTheSettingInsteadOfAllowingIt() {
+        when(caseLog.byId(7)).thenReturn(Optional.of(record(7, "blocked_word:fag", "blocked")));
+        when(staff.hasPermission(Permissions.ADMIN)).thenReturn(true);
+
+        run("case", "7");
+
+        String transcript = TestPlugin.transcript(staff);
+        assertTrue(transcript.contains("  \"fag\" is everyday in Danish, Norwegian. Set "
+                + "moderation.offline.trustPlayerLanguage: true to let players use it when they write in their own "
+                + "language."), transcript);
+        assertFalse(transcript.contains("Allow"), "allowing the word would let the slur through for everyone");
+    }
+
+    @Test
     void onlyAdminsAreOfferedToAllowAWord() {
         when(caseLog.byId(7)).thenReturn(Optional.of(record(7, "blocked_word:badword", "blocked")));
 
