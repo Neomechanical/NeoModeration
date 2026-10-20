@@ -32,24 +32,20 @@ final class EverydayWords {
     private static final Set<String> ELISIONS = Set.of("l", "d", "j", "t", "s", "m", "n", "c", "qu");
     /** Fewer letters than this are no evidence of a language ("e", "y"). */
     private static final int EVIDENCE_LETTERS = 2;
-    /**
-     * Chat noises, which follow "re-" in nothing anyone writes as two words, and
-     * which a digit read as a letter may come before ("shi 7 lol").
-     */
+    /** Chat noises, which follow "re-" in nothing anyone writes as two words. */
     private static final Set<String> INTERJECTIONS = Set.of(
             "lol", "lmao", "lmfao", "rofl", "omg", "xd", "xdd", "haha", "idk", "brb", "afk", "irl", "ngl", "tbh",
             "wtf", "bruh", "kek");
 
-    /**
-     * English words that frame an insult at someone, letter runs collapsed: one of
-     * them, however stretched, means the message is English.
-     */
-    private static final Set<String> INSULT_FRAMES = java.util.stream.Stream.of(
+    /** English words that frame an insult at someone ("you", "dirty", "get out"). */
+    private static final Set<String> INSULT_FRAME_WORDS = Set.of(
             "you", "u", "ur", "yu", "ure", "your", "youre", "yours", "what", "dirty", "stupid", "ugly", "dumb",
             "filthy", "nasty", "smelly", "gross", "pathetic", "cheap", "trash", "loser", "die", "kill", "shut",
             "back", "home", "fat", "hate", "are", "is", "the", "this", "he", "she", "his", "her", "him", "they",
             "them", "get", "out", "away", "such", "big", "lil", "little", "imagine", "being", "nobody", "hell",
-            "cry")
+            "cry");
+    /** {@link #INSULT_FRAME_WORDS} with letter runs collapsed: one of them, however stretched, frames an insult. */
+    private static final Set<String> INSULT_FRAMES = INSULT_FRAME_WORDS.stream()
             .map(EverydayWords::collapse)
             .collect(java.util.stream.Collectors.toUnmodifiableSet());
     /** Chat and game words every language's players use, which say nothing about a message's language. */
@@ -63,8 +59,11 @@ final class EverydayWords {
 
     private final TextNormalizer.Normalized text;
     private final OfflineRuleCompiler.Scope scope;
-    /** Whether more may follow the text, as more fragments may follow the split window's. */
-    private final boolean unfinished;
+    /**
+     * Whether the server trusts the speaker's language and the text holds no
+     * English word an insult is framed with that their language does not use.
+     */
+    private final boolean unframed;
     private List<int[]> tokens;
     private int[] tokenAt;
     private int[] languagesOf;
@@ -73,10 +72,10 @@ final class EverydayWords {
     /** Per token, whether it is a French elision before an apostrophe ("t" in "t'es"). */
     private boolean[] elision;
 
-    EverydayWords(TextNormalizer.Normalized text, OfflineRuleCompiler.Scope scope, boolean unfinished) {
+    EverydayWords(TextNormalizer.Normalized text, OfflineRuleCompiler.Scope scope, boolean unframed) {
         this.text = text;
         this.scope = scope;
-        this.unfinished = unfinished;
+        this.unframed = unframed;
     }
 
     /**
@@ -106,31 +105,21 @@ final class EverydayWords {
 
     /**
      * Whether the match ends at a digit read as the last letter of the word before
-     * it, while the digit is a number: after an everyday word of a language in
-     * scope ("hur 3?" from a Swedish player), or after a word of three letters or
-     * more with a word after the digit that is no chat noise, so the digit counts
-     * that word ("pak 1 diamant" holds no "paki"). At the end ("shi 7"), before a
-     * chat noise ("shi 7 lol") or after two letters ("go ky 5 now") the digit is
-     * still a letter. The speaker's language counts only when {@code speakerCounts}.
+     * it while that word is an everyday word of English or the server's language,
+     * or of a trusted speaker's language in a message with no English insult
+     * framing, so the digit is a number wherever it stands: from a trusted Dutch
+     * or Swedish player, "hoeveel wil je? pak 1" and "hur 3 gånger?" hold no
+     * "paki" or "hure", while their "go home pak 1" does. After any other piece
+     * the digit is a letter, whatever follows: "shi 7", "shi 7 lool", "go home
+     * pak 1" from anyone else.
      */
-    boolean endsInCount(int end, boolean speakerCounts) {
+    boolean endsInCount(int end) {
         if (!text.noStart()[end - 1]) {
             return false;
         }
         index();
-        int digit = tokenAt[end - 1];
-        if ((languagesOf[digit - 1] & (speakerCounts ? -1 : ~scope.speakerOnly())) != 0) {
-            return true;
-        }
-        int[] piece = tokens.get(digit - 1);
-        if (piece[1] - piece[0] < 3) {
-            return false;
-        }
-        if (digit + 1 >= tokens.size()) {
-            return unfinished;
-        }
-        int[] next = tokens.get(digit + 1);
-        return !INTERJECTIONS.contains(new String(text.chars(), next[0], next[1] - next[0]));
+        int languages = languagesOf[tokenAt[end - 1] - 1];
+        return (languages & ~scope.speakerOnly()) != 0 || (languages != 0 && unframed);
     }
 
     /**
@@ -138,14 +127,17 @@ final class EverydayWords {
      * {@code words}, leaving out {@code judged}, the words this decides about.
      * None of its words may be an English word an insult is framed with ("you",
      * "u", "dirty", "get out", also stretched or typed with digits: "youu", "y0u")
-     * that the language does not use itself. Then its words of that language,
-     * two letters or more, must include one English does not use and outnumber
-     * its English-only words; chat and game words every language borrows ("lol",
-     * "afk", "spawn") count for neither. "slut på järn" and "Kike, ven al spawn"
-     * read as Swedish and Spanish; "dirty kike de" and "big slut på" do not.
+     * that the language does not use itself; one it uses too (Danish "ure",
+     * clocks) shows neither language, while a word of its own that only
+     * collapses to one (French "gros") counts as its own. Then its words of
+     * that language, two letters or more, must include one English does not use
+     * and outnumber its English-only words; chat and game words every language
+     * borrows ("lol", "afk", "spawn") count for neither. "slut på järn" and
+     * "Kike, ven al spawn" read as Swedish and Spanish; "dirty kike de" and "big
+     * slut på" do not.
      */
     static boolean writtenIn(TextNormalizer.Normalized text, Set<String> words, Set<String> judged) {
-        if (words.isEmpty()) {
+        if (words.isEmpty() || framedInEnglish(text, words)) {
             return false;
         }
         Set<String> english = BundledWordPacks.everydayWords(BundledWordPacks.ENGLISH);
@@ -158,8 +150,8 @@ final class EverydayWords {
                 continue;
             }
             boolean ours = words.contains(letters);
-            if (!ours && INSULT_FRAMES.contains(collapse(letters))) {
-                return false;
+            if (ours && INSULT_FRAME_WORDS.contains(letters)) {
+                continue;  // their word is the English frame too ("ure", clocks): it shows neither language
             }
             String plain = plain(text, token);
             if (plain == null || plain.length() < EVIDENCE_LETTERS) {
@@ -173,6 +165,21 @@ final class EverydayWords {
             }
         }
         return theirsOnly && theirs.size() > englishOnly.size();
+    }
+
+    /**
+     * Whether a word of the text, however stretched or typed with digits, is an
+     * English word an insult is framed with that the language whose everyday
+     * words are {@code words} does not use itself: "y0u", "dirty", "get out".
+     */
+    static boolean framedInEnglish(TextNormalizer.Normalized text, Set<String> words) {
+        for (int[] token : OfflineRuleCompiler.tokensOf(text)) {
+            String letters = new String(text.chars(), token[0], token[1] - token[0]);
+            if (!words.contains(letters) && INSULT_FRAMES.contains(collapse(letters))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** A word with each run of a letter reduced to one: "youu" is "you", "dirtyy" is "dirty". */

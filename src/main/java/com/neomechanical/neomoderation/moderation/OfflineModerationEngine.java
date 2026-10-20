@@ -32,20 +32,6 @@ public final class OfflineModerationEngine {
 
     public static OfflineModerationResult evaluate(String message, OfflineModerationSettings settings,
                                                    String speaker) {
-        return evaluate(message, settings, speaker, false);
-    }
-
-    /**
-     * Evaluates text that may go on, as the split window's joined fragments may:
-     * a number at its end may count a word still to come ("pak", "1", "diamant").
-     */
-    static OfflineModerationResult evaluateUnfinished(String message, OfflineModerationSettings settings,
-                                                      String speaker) {
-        return evaluate(message, settings, speaker, true);
-    }
-
-    private static OfflineModerationResult evaluate(String message, OfflineModerationSettings settings,
-                                                    String speaker, boolean unfinished) {
         if (!settings.enabled()) {
             return OfflineModerationResult.clear();
         }
@@ -90,7 +76,7 @@ public final class OfflineModerationEngine {
         }
         String language = settings.wordLanguage(speaker);
         boolean[] masked = OfflineRuleCompiler.maskAllowedPhrases(text, allowedFor(rules, text, language));
-        EverydayWords everyday = new EverydayWords(text, rules.everydayScope(language), unfinished);
+        EverydayWords everyday = new EverydayWords(text, rules.everydayScope(language), unframed(text, language));
 
         for (CompiledWord word : rules.words()) {
             if (!text.collapsed().contains(word.collapsed())) {
@@ -107,14 +93,22 @@ public final class OfflineModerationEngine {
     }
 
     /**
+     * Whether the server trusts the speaker's {@code language} and the text holds
+     * no English word an insult is framed with that the language does not use.
+     */
+    private static boolean unframed(TextNormalizer.Normalized text, String language) {
+        return language != null && !EverydayWords.framedInEnglish(text, BundledWordPacks.everydayWords(language));
+    }
+
+    /**
      * Everyone's allowed phrases, plus the words the speaker's language may use
      * when the message reads as that language: "quel retard ce train" for a French
      * speaker, but not "shut up retard", whatever the speaker's game language.
      */
-    private static List<String[]> allowedFor(CompiledRules rules, TextNormalizer.Normalized text, String speaker) {
-        List<String[]> spoken = rules.speakerPhrases(speaker);
-        if (spoken.isEmpty() || !EverydayWords.writtenIn(text, BundledWordPacks.everydayWords(speaker),
-                rules.speakerWords(speaker))) {
+    private static List<String[]> allowedFor(CompiledRules rules, TextNormalizer.Normalized text, String language) {
+        List<String[]> spoken = rules.speakerPhrases(language);
+        if (spoken.isEmpty() || !EverydayWords.writtenIn(text, BundledWordPacks.everydayWords(language),
+                rules.speakerWords(language))) {
             return rules.allowedPhrases();
         }
         List<String[]> merged = new ArrayList<>(rules.allowedPhrases().size() + spoken.size());
@@ -167,7 +161,7 @@ public final class OfflineModerationEngine {
             if (text.length() > 0) {
                 String language = settings.wordLanguage(speaker);
                 boolean[] masked = OfflineRuleCompiler.maskAllowedPhrases(text, allowedFor(rules, text, language));
-                EverydayWords everyday = new EverydayWords(text, rules.everydayScope(language), false);
+                EverydayWords everyday = new EverydayWords(text, rules.everydayScope(language), unframed(text, language));
                 for (CompiledWord word : rules.words()) {
                     if (!text.collapsed().contains(word.collapsed())) {
                         continue;

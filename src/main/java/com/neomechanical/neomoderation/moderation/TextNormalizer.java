@@ -57,8 +57,8 @@ final class TextNormalizer {
         String cyrillicLatin = "abcehkmopstxyyijlq";
         String greek = "αβεζηικνορτυχγ";
         String greekLatin = "abeznikvoptuxy";
-        String other = "օոսցԁԝѡıƒɡɑ";
-        String otherLatin = "onugdwwifga";
+        String other = "օոսցհԁԝѡıƒɡɑ";
+        String otherLatin = "onughdwwifga";
         // Small capitals, as in "ɴɪɢɢᴇʀ".
         String smallCapitals = "ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘʀꜱᴛᴜᴠᴡʏᴢ";
         String smallCapitalsLatin = "abcdefghijklmnoprstuvwyz";
@@ -147,10 +147,13 @@ final class TextNormalizer {
                 out.markPrefix(2);  // "re-did": a prefix, and "did" is read on its own
             }
             if (isApostrophe(codePoint) || isJoiner(codePoint)) {
-                boolean inWord = !atTokenStart && i < value.length() && Character.isLetter(value.codePointAt(i));
-                // Only an apostrophe makes a contraction: "who-re" is no "who're".
-                afterInWordApostrophe = inWord && isApostrophe(codePoint);
-                afterInWordJoiner = inWord && !afterInWordApostrophe;
+                // The first mark of a run ("--", "'_") decides, by the next character a reader sees.
+                if (!atTokenStart) {
+                    boolean inWord = nextVisibleIsLetter(value, i);
+                    // Only an apostrophe makes a contraction: "who-re" is no "who're".
+                    afterInWordApostrophe = inWord && isApostrophe(codePoint);
+                    afterInWordJoiner = inWord && !afterInWordApostrophe;
+                }
                 atTokenStart = true;
                 continue;
             }
@@ -212,11 +215,46 @@ final class TextNormalizer {
 
     /**
      * Punctuation that joins two pieces of one word when typed between letters:
-     * "put_a" and "go-ok" are read like "put'a", never as everyday words.
+     * "put_a", "go-ok" and "go–ok" are read like "put'a", never as everyday words.
+     * Fullwidth forms count as the marks they are drawn as ("put＿a").
      */
     private static boolean isJoiner(int codePoint) {
-        return isHyphen(codePoint) || codePoint == '_' || codePoint == '*' || codePoint == '~' || codePoint == '+'
-                || codePoint == '/';
+        if (Character.isLetterOrDigit(codePoint) || Character.isWhitespace(codePoint)) {
+            return false;
+        }
+        int mark = codePoint;
+        if (codePoint >= 0x80) {
+            String folded = Normalizer.normalize(new String(Character.toChars(codePoint)), Normalizer.Form.NFKC);
+            if (folded.codePointCount(0, folded.length()) == 1) {
+                mark = folded.codePointAt(0);
+            }
+        }
+        return isHyphen(mark) || "_*~+/".indexOf(mark) >= 0 || JOINER_MARKS.indexOf(mark) >= 0;
+    }
+
+    /** Dashes, dots and quotation marks typed inside a word: – — ― − ‒ · ‧ • ‚ „ “ ” ‟ ‹ › « » ‴ ‶ ״ ¨ ῭ ΅ ῀ ῁ `. */
+    private static final String JOINER_MARKS = "\u2013\u2014\u2015\u2212\u2012\u00B7\u2027\u2022\u201A\u201E"
+            + "\u201C\u201D\u201F\u2039\u203A\u00AB\u00BB\u2034\u2036\u05F4\u00A8\u1FED\u0385\u1FC0\u1FC1"
+            + "\u1FEF";
+
+    /**
+     * Whether the next character a reader sees after {@code index} is a letter,
+     * past invisible characters, accents and more joining marks: "go--ok", and
+     * "go-ok" with a zero-width space after the hyphen, join "go" and "ok".
+     */
+    private static boolean nextVisibleIsLetter(String value, int index) {
+        for (int i = index; i < value.length(); ) {
+            int codePoint = value.codePointAt(i);
+            int type = Character.getType(codePoint);
+            if (type == Character.FORMAT || Character.isIdentifierIgnorable(codePoint)
+                    || type == Character.NON_SPACING_MARK || type == Character.ENCLOSING_MARK
+                    || isApostrophe(codePoint) || isJoiner(codePoint)) {
+                i += Character.charCount(codePoint);
+                continue;
+            }
+            return Character.isLetter(codePoint);
+        }
+        return false;
     }
 
     private static boolean isApostrophe(int codePoint) {

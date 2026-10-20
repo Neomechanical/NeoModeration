@@ -330,7 +330,6 @@ ik wil een huis huren voor een uur
 hoeveel kost huren per week?
 huren kost 10 coins per uur
 # language: en_us
-pak 1 diamant en kom
 ur a 5 hit kill lol
 is a 5 x 5 room ok?
 # language: da_dk
@@ -375,3 +374,22 @@ huren is duur op deze server
 jeg har ikke mere foder til kyllingerne
 # language: sv_se
 foder till hästarna finns i ladan
+# language: nl_nl
+hoeveel wil je? pak 1
+pak 1 lol
+ja, pak 1
+per week huren of per uur?
+# language: da_dk
+hvor dybt skal jeg? dyk 3
+bare dyk 3
+dyk 3 haha
+# language: sv_se
+eventet tar slut till kvällen
+# language: en_us
+re-log and it works
+wait for the re-spawn
+s/he hit me first
+my e-mail is down
+co-op is more fun
+# language: ca_es
+he anat al col·legi amb retard

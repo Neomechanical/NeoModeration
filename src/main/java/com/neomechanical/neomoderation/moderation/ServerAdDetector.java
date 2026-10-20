@@ -59,7 +59,7 @@ final class ServerAdDetector {
      * name reads as a game server, as "play" does.
      */
     private static final Pattern FOREIGN_INVITATION_BEFORE = intentBefore(
-            "entr(?:a|en|em)(?:\\s+(?:a|al|en|no|na))?|entre\\s+(?:a|al|en|no|na)|[uú]n(?:e|a)(?:te|nse)(?:\\s+a)?|jueg(?:a|uen)\\s+en"
+            "entr(?:a|en|em)(?:\\s+(?:a|al|en|no|na))?|entre\\s+(?:al|en|no|na)|[uú]n(?:e|a)(?:te|nse)(?:\\s+a)?|jueg(?:a|uen)\\s+en"
                     + "|vengan\\s+a\\s+jugar\\s+a|jog(?:a|ue|uem)\\s+(?:no|na)|(?:vem|venham)\\s+jogar\\s+(?:no|na)"
                     + "|rejoin(?:s|dre)|rejoign(?:ez|ons)(?:\\s+nous)?|(?:venez|viens)(?:\\s+jouer)?\\s+sur"
                     + "|komm(?:t)?\\s+auf|spielt\\s+auf|joint|gelin|oyna");
@@ -142,7 +142,7 @@ final class ServerAdDetector {
 
     /** Two-letter endings sold to anyone, which are no country's own address in practice (craftingtable.gg). */
     private static final Set<String> GLOBAL_TWO_LETTER_TLDS =
-            Set.of("gg", "io", "me", "tv", "co", "cc", "ws", "gs", "ly", "to", "fm", "ai", "sh", "so");
+            Set.of("gg", "io", "me", "tv", "co", "cc", "ws", "gs", "ly", "to");
 
     private static final int MAX_REPORTED_ADDRESS = 64;
 

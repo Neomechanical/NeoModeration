@@ -102,6 +102,28 @@ class ShippedListsTest {
         assertTrue(blocked.isEmpty(), () -> "Ordinary chat sent word by word was blocked:\n" + String.join("\n", blocked));
     }
 
+    /** Abuse sent one word per message is caught by a message or by the split window. */
+    @Test
+    void abuseSentAsQuickShortMessagesIsStillCaught() throws Exception {
+        OfflineModerationSettings settings = shipped(List.of("all"));
+        SplitMessageWindow window = new SplitMessageWindow();
+        List<String> missed = new ArrayList<>();
+        for (Line line : lines("must-catch.txt")) {
+            UUID player = UUID.randomUUID();
+            long now = 1_000_000L;
+            boolean caught = false;
+            for (String word : line.text().split(" ")) {
+                now += 500;
+                caught |= OfflineModerationEngine.evaluate(word, settings, line.speaker()).flagged()
+                        || window.recordAndCheck(player, word, settings, line.speaker(), now).isPresent();
+            }
+            if (!caught) {
+                missed.add(line.text());
+            }
+        }
+        assertTrue(missed.isEmpty(), () -> "Abuse sent word by word got through:\n" + String.join("\n", missed));
+    }
+
     @Test
     void abuseSpelledAroundTheFilterIsStillCaught() throws Exception {
         OfflineModerationSettings settings = shipped(List.of("all"));

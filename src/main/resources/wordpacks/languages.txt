@@ -18,7 +18,8 @@ ca: retard retards
 es: kike porra
 # Portuguese in Portugal: "os putos", the kids; "a bicha", the queue
 pt_pt: puto putos bicha bichas
-# Swedish and Danish: "slut", the end; Swedish "fick", got; "putta", put
+# Swedish and Danish: "slut", the end, and "foder", animal feed; Swedish
+# "fick", got, and "putta", put
 sv: slut fick putta foder
 da: slut foder
 # Danish and Norwegian: "fag", a school subject; "putte", put; Norwegian
@@ -27,7 +28,8 @@ da no nb nn: fag putte
 no nb nn: slutt kikke
 # Dutch: "huren", to rent
 nl: huren
-# Croatian, Serbian and Bosnian: "dva puta", twice
+# Croatian, Serbian and Bosnian: "dva puta", twice; Marica, a girl's name
+# (a pet form of Marija)
 hr sr bs: puta marica
 # Italian: "verga", a rod, and the writer Giovanni Verga
 it: verga
