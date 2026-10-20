@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Turns the reason a detector gives into words for staff and players.
@@ -107,32 +106,45 @@ public final class Reasons {
     /**
      * A line saying that the word a reason names is an everyday word in other
      * languages, and when it passes there, in the language {@code reader} reads:
-     * "fag" is everyday in Danish and Norwegian. {@code trusted} when the server
-     * trusts players' game languages. Empty for any other reason.
+     * "fag" is an everyday word in Danish and Norwegian. {@code trusted} when the
+     * server trusts players' game languages. Empty for any other reason, and for a
+     * word read across a space or across messages, which the setting would not let
+     * through.
      */
     public static Optional<String> languageWordHint(MessageService messages, CommandSender reader, String reason,
                                                     boolean trusted) {
         Parsed parsed = parse(reason);
-        List<String> codes = parsed.kind() == Kind.WORD ? BundledWordPacks.languagesUsing(parsed.detail()) : List.of();
+        List<String> codes = parsed.kind() == Kind.WORD && !parsed.split() && !parsed.spaced()
+                ? BundledWordPacks.languagesUsing(parsed.detail()) : List.of();
         if (codes.isEmpty()) {
             return Optional.empty();
         }
         Locale readerLocale = Locale.forLanguageTag(messages.localeCodeOf(reader).replace('_', '-'));
-        String languages = codes.stream()
-                .map(code -> languageName(code, readerLocale))
-                .distinct()
-                .collect(Collectors.joining(", "));
+        List<String> names = codes.stream().map(code -> languageName(code, readerLocale)).distinct().toList();
         return Optional.of(messages.format(reader, trusted ? "reason.language-word-trusted" : "reason.language-word",
-                Map.of("detail", parsed.detail(), "languages", languages)));
+                Map.of("detail", parsed.detail(), "languages", list(messages, reader, names))));
     }
 
-    /** A language's name in the reader's language: "da" is "Danish", and Bokmål and Nynorsk are Norwegian. */
-    private static String languageName(String code, Locale reader) {
-        String language = code.contains("_") ? code.substring(0, code.indexOf('_')) : code;
-        if (language.equals("nb") || language.equals("nn")) {
-            language = "no";
+    /** "Danish", "Danish and Norwegian", "Bosnian, Croatian and Serbian", with the reader's word for "and". */
+    private static String list(MessageService messages, CommandSender reader, List<String> names) {
+        if (names.size() == 1) {
+            return names.get(0);
         }
-        return Locale.forLanguageTag(language).getDisplayLanguage(reader);
+        return String.join(", ", names.subList(0, names.size() - 1))
+                + " " + messages.text(reader, "label.and") + " " + names.get(names.size() - 1);
+    }
+
+    /**
+     * A language's name in the reader's language: "da" is "Danish", Bokmål and
+     * Nynorsk are Norwegian, and a country's form names the country:
+     * "Portuguese (Portugal)".
+     */
+    private static String languageName(String code, Locale reader) {
+        Locale language = Locale.forLanguageTag(code.replace('_', '-'));
+        if (language.getLanguage().equals("nb") || language.getLanguage().equals("nn")) {
+            language = Locale.forLanguageTag("no");
+        }
+        return language.getCountry().isEmpty() ? language.getDisplayLanguage(reader) : language.getDisplayName(reader);
     }
 
     /** A cloud category in words: "self-harm". */

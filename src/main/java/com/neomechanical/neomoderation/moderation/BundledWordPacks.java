@@ -166,17 +166,24 @@ public final class BundledWordPacks {
     }
 
     /**
-     * The languages whose speakers use {@code word} every day although another
-     * language's list bans it, as {@code languages.txt} names them ({@code da},
-     * {@code pt_pt}): "fag" gives Danish and Norwegian. Empty for any other word.
+     * The codes of the languages whose speakers use {@code word} every day
+     * although another language's list bans it, as {@code languages.txt} names
+     * them ({@code da}, {@code pt_pt}): "fag" gives da and no. Words compare as
+     * the filter reads them, letter runs collapsed, so the banned "pute" finds
+     * Danish "putte". Empty for any other word.
      */
     public static List<String> languagesUsing(String word) {
-        String lower = word == null ? "" : word.trim().toLowerCase(Locale.ROOT);
+        String wanted = readAs(word);
         return languageLists().entrySet().stream()
-                .filter(entry -> entry.getValue().contains(lower))
+                .filter(entry -> entry.getValue().stream().anyMatch(listed -> readAs(listed).equals(wanted)))
                 .map(Map.Entry::getKey)
                 .sorted()
                 .toList();
+    }
+
+    /** A word as the filter matches it: normalised, with each run of a letter reduced to one. */
+    private static String readAs(String word) {
+        return word == null ? "" : TextNormalizer.normalize(word, false).collapsed();
     }
 
     private static Map<String, List<String>> languageLists() {

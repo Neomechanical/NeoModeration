@@ -26,6 +26,7 @@ label:
   blocking: "bloqueo"
   alert-only: "solo aviso"
   not-armed: "nada que revisar"
+  and: "y"
 
 error:
   no-permission: "{prefix} {#muted}No tienes permiso para usar NeoModeration."
@@ -293,7 +294,7 @@ reason:
   map: "arte de mapa: {detail}"
   map-plain: "arte de mapa"
   other: "{detail}"
-  language-word: "  {#muted}«{detail}» es una palabra cotidiana en {languages}. Pon {#brand}moderation.offline.trustPlayerLanguage: true{#muted} para que los jugadores la usen cuando escriban en su propio idioma."
+  language-word: "  {#muted}«{detail}» es una palabra cotidiana en {languages}. Pon {#brand}moderation.offline.trustPlayerLanguage{#muted} en true para que los jugadores la usen cuando escriban en su propio idioma."
   language-word-trusted: "  {#muted}«{detail}» es una palabra cotidiana en {languages}. Solo pasa en un mensaje escrito en el idioma del jugador."
 
 category:
@@ -637,4 +638,4 @@ migrated:
   per-player-on: "Ahora cada jugador lee los textos de NeoModeration en el idioma de su juego (perPlayerLanguage: true)."
   per-player-off: "Todos los jugadores siguen leyendo tus textos de {locale} editados (perPlayerLanguage: false). Ponlo en true para que cada uno vea el idioma de su juego."
   map-art-cap: "La nube ahora revisa como máximo {count} imágenes de mapa nuevas por jugador cada hora (moderation.mapArt.checksPerPlayerPerHour: {count}), para que nadie gaste tus créditos dibujando mapas. Ponlo en 0 para no tener límite."
-  trust-language: "Tu lista de palabras tiene palabras cotidianas en otros idiomas ({words}). Pon moderation.offline.trustPlayerLanguage en true para que los jugadores las usen cuando escriban en su propio idioma."
+  trust-language: "Tu lista tiene palabras cotidianas en otros idiomas ({words}). Pon moderation.offline.trustPlayerLanguage en true para que los jugadores las usen cuando escriban en su propio idioma."

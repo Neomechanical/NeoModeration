@@ -61,22 +61,23 @@ final class EverydayWords {
 
     private final TextNormalizer.Normalized text;
     private final OfflineRuleCompiler.Scope scope;
-    /**
-     * Whether the server trusts the speaker's language and the text holds no
-     * English word an insult is framed with, even one their language shares.
-     */
-    private final boolean unframed;
+    /** The everyday words of the speaker's language when the server trusts it, else {@code null}. */
+    private final Set<String> speakerWords;
     private int[] tokenAt;
     private int[] languagesOf;
     /** Per token, whether it follows an apostrophe inside a word that is no English contraction. */
     private boolean[] apostropheBefore;
     /** Per token, whether it is a French elision before an apostrophe ("t" in "t'es"). */
     private boolean[] elision;
+    /** Per token, whether it is an English insult frame the speaker's language shares ("ure", "he"). */
+    private boolean[] sharedFrame;
+    /** Whether the text holds an English insult frame the speaker's language does not use ("dirty"). */
+    private boolean foreignFrame;
 
-    EverydayWords(TextNormalizer.Normalized text, OfflineRuleCompiler.Scope scope, boolean unframed) {
+    EverydayWords(TextNormalizer.Normalized text, OfflineRuleCompiler.Scope scope, Set<String> speakerWords) {
         this.text = text;
         this.scope = scope;
-        this.unframed = unframed;
+        this.speakerWords = speakerWords;
     }
 
     /**
@@ -110,21 +111,25 @@ final class EverydayWords {
      * before the digit is an everyday word of one language in scope. "put 4
      * torches" holds no "puta", and from a trusted Dutch player "hoeveel wil je?
      * pak 1" holds no "paki". The speaker's language counts here only in a message
-     * with no English insult framing ({@code unframed}), since a word they share
-     * with the frame ("ure", "he") still frames it: "he pak 1" stays caught.
-     * After any other piece the digit is a letter, whatever follows: "shi 7",
-     * "s hi 7", "shi 7 lool", "go home pak 1".
+     * with no English insult frame their language does not use, and with none they
+     * share ("ure", "he") among the two pieces before the match: "he pak 1" and
+     * "ure a dyk 3" stay caught, "pak 1, het is gratis" is a number. After any
+     * other piece the digit is a letter, whatever follows: "shi 7", "s hi 7",
+     * "shi 7 lool", "go home pak 1".
      */
     boolean endsInCount(int start, int end) {
         if (!text.noStart()[end - 1]) {
             return false;
         }
         index();
+        int first = tokenAt[start];
         int digit = tokenAt[end - 1];
-        int shared = unframed ? -1 : ~scope.speakerOnly();
+        boolean speaker = speakerWords != null && !foreignFrame
+                && !(first >= 1 && sharedFrame[first - 1]) && !(first >= 2 && sharedFrame[first - 2]);
+        int shared = speaker ? -1 : ~scope.speakerOnly();
         boolean anyWord = false;
-        for (int token = tokenAt[start]; token < digit; token++) {
-            if (token > tokenAt[start] && apostropheBefore[token]) {
+        for (int token = first; token < digit; token++) {
+            if (token > first && apostropheBefore[token]) {
                 return false;
             }
             shared &= languagesOf[token];
@@ -134,6 +139,28 @@ final class EverydayWords {
             }
         }
         return anyWord;
+    }
+
+    /**
+     * Whether the match runs through a digit read as a letter while every other
+     * piece of it is an English everyday word, so the digit is a number between
+     * them: "put 4 in the furnace" holds no "putain", and "gg 0 ok" no "gook".
+     */
+    boolean aroundCount(int start, int end) {
+        index();
+        boolean digit = false;
+        for (int i = start; i < end; i++) {
+            if (!text.tokenStart()[i]) {
+                continue;
+            }
+            int token = tokenAt[i];
+            if (text.noStart()[i]) {
+                digit = true;
+            } else if ((languagesOf[token] & ENGLISH) == 0 || (i > start && apostropheBefore[token])) {
+                return false;
+            }
+        }
+        return digit;
     }
 
     /**
@@ -151,7 +178,7 @@ final class EverydayWords {
      * slut på" do not.
      */
     static boolean writtenIn(TextNormalizer.Normalized text, Set<String> words, Set<String> judged) {
-        if (words.isEmpty() || framedInEnglish(text, words, false)) {
+        if (words.isEmpty() || framedInEnglish(text, words)) {
             return false;
         }
         Set<String> english = BundledWordPacks.everydayWords(BundledWordPacks.ENGLISH);
@@ -185,14 +212,11 @@ final class EverydayWords {
      * Whether a word of the text, however stretched or typed with digits, is an
      * English word an insult is framed with that the language whose everyday
      * words are {@code words} does not use itself: "y0u", "dirty", "get out".
-     * With {@code shared}, a frame word the language uses too frames the text as
-     * well ("ure", clocks in Danish), unless it only collapses to one ("gros").
      */
-    static boolean framedInEnglish(TextNormalizer.Normalized text, Set<String> words, boolean shared) {
+    static boolean framedInEnglish(TextNormalizer.Normalized text, Set<String> words) {
         for (int[] token : OfflineRuleCompiler.tokensOf(text)) {
             String letters = new String(text.chars(), token[0], token[1] - token[0]);
-            if (INSULT_FRAMES.contains(collapse(letters))
-                    && (!words.contains(letters) || shared && INSULT_FRAME_WORDS.contains(letters))) {
+            if (!words.contains(letters) && INSULT_FRAMES.contains(collapse(letters))) {
                 return true;
             }
         }
@@ -221,11 +245,16 @@ final class EverydayWords {
         languagesOf = new int[tokens.size()];
         apostropheBefore = new boolean[tokens.size()];
         elision = new boolean[tokens.size()];
+        sharedFrame = new boolean[tokens.size()];
+        foreignFrame = speakerWords != null && framedInEnglish(text, speakerWords);
         for (int t = 0; t < tokens.size(); t++) {
             int[] token = tokens.get(t);
             for (int i = token[0]; i < token[1]; i++) {
                 tokenAt[i] = t;
             }
+            String letters = new String(text.chars(), token[0], token[1] - token[0]);
+            sharedFrame[t] = speakerWords != null && speakerWords.contains(letters)
+                    && INSULT_FRAME_WORDS.contains(letters);
             String before = t > 0 ? plain(text, tokens.get(t - 1)) : null;
             apostropheBefore[t] = text.apostrophe()[token[0]] && !text.joinBlocked()[token[0]]
                     && !(before != null && ELISIONS.contains(before));

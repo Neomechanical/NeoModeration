@@ -26,6 +26,7 @@ label:
   blocking: "blockieren"
   alert-only: "nur melden"
   not-armed: "nichts zu prüfen"
+  and: "und"
 
 error:
   no-permission: "{prefix} {#muted}Du darfst NeoModeration nicht verwenden."

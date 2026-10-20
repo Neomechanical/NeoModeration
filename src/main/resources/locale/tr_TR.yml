@@ -26,6 +26,7 @@ label:
   blocking: "engelleme"
   alert-only: "yalnızca bildirim"
   not-armed: "denetlenecek bir şey yok"
+  and: "ve"
 
 error:
   no-permission: "{prefix} {#muted}NeoModeration'ı kullanma izniniz yok."
@@ -293,8 +294,8 @@ reason:
   map: "harita resmi: {detail}"
   map-plain: "harita resmi"
   other: "{detail}"
-  language-word: "  {#muted}\"{detail}\" şu dillerde gündelik bir kelime: {languages}. Oyuncuların kendi dillerinde yazarken kullanabilmesi için {#brand}moderation.offline.trustPlayerLanguage{#muted} değerini true yapın."
-  language-word-trusted: "  {#muted}\"{detail}\" şu dillerde gündelik bir kelime: {languages}. Yalnızca oyuncunun kendi dilinde yazılmış bir mesajda geçer."
+  language-word: "  {#muted}\"{detail}\", {languages} konuşanlar için gündelik bir kelime. Oyuncuların kendi dillerinde yazarken kullanabilmesi için {#brand}moderation.offline.trustPlayerLanguage{#muted} değerini true yapın."
+  language-word-trusted: "  {#muted}\"{detail}\", {languages} konuşanlar için gündelik bir kelime. Yalnızca oyuncunun kendi dilinde yazılmış bir mesajda geçer."
 
 category:
   sexual: "cinsel içerik"

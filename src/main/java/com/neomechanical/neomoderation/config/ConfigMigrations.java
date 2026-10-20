@@ -93,11 +93,14 @@ public final class ConfigMigrations {
             }
         }
         if (!config.isSet(TRUST_LANGUAGE_PATH)) {
-            // 1.6.6 read no game language, so nothing changes; the console names the words this concerns.
+            // 1.6.6 read no game language, so nothing changes; the console names the words this concerns,
+            // leaving out those the server's own language already lets through for everyone.
             add(config, TRUST_LANGUAGE_PATH, false);
+            List<String> excused = BundledWordPacks.languageWords(config.getString("locale", "en_US"));
             List<String> everyday = (config.isSet(WORDS_PATH) ? config.getStringList(WORDS_PATH) : List.<String>of())
                     .stream()
                     .filter(word -> !BundledWordPacks.languagesUsing(word).isEmpty())
+                    .filter(word -> !excused.contains(word.toLowerCase(Locale.ROOT)))
                     .toList();
             if (!everyday.isEmpty()) {
                 changes.add(new Change("migrated.trust-language", Map.of("words", String.join(", ", everyday))));

@@ -109,10 +109,35 @@ class CasesCmdTest {
         run("case", "7");
 
         String transcript = TestPlugin.transcript(staff);
-        assertTrue(transcript.contains("  \"fag\" is everyday in Danish, Norwegian. Set "
-                + "moderation.offline.trustPlayerLanguage: true to let players use it when they write in their own "
+        assertTrue(transcript.contains("  \"fag\" is an everyday word in Danish and Norwegian. Set "
+                + "moderation.offline.trustPlayerLanguage to true to let players use it when they write in their own "
                 + "language."), transcript);
         assertFalse(transcript.contains("Allow"), "allowing the word would let the slur through for everyone");
+    }
+
+    @Test
+    void aNativeWordReadAsABannedOneIsExplainedToo() {
+        // Danish "putte" (put) is read as the banned "pute"; Portugal's "puto" (kid) is not Brazil's.
+        when(caseLog.byId(7)).thenReturn(Optional.of(record(7, "blocked_word:pute", "blocked")));
+        when(caseLog.byId(8)).thenReturn(Optional.of(record(8, "blocked_word:puto", "blocked")));
+        when(staff.hasPermission(Permissions.ADMIN)).thenReturn(true);
+
+        run("case", "7");
+        run("case", "8");
+
+        String transcript = TestPlugin.transcript(staff);
+        assertTrue(transcript.contains("\"pute\" is an everyday word in Danish and Norwegian."), transcript);
+        assertTrue(transcript.contains("\"puto\" is an everyday word in Portuguese (Portugal)."), transcript);
+        assertFalse(transcript.contains("Allow"), transcript);
+    }
+
+    @Test
+    void aWordWrittenInPiecesGetsNoHint() {
+        when(caseLog.byId(7)).thenReturn(Optional.of(record(7, "spaced_blocked_word:fag", "blocked")));
+
+        run("case", "7");
+
+        assertFalse(TestPlugin.transcript(staff).contains("everyday word"), TestPlugin.transcript(staff));
     }
 
     @Test

@@ -271,6 +271,7 @@ key.cleared	a6f2138e2ca5a01a,babf8efbe6b769df
 key.saved	4e6b38d27076828b,943b074abe8efb14
 key.usage	75be1216660c3c10,f341d47eb8c959b7
 label.alert-only	18df47e023896c76,f903e3a6129bdb27
+label.and	3f79bb7b435b0532
 label.blocking	2d97cebab47a1313,ea6f89220e75f37c
 label.none	76e1824b75a3c908
 label.not-armed	212f3e6d1d9f8f0e
@@ -341,7 +342,7 @@ privacy.title	42bde47beb0b6ad2,f8727c348534374e
 reason.any-link	464f80bc87667971
 reason.cloud	9627c0e14e92329e
 reason.cloud-plain	cce368dfca49f4f0
-reason.language-word	c3684ef4ecb612e6
+reason.language-word	af82c4ee542a4c85,c3684ef4ecb612e6
 reason.language-word-trusted	abcc85622bc8d407
 reason.link	33832d8a9b2d06bd
 reason.map	e4e6eeec0d10e649

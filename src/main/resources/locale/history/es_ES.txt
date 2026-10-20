@@ -296,6 +296,7 @@ key.cleared	05104a02adba2199,3ed67c13a039f0db,50b13c9e9f08647b,95bd0336b94c8e49
 key.saved	5db1a503e185dd9c,77b73b72149eefbf,7ea1c2eeefade11f,80b1f870c50568de,8bc0335892e7d095
 key.usage	7688966852ce2669,774037fbeae024f6,7922c41e183181d0,f341d47eb8c959b7
 label.alert-only	4463a53552e450d7,82066d136456b5ff
+label.and	a1fce4363854ff88
 label.blocking	2d97cebab47a1313,7565525bc4305f84
 label.none	3f695d04348e0bb6
 label.not-armed	099745216b7e2fed
@@ -310,7 +311,7 @@ migrated.per-player-off	32461391d55a109b
 migrated.per-player-on	0097c2a6f5a921e3
 migrated.server-ads	538f495b863a55e4
 migrated.tell-players	8678bce8f9ed04f4
-migrated.trust-language	6192e1b161df4b3a
+migrated.trust-language	6192e1b161df4b3a,9fc1b9bf13a3bcea
 migrated.words	09f91301bd27a196
 mode.current	183a8b0acfdedf22,9591e53b6757abc4,a75b3a8542d267e0
 mode.set-enforce	227fb49c45012e94,326e45a3682da01b,ae62eedee2215d0a
@@ -366,7 +367,7 @@ privacy.title	8627a779a9f8d00f,a7efb76118df14bc,bdb4a2f954e55d39,dc31d8f4c3e8404
 reason.any-link	4b6dfc9848f41c98
 reason.cloud	6877deb68ea5934d
 reason.cloud-plain	17a6099bfbba1fac
-reason.language-word	5e6bde892adf3fb8
+reason.language-word	5e6bde892adf3fb8,afffdfc1ac71f316
 reason.language-word-trusted	ec5acb5082ec372d
 reason.link	8dc0f5ac418cc90c
 reason.map	b996b8928969e0cf

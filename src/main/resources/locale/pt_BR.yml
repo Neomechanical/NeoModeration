@@ -26,6 +26,7 @@ label:
   blocking: "bloqueio"
   alert-only: "só aviso"
   not-armed: "nada para verificar"
+  and: "e"
 
 error:
   no-permission: "{prefix} {#muted}Você não tem permissão para usar o NeoModeration."
@@ -293,7 +294,7 @@ reason:
   map: "arte em mapa: {detail}"
   map-plain: "arte em mapa"
   other: "{detail}"
-  language-word: "  {#muted}“{detail}” é uma palavra do dia a dia em {languages}. Coloque {#brand}moderation.offline.trustPlayerLanguage: true{#muted} para que os jogadores possam usá-la quando escreverem no próprio idioma."
+  language-word: "  {#muted}“{detail}” é uma palavra do dia a dia em {languages}. Coloque true em {#brand}moderation.offline.trustPlayerLanguage{#muted} para que os jogadores possam usá-la quando escreverem no próprio idioma."
   language-word-trusted: "  {#muted}“{detail}” é uma palavra do dia a dia em {languages}. Ela só passa em uma mensagem escrita no idioma do jogador."
 
 category:

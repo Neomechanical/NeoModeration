@@ -8,6 +8,7 @@ import com.neomechanical.neomoderation.moderation.OfflineRuleCompiler.CompiledWo
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -76,7 +77,7 @@ public final class OfflineModerationEngine {
         }
         String language = settings.wordLanguage(speaker);
         boolean[] masked = OfflineRuleCompiler.maskAllowedPhrases(text, allowedFor(rules, text, language));
-        EverydayWords everyday = new EverydayWords(text, rules.everydayScope(language), unframed(text, language));
+        EverydayWords everyday = new EverydayWords(text, rules.everydayScope(language), speakerWords(language));
 
         for (CompiledWord word : rules.words()) {
             if (!text.collapsed().contains(word.collapsed())) {
@@ -92,13 +93,9 @@ public final class OfflineModerationEngine {
         return OfflineModerationResult.clear();
     }
 
-    /**
-     * Whether the server trusts the speaker's {@code language} and the text holds
-     * no English word an insult is framed with, even one the language shares ("he").
-     */
-    private static boolean unframed(TextNormalizer.Normalized text, String language) {
-        return language != null
-                && !EverydayWords.framedInEnglish(text, BundledWordPacks.everydayWords(language), true);
+    /** The everyday words of a trusted speaker's {@code language}, or {@code null} for none. */
+    private static Set<String> speakerWords(String language) {
+        return language == null ? null : BundledWordPacks.everydayWords(language);
     }
 
     /**
@@ -162,7 +159,7 @@ public final class OfflineModerationEngine {
             if (text.length() > 0) {
                 String language = settings.wordLanguage(speaker);
                 boolean[] masked = OfflineRuleCompiler.maskAllowedPhrases(text, allowedFor(rules, text, language));
-                EverydayWords everyday = new EverydayWords(text, rules.everydayScope(language), unframed(text, language));
+                EverydayWords everyday = new EverydayWords(text, rules.everydayScope(language), speakerWords(language));
                 for (CompiledWord word : rules.words()) {
                     if (!text.collapsed().contains(word.collapsed())) {
                         continue;

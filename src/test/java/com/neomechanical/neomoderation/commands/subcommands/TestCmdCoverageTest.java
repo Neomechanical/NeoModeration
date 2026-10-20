@@ -68,8 +68,8 @@ class TestCmdCoverageTest {
         String transcript = test(config, "hvilket fag har du");
 
         assertTrue(transcript.contains("Local rules: caught (banned word \"fag\")"), transcript);
-        assertTrue(transcript.contains("\"fag\" is everyday in Danish, Norwegian. Set "
-                + "moderation.offline.trustPlayerLanguage: true"), transcript);
+        assertTrue(transcript.contains("\"fag\" is an everyday word in Danish and Norwegian. Set "
+                + "moderation.offline.trustPlayerLanguage to true"), transcript);
     }
 
     private static String test(YamlConfiguration config, String message) {

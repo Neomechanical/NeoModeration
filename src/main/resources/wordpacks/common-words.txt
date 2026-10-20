@@ -94,7 +94,7 @@ fr: tres encore jamais toujours quand alors donc aussi faire dire voir avoir etr
 fr: veux sais sans svp stp aucun aucune aujourd hui demain hier ici deja vraiment juste comme
 fr: cette ces leur leurs notre votre nos vos quel quelle parce pourquoi comment beaucoup desole
 fr: attends viens allez allons ouais bah village diamants echanger miner diner veut gros
-fr: serveur partout suis monde temps arrive petit
+fr: serveur partout suis monde temps arrive petit c
 # German
 de: ab am an da du er es im in ja ob so um wo zu je der die das den dem des ein eine einen ist ich
 de: sie wir ihr und mit von auf aus bei hat war wie was wer nicht noch nur auch aber oder wenn

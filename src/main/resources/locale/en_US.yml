@@ -25,6 +25,7 @@ label:
   blocking: "blocking"
   alert-only: "alerting staff only"
   not-armed: "nothing to check"
+  and: "and"
 
 error:
   no-permission: "{prefix} {#muted}You don't have permission to use NeoModeration."
@@ -292,8 +293,8 @@ reason:
   map: "map art: {detail}"
   map-plain: "map art"
   other: "{detail}"
-  language-word: "  {#muted}\"{detail}\" is everyday in {languages}. Set {#brand}moderation.offline.trustPlayerLanguage: true{#muted} to let players use it when they write in their own language."
-  language-word-trusted: "  {#muted}\"{detail}\" is everyday in {languages}. It passes only in a message written in the player's own language."
+  language-word: "  {#muted}\"{detail}\" is an everyday word in {languages}. Set {#brand}moderation.offline.trustPlayerLanguage{#muted} to true to let players use it when they write in their own language."
+  language-word-trusted: "  {#muted}\"{detail}\" is an everyday word in {languages}. It passes only in a message written in the player's own language."
 
 category:
   sexual: "sexual content"

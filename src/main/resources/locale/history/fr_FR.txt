@@ -271,6 +271,7 @@ key.cleared	110db4012792cf2d,7d3760b18fea141c
 key.saved	578ae1093ad40d68,61fbe1f38353e2a2
 key.usage	45337a3d56573fcd,506c12cd2e1a42e3
 label.alert-only	240f7615f916efff,36f63821ca466c73
+label.and	f056b8cae37dc3ed
 label.blocking	7c3b3d6332947dba,f20872d259a2fa7f
 label.none	7b62d6fbba9c1367
 label.not-armed	49472106ba2e059b

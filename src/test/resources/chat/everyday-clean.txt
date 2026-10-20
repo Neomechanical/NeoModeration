@@ -402,3 +402,12 @@ ge hästen lite foder
 put 4 torches there
 gg 4 real
 hi 5 bro
+# language: en_us
+put 4 in the furnace
+put 4 as the amount
+gg 0 ok
+# language: fr_fr
+c un 7 sur 10
+# language: nl_nl
+pak 1, het is gratis
+is er nog hout? pak 1 stapel

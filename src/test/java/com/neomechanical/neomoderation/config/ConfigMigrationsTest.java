@@ -81,6 +81,14 @@ class ConfigMigrationsTest {
         }
         assertFalse(trust.values().get("words").contains("fuck"), trust.values().get("words"));
 
+        YamlConfiguration spanish = upgradedFrom166("es_ES");
+        spanish.set(ConfigMigrations.WORDS_PATH, ConfigMigrations.STARTER_WORDS_1_5);
+        String named = ConfigMigrations.apply(spanish, false).stream()
+                .filter(change -> change.key().equals("migrated.trust-language")).findFirst().orElseThrow()
+                .values().get("words");
+        assertFalse(named.contains("kike"), "a Spanish server already lets everyone write Kike: " + named);
+        assertTrue(named.contains("fag"), named);
+
         YamlConfiguration plain = upgradedFrom166("en_US");
         plain.set(ConfigMigrations.WORDS_PATH, List.of("badword", "fuck"));
         assertTrue(ConfigMigrations.apply(plain, false).stream()
