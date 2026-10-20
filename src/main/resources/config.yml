@@ -145,10 +145,14 @@ moderation:
     # pack follows Brazilian Portuguese. A few words are everyday words in one
     # language and banned in another, such as French "retard", Spanish "Kike",
     # Swedish "slut" and Danish "fag" (a school subject).
-    # They pass for everyone when "locale" is that language, and for a player
-    # whose game language it is when most of the message is in that language
-    # and no common English word aims an insult ("you", "dirty").
+    # They pass for everyone when "locale" is that language.
     languagePacks: [auto]
+    # true also lets such a word pass for a player whose game language it is,
+    # when most of the message is in that language and no common English word
+    # aims an insult ("you", "dirty"), and reads a player's everyday words in
+    # it. Players pick their own game language, so any player could switch it
+    # to use these words: turn this on only if you trust your players with them.
+    trustPlayerLanguage: false
     bannedUrls:
       - "grabify.link"
       - "iplogger.org"

@@ -1,7 +1,8 @@
 # Everyday words in one language that another language's list bans, or that
 # read as a banned word with a letter doubled ("slutt"). They pass for everyone
-# on a server whose locale is the language named, and for a player whose game
-# language is, when the message is written in that language: no English word
+# on a server whose locale is the language named. On a server that sets
+# trustPlayerLanguage they also pass for a player whose game language is the
+# language named, when the message is written in that language: no English word
 # an insult is framed with ("you", "dirty", "get out"), at least one everyday
 # word of the language (common-words.txt) that English does not use, and more
 # of its words than English ones, leaving out chat and game words such as "lol"

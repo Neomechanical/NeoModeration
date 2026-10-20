@@ -11,6 +11,9 @@ import java.util.Set;
  * own lists as written in config.yml; {@code packWords} are the words of the
  * language packs it selected; {@code locale} is the server's language. What is
  * enforced is {@link #effectiveWords()} less {@link #effectiveAllowedWords()}.
+ * {@code trustPlayerLanguage} lets a player's game language excuse words too
+ * (see {@link #wordLanguage(String)}); players choose it, so it is off unless
+ * the server turns it on.
  */
 public record OfflineModerationSettings(
         boolean enabled,
@@ -23,7 +26,8 @@ public record OfflineModerationSettings(
         List<String> languagePacks,
         List<String> packWords,
         boolean blockServerAds,
-        String locale
+        String locale,
+        boolean trustPlayerLanguage
 ) {
     public static final List<String> DEFAULT_LANGUAGE_PACKS = List.of(BundledWordPacks.AUTO);
     private static final String DEFAULT_LOCALE = "en_US";
@@ -42,7 +46,7 @@ public record OfflineModerationSettings(
             boolean blockServerAds
     ) {
         this(enabled, blockAnyUrl, normalizeLeetspeak, bannedWords, bannedUrls, allowedWords, allowedUrls,
-                languagePacks, packWords, blockServerAds, DEFAULT_LOCALE);
+                languagePacks, packWords, blockServerAds, DEFAULT_LOCALE, false);
     }
 
     /** Local rules with no language packs and no server-advertising check. */
@@ -77,8 +81,19 @@ public record OfflineModerationSettings(
                 packs,
                 BundledWordPacks.wordsOf(packs),
                 config.getBoolean("moderation.offline.blockServerAds", true),
-                locale
+                locale,
+                config.getBoolean("moderation.offline.trustPlayerLanguage", false)
         );
+    }
+
+    /**
+     * The game language the word rules may read a message from {@code speaker} in:
+     * theirs when the server trusts players' game languages, else none, so only
+     * English and the server's own language can excuse a word. Players pick their
+     * game language, so trusting it lets any player use the words it excuses.
+     */
+    public String wordLanguage(String speaker) {
+        return trustPlayerLanguage ? speaker : null;
     }
 
     /**

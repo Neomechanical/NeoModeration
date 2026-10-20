@@ -88,8 +88,9 @@ public final class OfflineModerationEngine {
         if (text.length() == 0) {
             return OfflineModerationResult.clear();
         }
-        boolean[] masked = OfflineRuleCompiler.maskAllowedPhrases(text, allowedFor(rules, text, speaker));
-        EverydayWords everyday = new EverydayWords(text, rules.everydayScope(speaker), unfinished);
+        String language = settings.wordLanguage(speaker);
+        boolean[] masked = OfflineRuleCompiler.maskAllowedPhrases(text, allowedFor(rules, text, language));
+        EverydayWords everyday = new EverydayWords(text, rules.everydayScope(language), unfinished);
 
         for (CompiledWord word : rules.words()) {
             if (!text.collapsed().contains(word.collapsed())) {
@@ -164,8 +165,9 @@ public final class OfflineModerationEngine {
             TextNormalizer.Normalized text =
                     TextNormalizer.normalize(new String(raw), settings.normalizeLeetspeak());
             if (text.length() > 0) {
-                boolean[] masked = OfflineRuleCompiler.maskAllowedPhrases(text, allowedFor(rules, text, speaker));
-                EverydayWords everyday = new EverydayWords(text, rules.everydayScope(speaker), false);
+                String language = settings.wordLanguage(speaker);
+                boolean[] masked = OfflineRuleCompiler.maskAllowedPhrases(text, allowedFor(rules, text, language));
+                EverydayWords everyday = new EverydayWords(text, rules.everydayScope(language), false);
                 for (CompiledWord word : rules.words()) {
                     if (!text.collapsed().contains(word.collapsed())) {
                         continue;

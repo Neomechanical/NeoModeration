@@ -1,9 +1,10 @@
 # Everyday words by language, used to tell everyday words from one banned word
 # split up. A banned word is not read across a space when every piece of it is
 # an everyday word of one language, and that language is English, the server's
-# "locale" or the player's game language: "put a torch here" stays clean, and
-# for a Spanish player so does "vino Mari con su novio". A word on the server's
-# own list only takes English or the server's language as its excuse. Pieces
+# "locale" or, on a server that sets trustPlayerLanguage, the player's game
+# language: "put a torch here" stays clean, and there for a Spanish player so
+# does "vino Mari con su novio". A word on the server's own list only takes
+# English or the server's language as its excuse. Pieces
 # from different languages are still read as one word ("bean er"), and so are
 # pieces that are not words ("f uck", "ni gger", "k y s"). A banned word written
 # with a space ("ass hole") is always read across spaces.

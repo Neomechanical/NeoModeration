@@ -32,11 +32,17 @@ class ShippedListsTest {
         return shipped(packs, "en_US");
     }
 
+    /**
+     * The shipped config with players' game languages trusted, so the rules for
+     * them are tested; {@link #aPlayersGameLanguageCountsOnlyWhereTheServerTrustsIt}
+     * covers the shipped default, which does not trust them.
+     */
     private static OfflineModerationSettings shipped(List<String> packs, String locale) throws Exception {
         YamlConfiguration config = new YamlConfiguration();
         config.loadFromString(Files.readString(Path.of("src/main/resources/config.yml")));
         config.set("moderation.offline.languagePacks", packs);
         config.set("locale", locale);
+        config.set("moderation.offline.trustPlayerLanguage", true);
         return OfflineModerationSettings.from(new BukkitConfigView(config));
     }
 
@@ -312,6 +318,28 @@ class ShippedListsTest {
         assertFalse(OfflineModerationEngine.evaluate("os putos estão a jogar", portuguese, "pt_pt").flagged());
         assertTrue(OfflineModerationEngine.evaluate("seu puto", portuguese, "pt_br").flagged(),
                 "Brazilian Portuguese keeps the word banned");
+    }
+
+    /** Players pick their game language, so it excuses no word until the server says it may. */
+    @Test
+    void aPlayersGameLanguageCountsOnlyWhereTheServerTrustsIt() throws Exception {
+        YamlConfiguration config = new YamlConfiguration();
+        config.loadFromString(Files.readString(Path.of("src/main/resources/config.yml")));
+        OfflineModerationSettings shippedDefault = OfflineModerationSettings.from(new BukkitConfigView(config));
+        assertFalse(shippedDefault.trustPlayerLanguage());
+        for (String[] line : new String[][]{{"kike de la casa", "es_es"}, {"quel retard ce train", "fr_fr"},
+                {"slut på järn", "sv_se"}, {"hvilket fag har du", "da_dk"}, {"slutt på is til isveien", "nb_no"}}) {
+            assertTrue(OfflineModerationEngine.evaluate(line[0], shippedDefault, line[1]).flagged(),
+                    line[0] + " (" + line[1] + ") passed on a server that does not trust game languages");
+        }
+        config.set("locale", "fr_FR");
+        assertFalse(OfflineModerationEngine.evaluate("quel retard ce train",
+                OfflineModerationSettings.from(new BukkitConfigView(config)), "en_us").flagged(),
+                "a French server's own language still counts for everyone on it");
+        config.set("locale", "en_US");
+        config.set("moderation.offline.trustPlayerLanguage", true);
+        assertFalse(OfflineModerationEngine.evaluate("quel retard ce train",
+                OfflineModerationSettings.from(new BukkitConfigView(config)), "fr_fr").flagged());
     }
 
     @Test
