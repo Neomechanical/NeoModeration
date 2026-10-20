@@ -52,7 +52,7 @@ final class CaseView {
         if (row.preview() != null && !row.preview().isBlank()) {
             lines.add(MenuRenderer.text(messages.format(reader, "cases.preview", Map.of("value", row.preview()))));
         }
-        Reasons.languageWordHint(messages, reader, row.reason(), trusted)
+        Reasons.languageWordHint(messages, reader, row.reason(), row.preview(), trusted)
                 .ifPresent(hint -> lines.add(MenuRenderer.text(hint)));
         List<Button> buttons = buttons(messages, reader, row, label);
         lines.add(MenuRenderer.buttons(buttons).forConsole(MenuRenderer.withCommands(buttons)));
@@ -71,7 +71,7 @@ final class CaseView {
         // Nor is a word another language uses every day ("fag"): allowing it would let the slur through for
         // everyone, and the hint above names the setting that lets those players use it.
         if (reason.kind() == Reasons.Kind.WORD && !reason.split() && !reason.spaced() && !reason.detail().isBlank()
-                && BundledWordPacks.languagesUsing(reason.detail()).isEmpty()
+                && BundledWordPacks.languagesUsing(reason.detail(), row.preview()).isEmpty()
                 && reader.hasPermission(Permissions.ADMIN)) {
             buttons.add(button(messages, reader, "allow", Map.of("word", reason.detail()),
                     "/" + label + " allow word add " + reason.detail()));

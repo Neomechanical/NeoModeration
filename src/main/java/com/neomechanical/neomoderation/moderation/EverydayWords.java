@@ -18,8 +18,9 @@ import java.util.Set;
  * ("pa ki", "bean er"), pieces that are not words ("f uck"), pieces typed
  * with digits or symbols ("g0 ok") and pieces joined by an apostrophe inside a
  * word ("go'ok", which nobody writes for two words) are still read as one word.
- * A lone digit read as the letter just before it only stretches that letter, so
- * it changes nothing. An English contraction's ending ("who're") is an English
+ * A lone digit that repeats the letter before it only stretches that letter, so
+ * it changes nothing as a piece ("as 5 hole" is still caught by a word written
+ * with a space, such as the server's "ass hole"). An English contraction's ending ("who're") is an English
  * word, and so is a "re" before a hyphen and a word of three letters or more
  * ("who re-did", not "who re-x"); a French elision ("pu, t'es") separates words
  * as a space does.</p>
@@ -45,7 +46,7 @@ final class EverydayWords {
             "filthy", "nasty", "smelly", "gross", "pathetic", "cheap", "trash", "loser", "die", "kill", "shut",
             "back", "home", "fat", "hate", "are", "is", "the", "this", "he", "she", "his", "her", "him", "they",
             "them", "get", "out", "away", "such", "big", "lil", "little", "imagine", "being", "nobody", "hell",
-            "cry");
+            "cry", "shes", "hes");
     /** {@link #INSULT_FRAME_WORDS} with letter runs collapsed: one of them, however stretched, frames an insult. */
     private static final Set<String> INSULT_FRAMES = INSULT_FRAME_WORDS.stream()
             .map(EverydayWords::collapse)

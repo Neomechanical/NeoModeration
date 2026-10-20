@@ -118,7 +118,7 @@ class CasesCmdTest {
     @Test
     void aNativeWordReadAsABannedOneIsExplainedToo() {
         // Danish "putte" (put) is read as the banned "pute"; Portugal's "puto" (kid) is not Brazil's.
-        when(caseLog.byId(7)).thenReturn(Optional.of(record(7, "blocked_word:pute", "blocked")));
+        when(caseLog.byId(7)).thenReturn(Optional.of(record(7, "blocked_word:pute", "blocked", "putte det i kisten")));
         when(caseLog.byId(8)).thenReturn(Optional.of(record(8, "blocked_word:puto", "blocked")));
         when(staff.hasPermission(Permissions.ADMIN)).thenReturn(true);
 
@@ -126,9 +126,22 @@ class CasesCmdTest {
         run("case", "8");
 
         String transcript = TestPlugin.transcript(staff);
-        assertTrue(transcript.contains("\"pute\" is an everyday word in Danish and Norwegian."), transcript);
+        assertTrue(transcript.contains("\"putte\" is an everyday word in Danish and Norwegian."), transcript);
         assertTrue(transcript.contains("\"puto\" is an everyday word in Portuguese (Portugal)."), transcript);
         assertFalse(transcript.contains("Allow"), transcript);
+    }
+
+    @Test
+    void theSameBannedWordWrittenAsItselfGetsNoNativeHint() {
+        // French "pute" is the slur itself: no Danish speaker wrote "putte" here.
+        when(caseLog.byId(7)).thenReturn(Optional.of(record(7, "blocked_word:pute", "blocked", "sale pute")));
+        when(staff.hasPermission(Permissions.ADMIN)).thenReturn(true);
+
+        run("case", "7");
+
+        String transcript = TestPlugin.transcript(staff);
+        assertFalse(transcript.contains("everyday word"), transcript);
+        assertTrue(transcript.contains("[Allow \"pute\"]"), transcript);
     }
 
     @Test
@@ -190,7 +203,11 @@ class CasesCmdTest {
     }
 
     private static CaseRecord record(long id, String reason, String action) {
+        return record(id, reason, action, "this is a badword");
+    }
+
+    private static CaseRecord record(long id, String reason, String action, String preview) {
         return new CaseRecord(id, System.currentTimeMillis() - 120_000L, "uuid", "Steve", "chat", reason, action,
-                "enforce", "this is a badword");
+                "enforce", preview);
     }
 }

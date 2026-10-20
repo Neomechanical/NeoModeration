@@ -81,7 +81,8 @@ public class TestCmd implements SubCommand {
         if (local.flagged()) {
             messages.send(sender, "test.local-flagged",
                     Map.of("reason", Reasons.describe(messages, sender, local.reason())));
-            Reasons.languageWordHint(messages, sender, local.reason(), settings.offline().trustPlayerLanguage())
+            Reasons.languageWordHint(messages, sender, local.reason(), message,
+                            settings.offline().trustPlayerLanguage())
                     .ifPresent(sender::sendMessage);
             messages.send(sender, "test.cloud-skipped-local");
             boolean censored = settings.chatCensorLocal()

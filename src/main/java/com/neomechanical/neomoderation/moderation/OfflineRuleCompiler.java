@@ -137,10 +137,12 @@ final class OfflineRuleCompiler {
         int[] match;
         while ((match = findMatch(text, word, masked, from)) != null) {
             // A word written with a space is read across every space, unless a French elision inside
-            // the match shows French words: "j'ai pas pu, t'es où ?" is no "pu tes".
-            // A word written with a space never reads its last digit as a number ("pu te 5").
+            // the match shows French words: "j'ai pas pu, t'es où ?" is no "pu tes". It never reads
+            // its last digit as a number after its own pieces ("pu te 5"), and one the server wrote
+            // with a space never reads a digit between English words as a number either: the owner's
+            // "ass hole" catches "as 5 hole", while a pack's "pu tain" leaves "put 4 in" alone.
             boolean readAsWords = !word.spaced() && everyday.endsInCount(match[0], match[1])
-                    || everyday.aroundCount(match[0], match[1])
+                    || !(word.spaced() && word.ownList()) && everyday.aroundCount(match[0], match[1])
                     || (!word.spaced() || everyday.throughElision(match[0], match[1]))
                     && everyday.innocent(match[0], match[1], !word.ownList());
             if (!readAsWords) {

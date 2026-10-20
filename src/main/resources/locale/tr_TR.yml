@@ -26,7 +26,8 @@ label:
   blocking: "engelleme"
   alert-only: "yalnızca bildirim"
   not-armed: "denetlenecek bir şey yok"
-  and: "ve"
+  and: " ve "
+  list-separator: ", "
 
 error:
   no-permission: "{prefix} {#muted}NeoModeration'ı kullanma izniniz yok."

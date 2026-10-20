@@ -168,23 +168,59 @@ public final class BundledWordPacks {
     /**
      * The codes of the languages whose speakers use {@code word} every day
      * although another language's list bans it, as {@code languages.txt} names
-     * them ({@code da}, {@code pt_pt}): "fag" gives da and no. Words compare as
-     * the filter reads them, letter runs collapsed, so the banned "pute" finds
-     * Danish "putte". Empty for any other word.
+     * them ({@code da}, {@code pt_pt}): "fag" gives da and no. Empty for any
+     * other word.
      */
     public static List<String> languagesUsing(String word) {
-        String wanted = readAs(word);
+        return languagesUsing(word, null);
+    }
+
+    /**
+     * {@link #languagesUsing(String)} for a word the filter matched in
+     * {@code written}: a listed word the filter reads as {@code word} only with a
+     * letter run collapsed counts when {@code written} holds it, so the banned
+     * "pute" finds Danish "putte" in "putte det i kisten" but nothing in a French
+     * "sale pute".
+     */
+    public static List<String> languagesUsing(String word, String written) {
+        String exact = word == null ? "" : word.trim().toLowerCase(Locale.ROOT);
+        String wanted = matchedForm(word);
+        Set<String> writtenWords = written == null ? Set.of()
+                : Set.of(written.toLowerCase(Locale.ROOT).split("[^\\p{L}]+"));
         return languageLists().entrySet().stream()
-                .filter(entry -> entry.getValue().stream().anyMatch(listed -> readAs(listed).equals(wanted)))
+                .filter(entry -> entry.getValue().stream().anyMatch(listed -> listed.equals(exact)
+                        || matchedForm(listed).equals(wanted) && writtenWords.contains(listed)))
                 .map(Map.Entry::getKey)
                 .sorted()
                 .toList();
     }
 
+    /**
+     * How the speakers of {@link #languagesUsing(String, String)}'s languages
+     * write {@code word}: the word itself when a list holds it, else the
+     * doubled-letter spelling {@code written} holds ("putte" for the banned
+     * "pute"), else {@code word}.
+     */
+    public static String nativeSpelling(String word, String written) {
+        String exact = word == null ? "" : word.trim().toLowerCase(Locale.ROOT);
+        String wanted = matchedForm(word);
+        Set<String> writtenWords = written == null ? Set.of()
+                : Set.of(written.toLowerCase(Locale.ROOT).split("[^\\p{L}]+"));
+        boolean listed = languageLists().values().stream().anyMatch(words -> words.contains(exact));
+        if (listed) {
+            return exact;
+        }
+        return languageLists().values().stream().flatMap(List::stream)
+                .filter(listedWord -> matchedForm(listedWord).equals(wanted) && writtenWords.contains(listedWord))
+                .findFirst()
+                .orElse(exact);
+    }
+
     /** A word as the filter matches it: normalised, with each run of a letter reduced to one. */
-    private static String readAs(String word) {
+    public static String matchedForm(String word) {
         return word == null ? "" : TextNormalizer.normalize(word, false).collapsed();
     }
+
 
     private static Map<String, List<String>> languageLists() {
         Map<String, List<String>> lists = languageWords;

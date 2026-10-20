@@ -433,6 +433,12 @@ class ShippedListsTest {
         assertTrue(OfflineModerationEngine.evaluate("go ok", settings).flagged());
         assertTrue(OfflineModerationEngine.evaluate("gook", settings).flagged());
         assertTrue(OfflineModerationEngine.evaluate("g o o k", settings).flagged());
+
+        // The server's own spaced word reads a digit between English words as a letter too.
+        config.set("moderation.offline.bannedWords", List.of("ass hole"));
+        OfflineModerationSettings own = OfflineModerationSettings.from(new BukkitConfigView(config));
+        assertTrue(OfflineModerationEngine.evaluate("ur an as 5 hole", own).flagged());
+        assertFalse(OfflineModerationEngine.evaluate("put 4 in the furnace", own).flagged());
     }
 
     @Test

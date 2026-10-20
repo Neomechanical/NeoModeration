@@ -89,6 +89,12 @@ class ConfigMigrationsTest {
         assertFalse(named.contains("kike"), "a Spanish server already lets everyone write Kike: " + named);
         assertTrue(named.contains("fag"), named);
 
+        YamlConfiguration mixed = upgradedFrom166("en_US");
+        mixed.set(ConfigMigrations.WORDS_PATH, List.of("pute", "putte", "fodder", "slut", "Slut", " SLUT"));
+        assertEquals("putte, slut", ConfigMigrations.apply(mixed, false).stream()
+                .filter(change -> change.key().equals("migrated.trust-language")).findFirst().orElseThrow()
+                .values().get("words"), "each word once, as the filter reads it, and only words a language uses");
+
         YamlConfiguration plain = upgradedFrom166("en_US");
         plain.set(ConfigMigrations.WORDS_PATH, List.of("badword", "fuck"));
         assertTrue(ConfigMigrations.apply(plain, false).stream()

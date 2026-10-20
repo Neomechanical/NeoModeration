@@ -25,7 +25,8 @@ label:
   blocking: "blocking"
   alert-only: "alerting staff only"
   not-armed: "nothing to check"
-  and: "and"
+  and: " and "
+  list-separator: ", "
 
 error:
   no-permission: "{prefix} {#muted}You don't have permission to use NeoModeration."

@@ -5,6 +5,7 @@ import org.bukkit.configuration.Configuration;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -96,11 +97,16 @@ public final class ConfigMigrations {
             // 1.6.6 read no game language, so nothing changes; the console names the words this concerns,
             // leaving out those the server's own language already lets through for everyone.
             add(config, TRUST_LANGUAGE_PATH, false);
-            List<String> excused = BundledWordPacks.languageWords(config.getString("locale", "en_US"));
+            Set<String> excused = BundledWordPacks.languageWords(config.getString("locale", "en_US")).stream()
+                    .map(BundledWordPacks::matchedForm)
+                    .collect(Collectors.toSet());
+            Set<String> named = new HashSet<>();
             List<String> everyday = (config.isSet(WORDS_PATH) ? config.getStringList(WORDS_PATH) : List.<String>of())
                     .stream()
+                    .map(String::trim)
                     .filter(word -> !BundledWordPacks.languagesUsing(word).isEmpty())
-                    .filter(word -> !excused.contains(word.toLowerCase(Locale.ROOT)))
+                    .filter(word -> !excused.contains(BundledWordPacks.matchedForm(word)))
+                    .filter(word -> named.add(BundledWordPacks.matchedForm(word)))
                     .toList();
             if (!everyday.isEmpty()) {
                 changes.add(new Change("migrated.trust-language", Map.of("words", String.join(", ", everyday))));

@@ -107,31 +107,36 @@ public final class Reasons {
      * A line saying that the word a reason names is an everyday word in other
      * languages, and when it passes there, in the language {@code reader} reads:
      * "fag" is an everyday word in Danish and Norwegian. {@code trusted} when the
-     * server trusts players' game languages. Empty for any other reason, and for a
-     * word read across a space or across messages, which the setting would not let
-     * through.
+     * server trusts players' game languages; {@code written} is what the player
+     * wrote, when known (see {@link BundledWordPacks#languagesUsing(String, String)}).
+     * Empty for any other reason, and for a word read across a space or across
+     * messages, which the setting would not let through.
      */
     public static Optional<String> languageWordHint(MessageService messages, CommandSender reader, String reason,
-                                                    boolean trusted) {
+                                                    String written, boolean trusted) {
         Parsed parsed = parse(reason);
         List<String> codes = parsed.kind() == Kind.WORD && !parsed.split() && !parsed.spaced()
-                ? BundledWordPacks.languagesUsing(parsed.detail()) : List.of();
+                ? BundledWordPacks.languagesUsing(parsed.detail(), written) : List.of();
         if (codes.isEmpty()) {
             return Optional.empty();
         }
         Locale readerLocale = Locale.forLanguageTag(messages.localeCodeOf(reader).replace('_', '-'));
         List<String> names = codes.stream().map(code -> languageName(code, readerLocale)).distinct().toList();
         return Optional.of(messages.format(reader, trusted ? "reason.language-word-trusted" : "reason.language-word",
-                Map.of("detail", parsed.detail(), "languages", list(messages, reader, names))));
+                Map.of("detail", BundledWordPacks.nativeSpelling(parsed.detail(), written),
+                        "languages", list(messages, reader, names))));
     }
 
-    /** "Danish", "Danish and Norwegian", "Bosnian, Croatian and Serbian", with the reader's word for "and". */
+    /**
+     * "Danish", "Danish and Norwegian", "Bosnian, Croatian and Serbian", with the
+     * reader's separators: French repeats its preposition ("danois et en norvégien").
+     */
     private static String list(MessageService messages, CommandSender reader, List<String> names) {
         if (names.size() == 1) {
             return names.get(0);
         }
-        return String.join(", ", names.subList(0, names.size() - 1))
-                + " " + messages.text(reader, "label.and") + " " + names.get(names.size() - 1);
+        return String.join(messages.text(reader, "label.list-separator"), names.subList(0, names.size() - 1))
+                + messages.text(reader, "label.and") + names.get(names.size() - 1);
     }
 
     /**
