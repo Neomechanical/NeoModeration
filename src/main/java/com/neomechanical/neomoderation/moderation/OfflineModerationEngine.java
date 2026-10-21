@@ -77,7 +77,7 @@ public final class OfflineModerationEngine {
             }
             int[] match = scan.find(word, 0);
             if (match != null) {
-                String spaced = OfflineRuleCompiler.crossesSpace(scan.text(), match[0], match[1]) ? "spaced_" : "";
+                String spaced = RuleMatcher.crossesSpace(scan.text(), match[0], match[1]) ? "spaced_" : "";
                 return OfflineModerationResult.flagged(spaced + "blocked_word:" + word.original());
             }
         }
@@ -101,7 +101,7 @@ public final class OfflineModerationEngine {
                 return null;
             }
             String language = settings.wordLanguage(speaker);
-            return new WordScan(text, OfflineRuleCompiler.maskAllowedPhrases(text, allowedFor(rules, text, language)),
+            return new WordScan(text, RuleMatcher.maskAllowedPhrases(text, allowedFor(rules, text, language)),
                     new EverydayWords(text, rules.everydayScope(language), speakerWords(language)));
         }
 
@@ -112,7 +112,7 @@ public final class OfflineModerationEngine {
 
         /** Where {@code word} matches from {@code from} on, or null. */
         int[] find(CompiledWord word, int from) {
-            return OfflineRuleCompiler.findWord(text, word, masked, everyday, from);
+            return RuleMatcher.findWord(text, word, masked, everyday, from);
         }
     }
 

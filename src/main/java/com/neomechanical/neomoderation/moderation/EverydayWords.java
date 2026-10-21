@@ -87,7 +87,7 @@ final class EverydayWords {
      * speaker's own language counts only when {@code speakerCounts}.
      */
     boolean innocent(int start, int end, boolean speakerCounts) {
-        if (!OfflineRuleCompiler.crossesSpace(text, start, end)) {
+        if (!RuleMatcher.crossesSpace(text, start, end)) {
             return false;
         }
         index();
@@ -186,7 +186,7 @@ final class EverydayWords {
         Set<String> theirs = new HashSet<>();
         boolean theirsOnly = false;
         Set<String> englishOnly = new HashSet<>();
-        for (int[] token : OfflineRuleCompiler.tokensOf(text)) {
+        for (int[] token : RuleMatcher.tokensOf(text)) {
             String letters = letters(text, token);
             if (judged.contains(letters)) {
                 continue;
@@ -215,7 +215,7 @@ final class EverydayWords {
      * words are {@code words} does not use itself: "y0u", "dirty", "get out".
      */
     static boolean framedInEnglish(TextNormalizer.Normalized text, Set<String> words) {
-        for (int[] token : OfflineRuleCompiler.tokensOf(text)) {
+        for (int[] token : RuleMatcher.tokensOf(text)) {
             String letters = letters(text, token);
             if (!words.contains(letters) && INSULT_FRAMES.contains(collapse(letters))) {
                 return true;
@@ -240,7 +240,7 @@ final class EverydayWords {
         if (tokenAt != null) {
             return;
         }
-        List<int[]> tokens = OfflineRuleCompiler.tokensOf(text);
+        List<int[]> tokens = RuleMatcher.tokensOf(text);
         List<Set<String>> languages = scope.languages();
         tokenAt = new int[text.length()];
         languagesOf = new int[tokens.size()];
