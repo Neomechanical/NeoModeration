@@ -3,7 +3,6 @@ package com.neomechanical.neomoderation.moderation;
 import com.neomechanical.neomoderation.config.ModerationApiSettings;
 import com.neomechanical.neomoderation.config.ModerationCategorySettings;
 
-import java.io.IOException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
@@ -42,29 +41,19 @@ public final class ModerationApiClient {
         long readMs = Math.max(1, apiSettings.readTimeoutMs());
         long totalMs = Math.min(60_000L, connectMs + readMs + 500L);
 
-        HttpRequest request;
+        HttpResponse<String> response;
         try {
-            request = NeomechanicalHttp.withKey(apiSettings.endpoint(), Duration.ofMillis(totalMs), apiSettings.apiKey())
+            response = NeomechanicalHttp.send(() -> NeomechanicalHttp.withKey(apiSettings.endpoint(), Duration.ofMillis(totalMs),
+                            apiSettings.apiKey())
                     .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
-                    .build();
-        } catch (IllegalArgumentException e) {
-            return ModerationApiResult.clientRequest();
+                    .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8)));
+        } catch (NeomechanicalHttp.NoAnswer noAnswer) {
+            return noAnswer.invalidRequest() ? ModerationApiResult.clientRequest() : ModerationApiResult.transientTransport();
         }
-
-        try {
-            HttpResponse<String> response = NeomechanicalHttp.CLIENT.send(request,
-                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            int status = response.statusCode();
-            if (status < 200 || status >= 300) {
-                return ModerationApiResult.fromHttpFailureStatus(status);
-            }
-            return ChatModerationResponseParser.parseResult(response.body(), categorySettings);
-        } catch (IOException e) {
-            return ModerationApiResult.transientTransport();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return ModerationApiResult.transientTransport();
+        int status = response.statusCode();
+        if (status < 200 || status >= 300) {
+            return ModerationApiResult.fromHttpFailureStatus(status);
         }
+        return ChatModerationResponseParser.parseResult(response.body(), categorySettings);
     }
 }

@@ -9,10 +9,14 @@ import javax.crypto.spec.SecretKeySpec;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.HexFormat;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /**
  * Handles communication with the Neomechanical 14-day trial activation service.
@@ -24,22 +28,16 @@ public final class TrialClient {
     private static final String PLUGIN_SECRET = "nm_trial_sec_2026_eval_sign";
     /** The trial length, as the platform's TRIAL_DURATION_DAYS; used when a reply leaves it out. */
     private static final int TRIAL_DAYS = 14;
-
+    private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
     public static String computeHmac(String installId, long timestampSeconds) {
         try {
-            String message = (installId == null ? "" : installId.trim().toLowerCase()) + ":" + timestampSeconds;
+            String message = (installId == null ? "" : installId.trim().toLowerCase(Locale.ROOT)) + ":" + timestampSeconds;
             Mac mac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec keySpec = new SecretKeySpec(PLUGIN_SECRET.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-            mac.init(keySpec);
-            byte[] rawHmac = mac.doFinal(message.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder(rawHmac.length * 2);
-            for (byte b : rawHmac) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString();
-        } catch (Exception e) {
-            return "";
+            mac.init(new SecretKeySpec(PLUGIN_SECRET.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            return HexFormat.of().formatHex(mac.doFinal(message.getBytes(StandardCharsets.UTF_8)));
+        } catch (GeneralSecurityException e) {
+            return "";  // every Java has HmacSHA256; an unsigned request is refused by the service, not by the plugin
         }
     }
 
@@ -48,81 +46,52 @@ public final class TrialClient {
             String installId,
             String platformInfo
     ) throws TrialException {
-        String endpoint = trialUrl(apiSettings.endpoint());
         String body = "{\"installId\":\"" + JsonStrings.escape(installId) + "\",\"platform\":\"" + JsonStrings.escape(platformInfo) + "\"}";
         long timestamp = Instant.now().getEpochSecond();
         String hmac = computeHmac(installId, timestamp);
-
-        HttpRequest request;
-        try {
-            request = NeomechanicalHttp.request(endpoint, Duration.ofSeconds(10))
-                    .header("Accept", "application/json")
-                    .header("Content-Type", "application/json")
-                    .header("x-plugin-product", "NeoModeration")
-                    .header("x-plugin-timestamp", String.valueOf(timestamp))
-                    .header("x-plugin-hmac", hmac)
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .build();
-        } catch (IllegalArgumentException e) {
-            throw new TrialException(TrialError.INVALID_ENDPOINT, "Invalid trial endpoint URL");
+        HttpResponse<String> response = send("Trial", () -> NeomechanicalHttp.request(trialUrl(apiSettings.endpoint()), TIMEOUT)
+                .header("Accept", "application/json")
+                .header("Content-Type", "application/json")
+                .header("x-plugin-product", "NeoModeration")
+                .header("x-plugin-timestamp", String.valueOf(timestamp))
+                .header("x-plugin-hmac", hmac)
+                .POST(HttpRequest.BodyPublishers.ofString(body)));
+        int status = response.statusCode();
+        if (status == 201 || status == 200) {
+            return parseSuccess(response.body());
         }
-
-        try {
-            HttpResponse<String> response = NeomechanicalHttp.CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-            int status = response.statusCode();
-            if (status == 201 || status == 200) {
-                return parseSuccess(response.body());
-            }
-            if (status == 409) {
-                throw new TrialException(TrialError.ALREADY_CLAIMED, "Trial has already been claimed for this server");
-            }
-            if (status == 429) {
-                throw new TrialException(TrialError.RATE_LIMITED, "Trial rate limit reached for this network");
-            }
-            if (status == 403) {
-                throw new TrialException(TrialError.FORBIDDEN, "Trial is only accessible to verified NeoModeration installations");
-            }
-            throw new TrialException(TrialError.SERVER_ERROR, "HTTP " + status);
-        } catch (TrialException e) {
-            throw e;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new TrialException(TrialError.TRANSPORT_ERROR, "Trial request interrupted");
-        } catch (Exception e) {
-            throw new TrialException(TrialError.TRANSPORT_ERROR, "Trial request failed");
-        }
+        throw switch (status) {
+            case 409 -> new TrialException(TrialError.ALREADY_CLAIMED, "Trial has already been claimed for this server");
+            case 429 -> new TrialException(TrialError.RATE_LIMITED, "Trial rate limit reached for this network");
+            case 403 -> new TrialException(TrialError.FORBIDDEN, "Trial is only accessible to verified NeoModeration installations");
+            default -> new TrialException(TrialError.SERVER_ERROR, "HTTP " + status);
+        };
     }
 
     public TrialStatusResult fetchTrialStatus(ModerationApiSettings apiSettings) throws TrialException {
-        String endpoint = trialUrl(apiSettings.endpoint()) + "/status";
-        HttpRequest request;
-        try {
-            request = NeomechanicalHttp.withKey(endpoint, Duration.ofSeconds(10), apiSettings.apiKey())
-                    .header("Accept", "application/json")
-                    .GET()
-                    .build();
-        } catch (IllegalArgumentException e) {
-            throw new TrialException(TrialError.INVALID_ENDPOINT, "Invalid trial status endpoint URL");
+        HttpResponse<String> response = send("Trial status", () -> NeomechanicalHttp.withKey(
+                        trialUrl(apiSettings.endpoint()) + "/status", TIMEOUT, apiSettings.apiKey())
+                .header("Accept", "application/json")
+                .GET());
+        int status = response.statusCode();
+        if (status == 200) {
+            return parseStatusSuccess(response.body());
         }
+        if (status == 401) {
+            throw new TrialException(TrialError.FORBIDDEN, "API key rejected");
+        }
+        // The trial service itself never answers 403; a proxy in front of it may, and says nothing about the key.
+        throw new TrialException(TrialError.SERVER_ERROR, "HTTP " + status);
+    }
 
+    /** Sends one request to the trial service; {@code what} names it when no reply came. */
+    private static HttpResponse<String> send(String what, Supplier<HttpRequest.Builder> request) throws TrialException {
         try {
-            HttpResponse<String> response = NeomechanicalHttp.CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-            int status = response.statusCode();
-            if (status == 200) {
-                return parseStatusSuccess(response.body());
-            }
-            if (status == 401) {
-                throw new TrialException(TrialError.FORBIDDEN, "API key rejected");
-            }
-            // The trial service itself never answers 403; a proxy in front of it may, and says nothing about the key.
-            throw new TrialException(TrialError.SERVER_ERROR, "HTTP " + status);
-        } catch (TrialException e) {
-            throw e;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new TrialException(TrialError.TRANSPORT_ERROR, "Trial status request interrupted");
-        } catch (Exception e) {
-            throw new TrialException(TrialError.TRANSPORT_ERROR, "Trial status request failed");
+            return NeomechanicalHttp.send(request);
+        } catch (NeomechanicalHttp.NoAnswer noAnswer) {
+            throw noAnswer.invalidRequest()
+                    ? new TrialException(TrialError.INVALID_ENDPOINT, what + " endpoint URL is invalid")
+                    : new TrialException(TrialError.TRANSPORT_ERROR, what + " request " + noAnswer.getMessage());
         }
     }
 

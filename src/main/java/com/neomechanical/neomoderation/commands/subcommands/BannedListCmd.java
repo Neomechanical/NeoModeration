@@ -7,21 +7,24 @@ import org.bukkit.command.CommandSender;
 
 import java.util.List;
 
-public class WordCmd implements SubCommand {
+/** {@code /nmod word} and {@code /nmod url}: a banned list, named by its own one-word command. */
+public class BannedListCmd implements SubCommand {
     private final NeoModerationPlugin plugin;
+    private final RuleListEditor.RuleList list;
 
-    public WordCmd(NeoModerationPlugin plugin) {
+    public BannedListCmd(NeoModerationPlugin plugin, RuleListEditor.RuleList list) {
         this.plugin = plugin;
+        this.list = list;
     }
 
     @Override
     public String getName() {
-        return "word";
+        return list.command();
     }
 
     @Override
     public void execute(CommandSender sender, String label, String[] args) {
-        RuleListEditor.handle(plugin, sender, label, args, 1, RuleListEditor.RuleList.BANNED_WORDS);
+        RuleListEditor.handle(plugin, sender, label, args, 1, list);
     }
 
     @Override
