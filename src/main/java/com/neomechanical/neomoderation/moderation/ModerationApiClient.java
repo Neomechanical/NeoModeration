@@ -48,7 +48,9 @@ public final class ModerationApiClient {
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8)));
         } catch (NeomechanicalHttp.NoAnswer noAnswer) {
-            return noAnswer.invalidRequest() ? ModerationApiResult.clientRequest() : ModerationApiResult.transientTransport();
+            return noAnswer.reason() == NeomechanicalHttp.NoAnswer.Reason.INVALID_REQUEST
+                    ? ModerationApiResult.clientRequest()
+                    : ModerationApiResult.transientTransport();
         }
         int status = response.statusCode();
         if (status < 200 || status >= 300) {

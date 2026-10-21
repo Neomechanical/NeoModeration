@@ -126,4 +126,18 @@ class BundledWordPacksTest {
             assertFalse(flags(all, clean), "a language pack flagged ordinary chat: " + clean);
         }
     }
+
+    @Test
+    void aWordsSpeakersAndTheirSpellingAreFoundTheSameWayEveryRun() {
+        // languages.txt lists Swedish and Danish "slut" before Norwegian "slutt", and Spanish "kike" before
+        // Norwegian "kikke". With no text kept, the first listed spelling answers: before the lists kept the
+        // file's order, which one came first changed from one start of the server to the next.
+        assertEquals("slut", BundledWordPacks.nativeSpelling("sluut", null));
+        assertEquals("kike", BundledWordPacks.nativeSpelling("kiike", null));
+        // The text kept decides when there is one: "putte" for the banned "pute" written by a Danish player.
+        assertEquals("slutt", BundledWordPacks.nativeSpelling("sluut", "det er slutt nå"));
+        assertEquals(List.of("da", "nb", "nn", "no", "sv"), BundledWordPacks.languagesUsing("slut", null));
+        assertEquals(List.of("da", "sv"), BundledWordPacks.languagesUsing("slut"));
+        assertEquals(List.of(), BundledWordPacks.languagesUsing("sluut", "sluut"));
+    }
 }

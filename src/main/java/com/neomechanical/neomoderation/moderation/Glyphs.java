@@ -35,9 +35,9 @@ final class Glyphs {
     }
 
     /** Dashes, dots and quotation marks typed inside a word: – — ― − ‒ · ‧ • ‚ „ “ ” ‟ ‹ › « » ‴ ‶ ״ ¨ ῭ ΅ ῀ ῁ `. */
-    private static final String JOINER_MARKS = "–—―−‒·‧•‚„"
-            + "“”‟‹›«»‴‶״¨῭΅῀῁"
-            + "`";
+    private static final String JOINER_MARKS = "\u2013\u2014\u2015\u2212\u2012\u00B7\u2027\u2022\u201A\u201E"
+            + "\u201C\u201D\u201F\u2039\u203A\u00AB\u00BB\u2034\u2036\u05F4\u00A8\u1FED\u0385\u1FC0\u1FC1"
+            + "\u1FEF";
 
     private Glyphs() {
     }
@@ -67,7 +67,7 @@ final class Glyphs {
     }
 
     static boolean isHyphen(int codePoint) {
-        return codePoint == '-' || codePoint == '‐' || codePoint == '‑';
+        return codePoint == '-' || codePoint == '\u2010' || codePoint == '\u2011';
     }
 
     /**

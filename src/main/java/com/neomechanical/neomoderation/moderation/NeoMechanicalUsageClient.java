@@ -21,8 +21,11 @@ public final class NeoMechanicalUsageClient {
                     .header("Accept", "application/json")
                     .GET());
         } catch (NeomechanicalHttp.NoAnswer noAnswer) {
-            throw new UsageException(noAnswer.invalidRequest() ? ModerationApiResult.Kind.CLIENT_REQUEST
-                    : ModerationApiResult.Kind.TRANSIENT_TRANSPORT, "usage request " + noAnswer.getMessage());
+            throw switch (noAnswer.reason()) {
+                case INVALID_REQUEST -> new UsageException(ModerationApiResult.Kind.CLIENT_REQUEST, "invalid endpoint");
+                case INTERRUPTED -> new UsageException(ModerationApiResult.Kind.TRANSIENT_TRANSPORT, "interrupted");
+                case FAILED -> new UsageException(ModerationApiResult.Kind.TRANSIENT_TRANSPORT, "request failed");
+            };
         }
         if (response.statusCode() != 200) {
             ModerationApiResult result = ModerationApiResult.fromHttpFailureStatus(response.statusCode());

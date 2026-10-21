@@ -319,7 +319,7 @@ final class EverydayWords {
         return letters(text, token);
     }
 
-    /** The token's letters as the filter reads them, a digit or symbol as the letter it stands for. */
+    /** The token as the normalised text holds it: its letters (a digit or symbol typed for one read as it) or a number's digits. */
     private static String letters(TextNormalizer.Normalized text, int[] token) {
         return new String(text.chars(), token[0], token[1] - token[0]);
     }

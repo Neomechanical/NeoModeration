@@ -1,5 +1,6 @@
 package com.neomechanical.neomoderation.moderation;
 
+import com.neomechanical.neomoderation.config.ModerationApiSettings;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
 
@@ -14,13 +15,15 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class NeomechanicalHttpTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
+    /** Builds as a request, then the client refuses it when sending: "port out of range". */
+    private static final String PORT_OUT_OF_RANGE = "https://127.0.0.1:99999/v1/events";
 
     @Test
     void anEndpointThatIsNoUrlNeverMakesARequest() {
         for (String endpoint : new String[]{"not a url", "/v1/events", "ftp://api.neomechanical.com/v1/events"}) {
             NeomechanicalHttp.NoAnswer noAnswer = assertThrows(NeomechanicalHttp.NoAnswer.class,
                     () -> NeomechanicalHttp.send(() -> NeomechanicalHttp.withKey(endpoint, TIMEOUT, "nm_key").GET()));
-            assertTrue(noAnswer.invalidRequest(), endpoint);
+            assertEquals(NeomechanicalHttp.NoAnswer.Reason.INVALID_REQUEST, noAnswer.reason(), endpoint);
         }
     }
 
@@ -33,8 +36,27 @@ class NeomechanicalHttpTest {
         String endpoint = "http://127.0.0.1:" + port + "/v1/events";
         NeomechanicalHttp.NoAnswer noAnswer = assertThrows(NeomechanicalHttp.NoAnswer.class,
                 () -> NeomechanicalHttp.send(() -> NeomechanicalHttp.request(endpoint, TIMEOUT).GET()));
-        assertFalse(noAnswer.invalidRequest());
-        assertEquals("failed", noAnswer.getMessage());
+        assertEquals(NeomechanicalHttp.NoAnswer.Reason.FAILED, noAnswer.reason());
+        assertNotNull(noAnswer.getCause(), "the network's own error is kept for whoever reads it");
+    }
+
+    @Test
+    void aRequestTheClientRefusesToSendIsNoAnswer() {
+        NeomechanicalHttp.NoAnswer noAnswer = assertThrows(NeomechanicalHttp.NoAnswer.class,
+                () -> NeomechanicalHttp.send(() -> NeomechanicalHttp.request(PORT_OUT_OF_RANGE, TIMEOUT).GET()));
+        assertEquals(NeomechanicalHttp.NoAnswer.Reason.FAILED, noAnswer.reason());
+    }
+
+    @Test
+    void theTrialAndUsageCallsReadARequestTheClientRefusesAsAFailedCall() {
+        ModerationApiSettings api = new ModerationApiSettings(PORT_OUT_OF_RANGE, "nm_key", 2000, 2000);
+        assertEquals(TrialClient.TrialError.TRANSPORT_ERROR, assertThrows(TrialClient.TrialException.class,
+                () -> new TrialClient().fetchTrialStatus(api)).error());
+        assertEquals(TrialClient.TrialError.TRANSPORT_ERROR, assertThrows(TrialClient.TrialException.class,
+                () -> new TrialClient().activateTrial(api, "00000000-0000-0000-0000-000000000001", "Paper")).error());
+        assertEquals(ModerationApiResult.Kind.TRANSIENT_TRANSPORT, assertThrows(
+                NeoMechanicalUsageClient.UsageException.class,
+                () -> new NeoMechanicalUsageClient().fetchUsage(api)).kind());
     }
 
     @Test
@@ -71,8 +93,7 @@ class NeomechanicalHttpTest {
         try {
             NeomechanicalHttp.NoAnswer noAnswer = assertThrows(NeomechanicalHttp.NoAnswer.class,
                     () -> NeomechanicalHttp.send(() -> NeomechanicalHttp.request("http://127.0.0.1:9/v1/events", TIMEOUT).GET()));
-            assertFalse(noAnswer.invalidRequest());
-            assertEquals("interrupted", noAnswer.getMessage());
+            assertEquals(NeomechanicalHttp.NoAnswer.Reason.INTERRUPTED, noAnswer.reason());
             assertTrue(Thread.currentThread().isInterrupted());
         } finally {
             Thread.interrupted();

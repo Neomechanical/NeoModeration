@@ -10,6 +10,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -175,7 +176,7 @@ public final class BundledWordPacks {
      * da and no. Empty for any other word.
      */
     public static List<String> languagesUsing(String word) {
-        return languagesWhere(Spelling.listed(word)::equals);
+        return languagesWhere(Spelling.asListed(word)::equals);
     }
 
     /**
@@ -224,11 +225,11 @@ public final class BundledWordPacks {
      */
     private record Spelling(String exact, String form, Set<String> written) {
         static Spelling of(String word, String written) {
-            return new Spelling(listed(word), matchedForm(word), wordsIn(written));
+            return new Spelling(asListed(word), matchedForm(word), wordsIn(written));
         }
 
         /** {@code word} as a list holds it: trimmed and in lower case. */
-        static String listed(String word) {
+        static String asListed(String word) {
             return word == null ? "" : word.trim().toLowerCase(Locale.ROOT);
         }
 
@@ -237,7 +238,7 @@ public final class BundledWordPacks {
             return listed.equals(exact) || writtenAs(listed);
         }
 
-        /** Whether {@code listed} reads as the word once letter runs collapse, and the kept text holds it. */
+        /** Whether {@code listed} reads as the word once letter runs collapse, and the kept text, if any, holds it. */
         boolean writtenAs(String listed) {
             return matchedForm(listed).equals(form) && (written == null || written.contains(listed));
         }
@@ -322,9 +323,10 @@ public final class BundledWordPacks {
                 lists.computeIfAbsent(language, key -> new ArrayList<>()).addAll(List.of(words.split("\\s+")));
             }
         }
+        // In the file's order, so a lookup that takes the first fit (nativeSpelling) answers the same on every run.
         Map<String, List<String>> copied = new LinkedHashMap<>();
         lists.forEach((language, words) -> copied.put(language, List.copyOf(words)));
-        return Map.copyOf(copied);
+        return Collections.unmodifiableMap(copied);
     }
 
     /** The lines of {@code wordpacks/<name>.txt}, trimmed, without blank lines and {@code #} comments. */

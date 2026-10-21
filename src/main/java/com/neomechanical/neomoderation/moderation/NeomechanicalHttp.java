@@ -39,39 +39,49 @@ final class NeomechanicalHttp {
 
     /**
      * Builds the request and sends it, reading the reply as UTF-8 text, which JSON always is. Every status is an
-     * answer, a redirect's too; a request that cannot be built, or that got no reply, throws {@link NoAnswer}.
+     * answer, a redirect's too. A request that cannot be built throws {@link NoAnswer} with
+     * {@link NoAnswer.Reason#INVALID_REQUEST}; one that got no reply throws it with the reason it got none.
      */
     static HttpResponse<String> send(Supplier<HttpRequest.Builder> request) throws NoAnswer {
         HttpRequest built;
         try {
             built = request.get().build();
         } catch (IllegalArgumentException invalid) {
-            throw new NoAnswer(true, "invalid request");
+            throw new NoAnswer(NoAnswer.Reason.INVALID_REQUEST, invalid);
         }
         try {
             return CLIENT.send(built, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new NoAnswer(false, "interrupted");
-        } catch (IOException e) {
-            throw new NoAnswer(false, "failed");
+            throw new NoAnswer(NoAnswer.Reason.INTERRUPTED, e);
+        } catch (IOException | RuntimeException e) {
+            // The client refuses some requests only when sending them (a port above 65535), and a ProxySelector
+            // another plugin installed may throw anything: neither is a reply.
+            throw new NoAnswer(NoAnswer.Reason.FAILED, e);
         }
     }
 
-    /**
-     * A call that got no reply: the endpoint or key could not make a request ({@link #invalidRequest()}), or the
-     * network, a timeout or an interrupt ended it first.
-     */
+    /** A call that got no reply, and why. */
     static final class NoAnswer extends Exception {
-        private final boolean invalidRequest;
-
-        private NoAnswer(boolean invalidRequest, String message) {
-            super(message);
-            this.invalidRequest = invalidRequest;
+        /** Why no reply came. */
+        enum Reason {
+            /** The endpoint or the key could not make a request. */
+            INVALID_REQUEST,
+            /** The thread was interrupted while it waited; its interrupt is kept. */
+            INTERRUPTED,
+            /** The network, a timeout or the client ended the call before a reply. */
+            FAILED
         }
 
-        boolean invalidRequest() {
-            return invalidRequest;
+        private final Reason reason;
+
+        private NoAnswer(Reason reason, Throwable cause) {
+            super(reason.name(), cause);
+            this.reason = reason;
+        }
+
+        Reason reason() {
+            return reason;
         }
     }
 }

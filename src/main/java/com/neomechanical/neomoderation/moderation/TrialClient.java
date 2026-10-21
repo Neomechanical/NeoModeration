@@ -84,14 +84,17 @@ public final class TrialClient {
         throw new TrialException(TrialError.SERVER_ERROR, "HTTP " + status);
     }
 
-    /** Sends one request to the trial service; {@code what} names it when no reply came. */
+    /** Sends one request to the trial service; {@code what} ("Trial", "Trial status") names it when no reply came. */
     private static HttpResponse<String> send(String what, Supplier<HttpRequest.Builder> request) throws TrialException {
         try {
             return NeomechanicalHttp.send(request);
         } catch (NeomechanicalHttp.NoAnswer noAnswer) {
-            throw noAnswer.invalidRequest()
-                    ? new TrialException(TrialError.INVALID_ENDPOINT, what + " endpoint URL is invalid")
-                    : new TrialException(TrialError.TRANSPORT_ERROR, what + " request " + noAnswer.getMessage());
+            throw switch (noAnswer.reason()) {
+                case INVALID_REQUEST -> new TrialException(TrialError.INVALID_ENDPOINT,
+                        "Invalid " + what.toLowerCase(Locale.ROOT) + " endpoint URL");
+                case INTERRUPTED -> new TrialException(TrialError.TRANSPORT_ERROR, what + " request interrupted");
+                case FAILED -> new TrialException(TrialError.TRANSPORT_ERROR, what + " request failed");
+            };
         }
     }
 

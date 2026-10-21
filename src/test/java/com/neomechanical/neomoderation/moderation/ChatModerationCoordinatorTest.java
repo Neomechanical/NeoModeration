@@ -79,6 +79,22 @@ class ChatModerationCoordinatorTest {
     }
 
     @Test
+    void anEndpointTheClientRefusesToSendToIsATransportFailure() {
+        // The port builds into a request; only sending it fails. Chat reads that as a failed call, as it always did.
+        ModerationSettings outOfRange = settings("https://127.0.0.1:99999/v1/events", true);
+
+        ModerationApiResult result = new ModerationApiClient().moderateText(
+                "Tester",
+                "00000000-0000-0000-0000-000000000001",
+                "hello",
+                outOfRange.api(),
+                outOfRange.categories()
+        );
+
+        assertEquals(ModerationApiResult.Kind.TRANSIENT_TRANSPORT, result.kind());
+    }
+
+    @Test
     void malformedOrMissingVerdictsAreNotCleanScans() throws Exception {
         assertEquals(ModerationApiResult.Kind.TRANSIENT_TRANSPORT, resultKindFor(200, "not JSON"));
         assertEquals(ModerationApiResult.Kind.TRANSIENT_TRANSPORT, resultKindFor(200, "{}"));
