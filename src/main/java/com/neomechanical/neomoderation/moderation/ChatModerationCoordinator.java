@@ -1,5 +1,6 @@
 package com.neomechanical.neomoderation.moderation;
 
+import com.neomechanical.neomoderation.config.ModerationApiSettings;
 import com.neomechanical.neomoderation.config.ModerationSettings;
 import org.bukkit.entity.Player;
 
@@ -29,7 +30,9 @@ import java.util.logging.Logger;
  * <p>Only what the cloud itself did counts towards pausing it, or shows as the
  * last cloud result: each worker records its own call's result, and a call that
  * answered too slowly for chat counts as a failure. Time a message spent waiting
- * for a free worker is the server's load, never the cloud's fault.</p>
+ * for a free worker is the server's load, never the cloud's fault. A call made with
+ * a key or endpoint the server has since replaced is not recorded at all: an old
+ * key's 401 says nothing about the new one.</p>
  */
 public final class ChatModerationCoordinator implements AutoCloseable {
     private static final int WORKERS = 8;
@@ -45,6 +48,8 @@ public final class ChatModerationCoordinator implements AutoCloseable {
     private final ModerationCircuitBreaker circuit;
     private final ModerationApiClient apiClient;
     private final ThreadPoolExecutor workers;
+    /** The settings cloud calls are made with now; null until the plugin says. */
+    private volatile ModerationApiSettings currentApi;
 
     public ChatModerationCoordinator(Logger logger) {
         this(new ModerationCircuitBreaker(logger), new ModerationApiClient(), WORKERS, QUEUED, logger);
@@ -74,18 +79,40 @@ public final class ChatModerationCoordinator implements AutoCloseable {
         this.workers = pool;
     }
 
-    /** One cloud call on a worker, recorded as the cloud's own result; slower than chat can wait counts as a failure. */
+    /**
+     * One cloud call on a worker, recorded as the cloud's own result. An answer slower than chat can wait counts as a
+     * failure, except a refusal, which stays one: a late 401 or 402 still pauses chat's calls and is reported.
+     */
     private ModerationApiResult ask(String name, String uuid, String message, ModerationSettings settings,
                                     long chatWaitMs) {
         long started = System.nanoTime();
         ModerationApiResult result = apiClient.moderateText(name, uuid, message, settings.api(), settings.categories());
         long tookMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
-        circuit.record(tookMs > chatWaitMs ? ModerationApiResult.transientTransport() : result);
+        boolean refused = result.kind() == ModerationApiResult.Kind.CLIENT_AUTH
+                || result.kind() == ModerationApiResult.Kind.INSUFFICIENT_CREDITS
+                || result.kind() == ModerationApiResult.Kind.CLIENT_REQUEST;
+        recordApiResult(tookMs > chatWaitMs && !refused ? ModerationApiResult.transientTransport() : result,
+                settings.api());
         return result;
+    }
+
+    /** The key and endpoint the server calls the cloud with from now on (startup and every reload). */
+    public void useApi(ModerationApiSettings api) {
+        this.currentApi = api;
     }
 
     public void resetCircuit() {
         circuit.reset();
+    }
+
+    /** Who hears the first 401 or 402 of each run of them: {@link CloudPlanWatch#refused}. */
+    public void onRefusal(Consumer<ModerationApiResult.Kind> listener) {
+        circuit.onRefusal(listener);
+    }
+
+    /** Who hears the first check that works after a reset or a failure. */
+    public void onFirstSuccess(Runnable listener) {
+        circuit.onFirstSuccess(listener);
     }
 
     public ModerationApiClient apiClient() {
@@ -94,6 +121,11 @@ public final class ChatModerationCoordinator implements AutoCloseable {
 
     public boolean isRemoteCallAllowed() {
         return circuit.isRemoteCallAllowed();
+    }
+
+    /** Whether chat and map art may ask the cloud now; see {@link ModerationCircuitBreaker#shouldCallAutomatically}. */
+    public boolean shouldCallAutomatically() {
+        return circuit.shouldCallAutomatically();
     }
 
     public ModerationApiResult.Kind lastCloudResultKind() {
@@ -118,11 +150,14 @@ public final class ChatModerationCoordinator implements AutoCloseable {
     }
 
     /**
-     * Records moderation-event calls made outside the normal chat path, such as
-     * /nmod test and map-art scans. Account/usage calls must not enter this state.
+     * Records the result of a moderation call made with {@code askedWith}: chat's own, /nmod test's and map art's.
+     * Account and usage calls never enter this state. A result for settings the server has replaced since is dropped.
      */
-    public void recordApiResult(ModerationApiResult result) {
-        circuit.record(result);
+    public void recordApiResult(ModerationApiResult result, ModerationApiSettings askedWith) {
+        ModerationApiSettings current = currentApi;
+        if (current == null || current.equals(askedWith)) {
+            circuit.record(result);
+        }
     }
 
     @Override
@@ -137,7 +172,7 @@ public final class ChatModerationCoordinator implements AutoCloseable {
      */
     public void checkInBackground(Player player, String message, ModerationSettings settings,
                                   Consumer<ModerationApiResult> onResult) {
-        if (!circuit.isRemoteCallAllowed()) {
+        if (!circuit.shouldCallAutomatically()) {
             return;
         }
         String name = player.getName();
@@ -162,7 +197,7 @@ public final class ChatModerationCoordinator implements AutoCloseable {
      */
     public ModerationApiResult checkMessage(Player player, String message, ModerationSettings settings,
                                             Consumer<ModerationApiResult> late) {
-        if (!circuit.isRemoteCallAllowed()) {
+        if (!circuit.shouldCallAutomatically()) {
             return ModerationApiResult.transientTransport();
         }
 
@@ -216,7 +251,7 @@ public final class ChatModerationCoordinator implements AutoCloseable {
             return ModerationApiResult.transientTransport();
         } catch (ExecutionException e) {
             ModerationApiResult result = ModerationApiResult.transientTransport();
-            circuit.record(result);
+            recordApiResult(result, settings.api());
             return result;
         }
     }

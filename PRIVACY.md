@@ -87,9 +87,13 @@ User-Agent; it carries nothing about your players. Turn it off with
 ## Plugin usage metrics
 
 NeoModeration uses [bStats](https://bstats.org/plugin/bukkit/NeoModeration/32542)
-with standard technical metrics and 14 plugin-specific aggregate charts. These
-report local/cloud modes, cloud health, configuration state, platform family and
-detection count buckets; they include no message text or individual detections.
+with standard technical metrics and 19 plugin-specific aggregate charts. These
+report local/cloud modes, cloud health, configuration state, platform family,
+detection count buckets, chat detections per thousand messages, chat messages a
+day (in wide buckets), how many words are allowed, the share of online players
+whose game language is neither the server's nor English, and whether those
+languages are trusted. Each is a bucket for the whole server: they include no
+message text, individual detections or player names.
 Its standard technical payload includes
 the online player count; server software/version; plugin version; Java version;
 operating-system type; CPU architecture; country; and a pseudonymous server

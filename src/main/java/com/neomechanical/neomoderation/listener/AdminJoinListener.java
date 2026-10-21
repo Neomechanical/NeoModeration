@@ -2,9 +2,13 @@ package com.neomechanical.neomoderation.listener;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.Permissions;
+import com.neomechanical.neomoderation.commands.TrialPromptSupport;
 import com.neomechanical.neomoderation.config.OfflineModerationSettings;
+import com.neomechanical.neomoderation.messages.DateText;
 import com.neomechanical.neomoderation.messages.MenuRenderer;
 import com.neomechanical.neomoderation.messages.MessageService;
+import com.neomechanical.neomoderation.moderation.CloudPlanNotices;
+import com.neomechanical.neomoderation.moderation.CloudPlanWatch;
 import com.neomechanical.neomoderation.moderation.UpdateChecker;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -28,7 +32,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <ul>
  *   <li>once per install, while it has no cloud key, a card that says what is
  *   running and offers the two next steps (a marker file keeps it to once);</li>
- *   <li>once per admin per server start, a line when a newer release exists.</li>
+ *   <li>once per admin per server start, a line when a newer release exists;</li>
+ *   <li>once each, a line when the cloud trial is about to end, has ended or has
+ *   used its credits ({@link CloudPlanNotices}).</li>
  * </ul>
  */
 public final class AdminJoinListener implements Listener {
@@ -36,7 +42,7 @@ public final class AdminJoinListener implements Listener {
     public static final String MARKER_FILE = ".admin-welcomed";
 
     private final NeoModerationPlugin plugin;
-    /** Set once the card was shown or the marker was found; never cleared. */
+    /** Set once the card was claimed or the marker was found; cleared only when it is given back. */
     private final AtomicBoolean welcomed = new AtomicBoolean(false);
     private final Set<UUID> toldAboutUpdate = ConcurrentHashMap.newKeySet();
 
@@ -54,19 +60,50 @@ public final class AdminJoinListener implements Listener {
         if (newer != null && toldAboutUpdate.add(player.getUniqueId())) {
             plugin.runForEntity(player, () -> tellAboutUpdate(player, newer));
         }
+        File dataFolder = plugin.getDataFolder();
+        CloudPlanWatch.Snapshot plan = plugin.cloudPlan().current();
+        CloudPlanNotices.Notice planNotice = plugin.settings().api().apiKey().isBlank()
+                ? null : CloudPlanNotices.join(plan, plugin.cloudPlan().now());
+        if (planNotice != null) {
+            plugin.runAsync(() -> {
+                String marker = CloudPlanNotices.joinMarker(planNotice);
+                if (claimMarker(dataFolder, marker)) {
+                    // Off the main thread: the count reads the case history.
+                    long caught = TrialPromptSupport.caughtDuringTrial(plugin, plan.status());
+                    showOnce(player, () -> showPlanNotice(player, planNotice, caught),
+                            () -> plugin.runAsync(() -> new File(dataFolder, marker).delete()));
+                }
+            });
+        }
         if (welcomed.get() || !plugin.settings().enabled() || !plugin.settings().api().apiKey().isBlank()) {
             return;
         }
-        File dataFolder = plugin.getDataFolder();
         plugin.runAsync(() -> {
-            if (claimMarker(dataFolder)) {
-                plugin.runForEntity(player, () -> showCard(player));
+            if (claimWelcomeMarker(dataFolder)) {
+                showOnce(player, () -> showCard(player), () -> plugin.runAsync(() -> {
+                    new File(dataFolder, MARKER_FILE).delete();
+                    welcomed.set(false);
+                }));
             }
         });
     }
 
+    /**
+     * Shows a once-per-install line to {@code player} on their own thread, or runs {@code giveBack} when they left
+     * before it reached them: they have not seen it, so the next admin to join gets it.
+     */
+    private void showOnce(Player player, Runnable show, Runnable giveBack) {
+        plugin.runForEntity(player, () -> {
+            if (player.isOnline()) {
+                show.run();
+            } else {
+                giveBack.run();
+            }
+        }, giveBack);
+    }
+
     /** Off the main thread. True only for the one call that creates the marker. */
-    private boolean claimMarker(File dataFolder) {
+    private boolean claimWelcomeMarker(File dataFolder) {
         if (welcomed.get()) {
             return false;
         }
@@ -81,6 +118,40 @@ public final class AdminJoinListener implements Listener {
             plugin.getLogger().warning("Could not save the admin welcome marker: " + e.getMessage());
             return false;
         }
+    }
+
+    /** Off the main thread. True only for the one call that creates the marker file. */
+    private boolean claimMarker(File dataFolder, String name) {
+        try {
+            if (!dataFolder.exists()) {
+                dataFolder.mkdirs();
+            }
+            return new File(dataFolder, name).createNewFile();
+        } catch (IOException e) {
+            plugin.getLogger().warning("Could not save the admin notice marker " + name + ": " + e.getMessage());
+            return false;
+        }
+    }
+
+    private void showPlanNotice(Player player, CloudPlanNotices.Notice notice, long caught) {
+        MessageService messages = plugin.messages();
+        messages.send(player, notice.key(), Map.of(
+                "date", DateText.of(messages, player, notice.dateIso()),
+                "caught", caughtClause(messages, player, caught, plugin.monitorStats().cloudTotal())));
+        TrialPromptSupport.sendLinkButton(messages, player, CloudPlanNotices.joinButton(notice), notice.url());
+    }
+
+    /**
+     * What the cloud caught, as the start of a sentence, or nothing at zero. From the case history it covers the
+     * whole trial; without the history only this run is known, and it says so.
+     */
+    static String caughtClause(MessageService messages, Player player, long caughtDuringTrial, long sinceStartup) {
+        TrialPromptSupport.Caught caught = TrialPromptSupport.caught(caughtDuringTrial, sinceStartup);
+        if (caught == null) {
+            return "";
+        }
+        return MessageService.plain(messages.format(player, caught.wholeTrial() ? "cloud-plan.caught-during-trial"
+                : "cloud-plan.caught-since-startup", Map.of("count", String.valueOf(caught.count())))) + " ";
     }
 
     private void showCard(Player player) {

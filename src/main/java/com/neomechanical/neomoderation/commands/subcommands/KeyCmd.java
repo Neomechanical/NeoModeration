@@ -1,12 +1,11 @@
 package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
+import com.neomechanical.neomoderation.commands.ApiKeyArgument;
 import com.neomechanical.neomoderation.commands.SubCommand;
 import com.neomechanical.neomoderation.config.ConfigPaths;
-import com.neomechanical.neomoderation.config.InputLimits;
 import org.bukkit.command.CommandSender;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -35,24 +34,9 @@ public class KeyCmd implements SubCommand {
             return;
         }
 
-        String apiKey;
-        if ("set".equalsIgnoreCase(args[1])) {
-            if (args.length < 3) {
-                plugin.messages().send(sender, "key.usage", Map.of("label", label));
-                return;
-            }
-            apiKey = String.join(" ", Arrays.copyOfRange(args, 2, args.length)).trim();
-        } else {
-            apiKey = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
-        }
-        if (apiKey.isEmpty()) {
-            plugin.messages().send(sender, "key.usage", Map.of("label", label));
-            return;
-        }
-        if (!InputLimits.isApiKeyLengthValid(apiKey)) {
-            plugin.messages().send(sender, "error.api-key-too-long", Map.of(
-                    "max", String.valueOf(InputLimits.MAX_API_KEY_LENGTH)
-            ));
+        String apiKey = ApiKeyArgument.read(plugin.messages(), sender, args, "set".equalsIgnoreCase(args[1]) ? 2 : 1,
+                () -> plugin.messages().send(sender, "key.usage", Map.of("label", label)));
+        if (apiKey == null) {
             return;
         }
         plugin.setConfig(ConfigPaths.API_KEY, apiKey);

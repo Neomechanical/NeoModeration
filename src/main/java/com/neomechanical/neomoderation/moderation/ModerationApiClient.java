@@ -4,17 +4,12 @@ import com.neomechanical.neomoderation.config.ModerationApiSettings;
 import com.neomechanical.neomoderation.config.ModerationCategorySettings;
 
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 public final class ModerationApiClient {
-    private static final HttpClient HTTP = HttpClient.newBuilder()
-            .version(HttpClient.Version.HTTP_1_1)
-            .build();
 
     public ModerationApiResult moderateText(
             String playerName,
@@ -49,11 +44,8 @@ public final class ModerationApiClient {
 
         HttpRequest request;
         try {
-            request = HttpRequest.newBuilder(URI.create(apiSettings.endpoint()))
-                    .timeout(Duration.ofMillis(totalMs))
+            request = NeomechanicalHttp.withKey(apiSettings.endpoint(), Duration.ofMillis(totalMs), apiSettings.apiKey())
                     .header("Content-Type", "application/json")
-                    .header("User-Agent", ClientIdentity.userAgent())
-                    .header("Authorization", "Bearer " + apiSettings.apiKey())
                     .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
                     .build();
         } catch (IllegalArgumentException e) {
@@ -61,7 +53,8 @@ public final class ModerationApiClient {
         }
 
         try {
-            HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            HttpResponse<String> response = NeomechanicalHttp.CLIENT.send(request,
+                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             int status = response.statusCode();
             if (status < 200 || status >= 300) {
                 return ModerationApiResult.fromHttpFailureStatus(status);

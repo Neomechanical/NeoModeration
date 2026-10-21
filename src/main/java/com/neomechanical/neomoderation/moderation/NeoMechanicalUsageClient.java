@@ -2,8 +2,6 @@ package com.neomechanical.neomoderation.moderation;
 
 import com.neomechanical.neomoderation.config.ModerationApiSettings;
 
-import java.net.URI;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
@@ -14,19 +12,13 @@ import java.time.Duration;
  * single {@code endpoint} setting keeps them in sync.
  */
 public final class NeoMechanicalUsageClient {
-    private static final HttpClient HTTP = HttpClient.newBuilder()
-            .version(HttpClient.Version.HTTP_1_1)
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
 
     public UsageSummary fetchUsage(ModerationApiSettings apiSettings) throws UsageException {
         HttpRequest request;
         try {
-            request = HttpRequest.newBuilder(URI.create(usageUrl(apiSettings.endpoint())))
-                    .timeout(Duration.ofSeconds(10))
+            request = NeomechanicalHttp.withKey(usageUrl(apiSettings.endpoint()), Duration.ofSeconds(10),
+                            apiSettings.apiKey())
                     .header("Accept", "application/json")
-                    .header("User-Agent", ClientIdentity.userAgent())
-                    .header("Authorization", "Bearer " + apiSettings.apiKey())
                     .GET()
                     .build();
         } catch (IllegalArgumentException e) {
@@ -34,7 +26,7 @@ public final class NeoMechanicalUsageClient {
         }
 
         try {
-            HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = NeomechanicalHttp.CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) {
                 ModerationApiResult result = ModerationApiResult.fromHttpFailureStatus(response.statusCode());
                 throw new UsageException(result.kind(), "HTTP " + response.statusCode());

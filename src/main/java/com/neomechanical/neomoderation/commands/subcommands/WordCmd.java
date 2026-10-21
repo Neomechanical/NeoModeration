@@ -27,7 +27,7 @@ public class WordCmd implements SubCommand {
     @Override
     public List<String> onTabComplete(CommandSender sender, String[] args) {
         if (args.length == 2) {
-            return SubCommand.filterPrefix(args[1], "add", "remove", "list");
+            return RuleListEditor.completeAction(args[1]);
         }
         return List.of();
     }

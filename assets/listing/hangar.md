@@ -33,7 +33,7 @@ To have local rules alert staff without blocking, run `/nmod mode monitor`.
 
 ## Optional cloud checks
 
-The Neomechanical Moderation API can read each chat message for its meaning, in eight categories: sexual content, hate, harassment, violence, scams, spam, illicit activity and self-harm. It can also check map art when a player holds a filled map, puts one in an item frame or right-clicks one there, up to 30 new pictures per player an hour.
+The Neomechanical Moderation API's AI models can read each chat message for its meaning, in eight categories: sexual content, hate, harassment, violence, scams, spam, illicit activity and self-harm. It can also check map art when a player holds a filled map, puts one in an item frame or right-clicks one there, up to 30 new pictures per player an hour.
 
 - `/nmod trial` explains what a free 14-day trial sends, and `/nmod trial start` starts it. It needs no account, and each server can start one trial.
 - To use your own workspace, [create an account](https://neomechanical.com/signup?src=neomoderation_hangar), create an API key with the `events:write` and `usage:read` scopes, and run `/nmod setup <key>`.
@@ -49,7 +49,7 @@ Without an API key or a Discord webhook, no chat or map content leaves your serv
 
 ## Compatibility
 
-NeoModeration runs on Spigot, Paper and Purpur, Minecraft 1.18.2 to 26.3, and on Folia. Release checks run on Paper 1.18.2, 1.19.4, 1.20.6, 1.21.11, 26.1.2, 26.2 and 26.3, on Folia 1.21.11 and on Spigot 1.21.11. In-game messages are in English, Spanish, French, German, Portuguese or Turkish, and each player reads them in their own game language.
+NeoModeration runs on Spigot, Paper and Purpur, Minecraft 1.18.2 to 26.3, and on Folia. Release checks run on Paper 1.18.2, 1.19.4, 1.20.6, 1.21.11, 26.1.2, 26.2 and 26.3, on Folia 1.21.11, on Spigot 1.21.11 and on Purpur 1.21.11. In-game messages are in English, Spanish, French, German, Portuguese or Turkish, and each player reads them in their own game language.
 
 ## Links
 

@@ -2,6 +2,7 @@ package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.commands.SubCommand;
+import com.neomechanical.neomoderation.moderation.CloudPlanNotices;
 import com.neomechanical.neomoderation.moderation.CloudRecovery;
 import com.neomechanical.neomoderation.moderation.ModerationApiResult;
 import com.neomechanical.neomoderation.moderation.NeoMechanicalUsageClient;
@@ -38,10 +39,13 @@ public class UsageCmd implements SubCommand {
                 UsageSummary summary = usageClient.fetchUsage(plugin.settings().api());
                 plugin.runSync(() -> render(sender, summary));
             } catch (NeoMechanicalUsageClient.UsageException e) {
-                plugin.runSync(() -> plugin.messages().send(sender, usageErrorKey(e.kind()), Map.of(
+                // A refusal in the words its cause needs: an ended trial is not a bad key.
+                CloudPlanNotices.Reason refused = CloudPlanNotices.refusal(plugin.cloudPlan().current(), e.kind());
+                plugin.runSync(() -> plugin.messages().send(sender,
+                        refused != null ? "usage.error-" + refused.name() : usageErrorKey(e.kind()), Map.of(
                         "keysUrl", CloudRecovery.API_KEYS_URL,
-                        "billingUrl", CloudRecovery.BILLING_URL
-                )));
+                        "billingUrl", CloudRecovery.BILLING_URL,
+                        "url", refused != null ? refused.url() : CloudRecovery.SIGNUP_URL)));
             }
         });
     }
@@ -57,6 +61,9 @@ public class UsageCmd implements SubCommand {
             plugin.messages().send(sender, "usage.credits", Map.of(
                     "value", String.valueOf(s.creditsRemaining())
             ));
+        } else if (CloudPlanNotices.keepsTrialFirst(plugin.cloudPlan().current())) {
+            // Credits bought in another account fund another workspace: a trial is kept first.
+            plugin.messages().send(sender, "usage.credits-empty-trial");
         } else {
             plugin.messages().send(sender, "usage.credits-empty", Map.of(
                     "url", CloudRecovery.BILLING_URL

@@ -32,6 +32,11 @@ public final class RuleListEditor {
     private RuleListEditor() {
     }
 
+    /** Tab completion for the word after a list's command: what each list can do. */
+    public static List<String> completeAction(String typed) {
+        return SubCommand.filterPrefix(typed, "add", "remove", "list");
+    }
+
     public static void handle(NeoModerationPlugin plugin, CommandSender sender, String label, String[] args,
                               int actionIndex, RuleList list) {
         MessageService messages = plugin.messages();

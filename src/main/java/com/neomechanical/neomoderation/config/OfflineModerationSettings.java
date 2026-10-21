@@ -4,6 +4,7 @@ import com.neomechanical.neomoderation.moderation.BundledWordPacks;
 
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -116,6 +117,18 @@ public record OfflineModerationSettings(
         Set<String> merged = new LinkedHashSet<>(bannedWords);
         merged.addAll(packWords);
         return List.copyOf(merged);
+    }
+
+    /**
+     * How many words and links the local rules ban, and how many exceptions let some through, as
+     * {@code /nmod status}, the doctor and the startup summary show them ({@code words}, {@code urls},
+     * {@code exceptions}).
+     */
+    public Map<String, String> ruleCounts() {
+        return Map.of(
+                "words", String.valueOf(effectiveWords().size()),
+                "urls", String.valueOf(bannedUrls.size()),
+                "exceptions", String.valueOf(allowedWords.size() + allowedUrls.size()));
     }
 
     private static List<String> normalizeList(List<String> rawValues) {

@@ -6,14 +6,13 @@ import com.neomechanical.neomoderation.config.ModerationApiSettings;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import java.net.URI;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Handles communication with the Neomechanical 14-day trial activation service.
@@ -25,11 +24,6 @@ public final class TrialClient {
     private static final String PLUGIN_SECRET = "nm_trial_sec_2026_eval_sign";
     /** The trial length, as the platform's TRIAL_DURATION_DAYS; used when a reply leaves it out. */
     private static final int TRIAL_DAYS = 14;
-
-    private static final HttpClient HTTP = HttpClient.newBuilder()
-            .version(HttpClient.Version.HTTP_1_1)
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
 
 
     public static String computeHmac(String installId, long timestampSeconds) {
@@ -61,11 +55,9 @@ public final class TrialClient {
 
         HttpRequest request;
         try {
-            request = HttpRequest.newBuilder(URI.create(endpoint))
-                    .timeout(Duration.ofSeconds(10))
+            request = NeomechanicalHttp.request(endpoint, Duration.ofSeconds(10))
                     .header("Accept", "application/json")
                     .header("Content-Type", "application/json")
-                    .header("User-Agent", ClientIdentity.userAgent())
                     .header("x-plugin-product", "NeoModeration")
                     .header("x-plugin-timestamp", String.valueOf(timestamp))
                     .header("x-plugin-hmac", hmac)
@@ -76,7 +68,7 @@ public final class TrialClient {
         }
 
         try {
-            HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = NeomechanicalHttp.CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
             int status = response.statusCode();
             if (status == 201 || status == 200) {
                 return parseSuccess(response.body());
@@ -105,11 +97,8 @@ public final class TrialClient {
         String endpoint = trialUrl(apiSettings.endpoint()) + "/status";
         HttpRequest request;
         try {
-            request = HttpRequest.newBuilder(URI.create(endpoint))
-                    .timeout(Duration.ofSeconds(10))
+            request = NeomechanicalHttp.withKey(endpoint, Duration.ofSeconds(10), apiSettings.apiKey())
                     .header("Accept", "application/json")
-                    .header("User-Agent", ClientIdentity.userAgent())
-                    .header("Authorization", "Bearer " + apiSettings.apiKey())
                     .GET()
                     .build();
         } catch (IllegalArgumentException e) {
@@ -117,14 +106,15 @@ public final class TrialClient {
         }
 
         try {
-            HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = NeomechanicalHttp.CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
             int status = response.statusCode();
             if (status == 200) {
                 return parseStatusSuccess(response.body());
             }
-            if (status == 401 || status == 403) {
+            if (status == 401) {
                 throw new TrialException(TrialError.FORBIDDEN, "API key rejected");
             }
+            // The trial service itself never answers 403; a proxy in front of it may, and says nothing about the key.
             throw new TrialException(TrialError.SERVER_ERROR, "HTTP " + status);
         } catch (TrialException e) {
             throw e;
@@ -143,15 +133,32 @@ public final class TrialClient {
         return base + "/v1/plugins/neomoderation/trial";
     }
 
-    private static TrialResult parseSuccess(String body) throws TrialException {
+    static TrialResult parseSuccess(String body) throws TrialException {
         JsonObject response = responseObject(body);
         String apiKey = stringField(response, "apiKey", "");
         if (apiKey.isBlank()) {
             throw new TrialException(TrialError.INVALID_RESPONSE, "Missing apiKey in trial response");
         }
-        int days = daysField(response, TRIAL_DAYS);
-        return new TrialResult(apiKey, expiresAt(response, days), days,
-                stringField(response, "claimUrl", CloudRecovery.SIGNUP_URL));
+        // The key is issued and single-use per install: nothing after this point may lose it, so whatever else this
+        // version cannot read falls back. A newer trial service's fields must never strand an install.
+        int days = lenient(() -> daysField(response, TRIAL_DAYS), TRIAL_DAYS);
+        String expires = lenient(() -> expiresAt(response, days),
+                Instant.now().plus(days, ChronoUnit.DAYS).toString());
+        String claimUrl = lenient(() -> stringField(response, "claimUrl", CloudRecovery.SIGNUP_URL),
+                CloudRecovery.SIGNUP_URL);
+        return new TrialResult(apiKey, expires, days, claimUrl);
+    }
+
+    private interface Read<T> {
+        T get() throws TrialException;
+    }
+
+    private static <T> T lenient(Read<T> read, T fallback) {
+        try {
+            return read.get();
+        } catch (TrialException unreadable) {
+            return fallback;
+        }
     }
 
     /** The expiry the service sent, else today plus the days it says are left, so a date can always be shown. */
@@ -168,13 +175,18 @@ public final class TrialClient {
         }
         boolean isTrial = trial.getAsBoolean();
         String status = stringField(response, "status", "");
-        if ((isTrial && !status.equals("active") && !status.equals("expired"))
+        // A trial the platform revoked ends like one that ran out; "revoked" has been sent since the trial service began.
+        if ((isTrial && !status.equals("active") && !status.equals("expired") && !status.equals("revoked"))
                 || (!isTrial && !status.equals("standard_workspace"))) {
             throw new TrialException(TrialError.INVALID_RESPONSE, "Invalid trial status response");
         }
         int days = daysField(response, 0);
+        // A trial without a link gets none here, so whoever shows it picks the page for its state (CloudPlanNotices);
+        // billing is a key from an account's way on, never a trial's, which has no account to sign in to.
         return new TrialStatusResult(isTrial, status, expiresAt(response, days), days,
-                stringField(response, "upgradeUrl", stringField(response, "claimUrl", CloudRecovery.BILLING_URL)));
+                stringField(response, "upgradeUrl", stringField(response, "claimUrl",
+                        isTrial ? "" : CloudRecovery.BILLING_URL)),
+                lenient(() -> stringField(response, "activatedAt", ""), ""));
     }
 
     private static JsonObject responseObject(String body) throws TrialException {
@@ -250,10 +262,56 @@ public final class TrialClient {
             String status,
             String expiresAt,
             int daysRemaining,
-            String upgradeUrl
+            String upgradeUrl,
+            String activatedAt
     ) {
+        private static final long DAY_MILLIS = TimeUnit.DAYS.toMillis(1);
+
+        public TrialStatusResult(boolean isTrial, String status, String expiresAt, int daysRemaining, String upgradeUrl) {
+            this(isTrial, status, expiresAt, daysRemaining, upgradeUrl, "");
+        }
+
         public boolean isExpired() {
             return isTrial && "expired".equalsIgnoreCase(status);
+        }
+
+        public boolean isRevoked() {
+            return isTrial && "revoked".equalsIgnoreCase(status);
+        }
+
+        /** A trial that ran out or was revoked: its key no longer works for cloud checks. */
+        public boolean hasEnded() {
+            return isExpired() || isRevoked();
+        }
+
+        /**
+         * A trial that has ended by {@code nowMillis}: the service said so, or its end date has passed since it
+         * answered. A trial key stops working at its end date, so an older answer of "active" no longer holds.
+         */
+        public boolean endedBy(long nowMillis) {
+            long end = endMillis();
+            return hasEnded() || (isTrial && end != Long.MIN_VALUE && end <= nowMillis);
+        }
+
+        /**
+         * The days a running trial has left at {@code nowMillis}, counted as the trial service counts them (any
+         * part of a day is a day); the days it sent when its end date cannot be read.
+         */
+        public int daysLeft(long nowMillis) {
+            long end = endMillis();
+            if (end == Long.MIN_VALUE) {
+                return daysRemaining;
+            }
+            long left = end - nowMillis;
+            return left <= 0 ? 0 : (int) Math.max(1, (left + DAY_MILLIS - 1) / DAY_MILLIS);
+        }
+
+        private long endMillis() {
+            try {
+                return Instant.parse(expiresAt).toEpochMilli();
+            } catch (RuntimeException unreadable) {
+                return Long.MIN_VALUE;
+            }
         }
     }
 }

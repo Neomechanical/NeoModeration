@@ -6,7 +6,7 @@
 
     <groupId>com.neomechanical</groupId>
     <artifactId>NeoModeration</artifactId>
-    <version>1.7.0</version>
+    <version>1.7.1</version>
     <packaging>jar</packaging>
 
     <name>NeoModeration</name>
@@ -15,7 +15,6 @@
     <properties>
         <java.version>17</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <proguard.skip>false</proguard.skip>
     </properties>
 
     <build>
@@ -58,41 +57,6 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <version>3.7.1</version>
-                <executions>
-                    <execution>
-                        <id>proguard-spigot-api</id>
-                        <phase>prepare-package</phase>
-                        <goals>
-                            <goal>copy</goal>
-                        </goals>
-                        <configuration>
-                            <artifactItems>
-                                <artifactItem>
-                                    <groupId>org.spigotmc</groupId>
-                                    <artifactId>spigot-api</artifactId>
-                                    <version>1.8-R0.1-SNAPSHOT</version>
-                                    <type>jar</type>
-                                    <outputDirectory>${project.build.directory}/proguard-libs</outputDirectory>
-                                    <destFileName>spigot-api.jar</destFileName>
-                                </artifactItem>
-                                <artifactItem>
-                                    <groupId>net.md-5</groupId>
-                                    <artifactId>bungeecord-chat</artifactId>
-                                    <version>1.16-R0.4</version>
-                                    <type>jar</type>
-                                    <outputDirectory>${project.build.directory}/proguard-libs</outputDirectory>
-                                    <destFileName>bungeecord-chat.jar</destFileName>
-                                </artifactItem>
-                            </artifactItems>
-                            <skip>${proguard.skip}</skip>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
                 <version>3.6.0</version>
                 <executions>
@@ -127,54 +91,12 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>com.github.wvengen</groupId>
-                <artifactId>proguard-maven-plugin</artifactId>
-                <version>2.7.0</version>
-                <executions>
-                    <execution>
-                        <id>obfuscate-release-jar</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>proguard</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <skip>${proguard.skip}</skip>
-                    <proguardInclude>${project.basedir}/proguard.conf</proguardInclude>
-                    <includeDependency>false</includeDependency>
-                    <mappingFileName>proguard-mapping.txt</mappingFileName>
-                    <maxMemory>512m</maxMemory>
-                    <libs>
-                        <lib>${project.build.directory}/proguard-libs/spigot-api.jar</lib>
-                        <lib>${project.build.directory}/proguard-libs/bungeecord-chat.jar</lib>
-                        <lib>${java.home}/jmods/java.base.jmod</lib>
-                        <lib>${java.home}/jmods/java.logging.jmod</lib>
-                        <lib>${java.home}/jmods/java.net.http.jmod</lib>
-                        <lib>${java.home}/jmods/java.desktop.jmod</lib>
-                        <lib>${java.home}/jmods/java.sql.jmod</lib>
-                    </libs>
-                </configuration>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.2</version>
             </plugin>
         </plugins>
     </build>
-
-    <profiles>
-        <profile>
-            <id>modrinth</id>
-            <properties>
-                <proguard.skip>true</proguard.skip>
-            </properties>
-            <build>
-                <finalName>NeoModeration-${project.version}-modrinth</finalName>
-            </build>
-        </profile>
-    </profiles>
 
     <repositories>
         <repository>

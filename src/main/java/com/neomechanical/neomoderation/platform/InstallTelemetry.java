@@ -5,7 +5,9 @@ import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.config.SurfaceSettings.SurfaceMode;
 import com.neomechanical.neomoderation.moderation.ModerationCoverage;
 
+import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The questions bStats should have been answering all along, as pure functions
@@ -83,14 +85,27 @@ public final class InstallTelemetry {
      *                       {@code null} when no call has been made yet
      */
     public static String cloudState(ModerationSettings settings, boolean circuitOpen, String lastResultKind) {
+        return cloudState(settings, circuitOpen, lastResultKind, "UNKNOWN");
+    }
+
+    /**
+     * As above, with what the trial service said about the key ({@code CloudPlanWatch.State} name), so an ended
+     * trial is not counted as a rejected key, as it was until 1.7.1.
+     */
+    public static String cloudState(ModerationSettings settings, boolean circuitOpen, String lastResultKind,
+                                    String planState) {
         if (settings.api().apiKey().isBlank()) {
             return "no_key";
+        }
+        String plan = planState == null ? "UNKNOWN" : planState;
+        if (plan.equals("TRIAL_ENDED")) {
+            return "trial_ended";
         }
         if (lastResultKind == null) {
             return "key_untested";
         }
         return switch (lastResultKind) {
-            case "FLAGGED", "CLEAR" -> "key_working";
+            case "FLAGGED", "CLEAR" -> plan.equals("TRIAL_ACTIVE") ? "trial_working" : "key_working";
             case "CLIENT_AUTH" -> "key_rejected";
             case "INSUFFICIENT_CREDITS" -> "no_credits";
             case "CLIENT_REQUEST" -> "bad_request";
@@ -157,6 +172,91 @@ public final class InstallTelemetry {
             return "bundled_default";
         }
         return "extended";
+    }
+
+    /**
+     * Chat detections per 1,000 chat messages since startup, bucketed. The false-alarm rates measured before 1.7.1
+     * all came from test lines people wrote; this is the rate on real servers, with no message text. Below 100
+     * messages there is too little chat to say.
+     */
+    public static String chatDetectionRate(long messages, long detections) {
+        if (messages < 100) {
+            return "too_little_chat";
+        }
+        double perThousand = detections * 1000.0 / messages;
+        if (perThousand == 0) {
+            return "0";
+        }
+        if (perThousand < 5) {
+            return "under_5";
+        }
+        if (perThousand < 20) {
+            return "5_to_20";
+        }
+        if (perThousand < 50) {
+            return "20_to_50";
+        }
+        return "50_plus";
+    }
+
+    /**
+     * Chat messages a day, from the count since startup, in wide buckets: the volume a free daily cap on cloud checks
+     * must hold, which no other chart shows. Until the server has been up an hour the count says too little.
+     */
+    public static String chatMessagesPerDay(long messages, long uptimeMillis) {
+        if (uptimeMillis < TimeUnit.HOURS.toMillis(1)) {
+            return "under_1_hour_up";
+        }
+        double perDay = messages * (double) TimeUnit.DAYS.toMillis(1) / uptimeMillis;
+        if (perDay == 0) {
+            return "0";
+        }
+        if (perDay < 100) {
+            return "under_100";
+        }
+        if (perDay < 1_000) {
+            return "100_to_1k";
+        }
+        if (perDay < 10_000) {
+            return "1k_to_10k";
+        }
+        return perDay < 50_000 ? "10k_to_50k" : "50k_plus";
+    }
+
+    /** How many words the operator allowed: a growing list is an operator fighting false alarms. */
+    public static String allowListSize(ModerationSettings settings) {
+        int size = settings.offline().allowedWords().size();
+        if (size == 0) {
+            return "0";
+        }
+        if (size <= 5) {
+            return "1_to_5";
+        }
+        return size <= 20 ? "6_to_20" : "21_plus";
+    }
+
+    /**
+     * The share of online players whose game language is neither the server's nor English, the players whose
+     * everyday words another language bans are blocked unless their language is trusted.
+     */
+    public static String playersInAnotherLanguage(String serverLocale, List<String> gameLanguages) {
+        if (gameLanguages.isEmpty()) {
+            return "no_players";
+        }
+        long other = GameLanguage.inAnotherLanguage(serverLocale, gameLanguages);
+        if (other == 0) {
+            return "none";
+        }
+        double share = (double) other / gameLanguages.size();
+        if (share < 0.25) {
+            return "under_25_percent";
+        }
+        return share < 0.5 ? "25_to_50_percent" : "50_percent_plus";
+    }
+
+    /** Whether players' game languages excuse words ({@code moderation.offline.trustPlayerLanguage}). */
+    public static String playerLanguageTrust(ModerationSettings settings) {
+        return settings.offline().trustPlayerLanguage() ? "on" : "off";
     }
 
     /** Server family, so Folia adoption is visible. */

@@ -2,12 +2,15 @@ package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.config.ModerationMode;
 import com.neomechanical.neomoderation.config.ModerationSettings;
+import com.neomechanical.neomoderation.moderation.CloudPlanNotices;
+import com.neomechanical.neomoderation.moderation.CloudPlanWatch;
 import com.neomechanical.neomoderation.moderation.CloudRecovery;
 import com.neomechanical.neomoderation.moderation.DiscordAlerts;
 import com.neomechanical.neomoderation.moderation.ModerationApiResult;
 import com.neomechanical.neomoderation.moderation.ModerationCoverage;
 import com.neomechanical.neomoderation.moderation.NeoMechanicalUsageClient;
 import com.neomechanical.neomoderation.moderation.UsageSummary;
+import com.neomechanical.neomoderation.platform.GameLanguage;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -81,9 +84,18 @@ final class DoctorChecks {
         return checks;
     }
 
-    /** The cloud checks that need no network: key, mode, endpoint, circuit, last result. */
     static List<Check> cloudSetup(ModerationSettings settings, boolean callsAllowed, ModerationApiResult.Kind last,
                                   long busySkipped) {
+        return cloudSetup(settings, callsAllowed, last, busySkipped, CloudPlanWatch.Snapshot.UNKNOWN,
+                System.currentTimeMillis());
+    }
+
+    /**
+     * The cloud checks that need no network: key, mode, endpoint, circuit, last result, and the cloud plan as the
+     * trial service said it, with a trial's days left counted at {@code nowMillis}.
+     */
+    static List<Check> cloudSetup(ModerationSettings settings, boolean callsAllowed, ModerationApiResult.Kind last,
+                                  long busySkipped, CloudPlanWatch.Snapshot plan, long nowMillis) {
         ModerationCoverage coverage = ModerationCoverage.from(settings);
         List<Check> checks = new ArrayList<>();
         if (settings.api().apiKey().isBlank()) {
@@ -111,11 +123,33 @@ final class DoctorChecks {
         checks.add(callsAllowed
                 ? Check.of(Level.OK, "circuit", "circuit-closed")
                 : Check.of(Level.WARN, "circuit", "circuit-open"));
-        checks.add(events(last));
+        checks.add(events(last, plan));
+        Check planCheck = plan(plan, last, nowMillis);
+        if (planCheck != null) {
+            checks.add(planCheck);
+        }
         if (busySkipped > 0) {
             checks.add(new Check(Level.WARN, "busy", "events-busy", Map.of("count", String.valueOf(busySkipped))));
         }
         return checks;
+    }
+
+    /**
+     * A hint when players here play in another language than the server's and English, and their game languages
+     * are not trusted: another language's banned word that is everyday in theirs gets their lines caught. On 902
+     * clean test lines from such players, a default English server caught 223, against 25 with the setting on.
+     * Null when there is nothing to say; English counts as everyone's, as the word lists treat it.
+     */
+    static Check playerLanguages(ModerationSettings settings, List<String> onlineGameLanguages) {
+        if (settings.offline().trustPlayerLanguage() || onlineGameLanguages.size() < 2) {
+            return null;
+        }
+        long other = GameLanguage.inAnotherLanguage(settings.offline().locale(), onlineGameLanguages);
+        if (other < 2 || other * 4 < onlineGameLanguages.size()) {
+            return null;
+        }
+        return new Check(Level.WARN, "player-languages", "player-languages-other", Map.of(
+                "count", String.valueOf(other), "online", String.valueOf(onlineGameLanguages.size())));
     }
 
     static boolean readyForAccountCheck(List<Check> cloudSetup) {
@@ -123,18 +157,42 @@ final class DoctorChecks {
     }
 
     static List<Check> account(UsageSummary usage, long ms) {
-        return List.of(
-                new Check(Level.OK, "account", "account-ok", Map.of(
-                        "ms", String.valueOf(ms), "workspace", usage.workspace(), "plan", usage.tier())),
-                usage.creditsRemaining() > 0
-                        ? new Check(Level.OK, "credits", "credits-left",
-                                Map.of("value", String.valueOf(usage.creditsRemaining())))
-                        : new Check(Level.FAIL, "credits", "account-credits",
-                                Map.of("ms", String.valueOf(ms), "url", CloudRecovery.BILLING_URL)));
+        return account(usage, ms, CloudPlanWatch.Snapshot.UNKNOWN);
+    }
+
+    /**
+     * The account the key belongs to and its credits; a running trial with none is kept first, never sent to billing,
+     * and when the cloud plan's line already says so, the credits line only says none are left.
+     */
+    static List<Check> account(UsageSummary usage, long ms, CloudPlanWatch.Snapshot plan) {
+        return account(usage, ms, plan, null);
+    }
+
+    static List<Check> account(UsageSummary usage, long ms, CloudPlanWatch.Snapshot plan,
+                               ModerationApiResult.Kind lastCheck) {
+        String elapsed = String.valueOf(ms);
+        Check credits = usage.creditsRemaining() > 0
+                ? new Check(Level.OK, "credits", "credits-left", Map.of("value", String.valueOf(usage.creditsRemaining())))
+                : CloudPlanNotices.creditsUsedUp(plan, lastCheck)
+                ? new Check(Level.FAIL, "credits", "credits-none", Map.of("ms", elapsed))
+                : CloudPlanNotices.keepsTrialFirst(plan)
+                ? new Check(Level.FAIL, "credits", "account-trial-credits", Map.of("ms", elapsed))
+                : new Check(Level.FAIL, "credits", "account-credits", Map.of("ms", elapsed, "url", CloudRecovery.BILLING_URL));
+        return List.of(new Check(Level.OK, "account", "account-ok", Map.of(
+                "ms", elapsed, "workspace", usage.workspace(), "plan", usage.tier())), credits);
     }
 
     static Check accountFailure(NeoMechanicalUsageClient.UsageException error, long ms) {
+        return accountFailure(error, ms, CloudPlanWatch.Snapshot.UNKNOWN);
+    }
+
+    static Check accountFailure(NeoMechanicalUsageClient.UsageException error, long ms, CloudPlanWatch.Snapshot plan) {
         String elapsed = String.valueOf(ms);
+        CloudPlanNotices.Reason ended = CloudPlanNotices.knownProblem(plan);
+        if (error.kind() == ModerationApiResult.Kind.CLIENT_AUTH && ended != null && !ended.name().equals("auth")) {
+            // The plan's own line says why and what to do; this one only says the key stopped working.
+            return new Check(Level.FAIL, "account", "account-trial-ended", Map.of("ms", elapsed));
+        }
         return switch (error.kind()) {
             case CLIENT_AUTH -> new Check(Level.FAIL, "account", "account-auth",
                     Map.of("ms", elapsed, "url", CloudRecovery.API_KEYS_URL));
@@ -160,11 +218,7 @@ final class DoctorChecks {
 
     private static Check rules(ModerationSettings settings, ModerationCoverage coverage) {
         if (coverage.localRules()) {
-            return new Check(Level.OK, "rules", "rules", Map.of(
-                    "words", String.valueOf(settings.offline().effectiveWords().size()),
-                    "urls", String.valueOf(settings.offline().bannedUrls().size()),
-                    "exceptions", String.valueOf(settings.offline().allowedWords().size()
-                            + settings.offline().allowedUrls().size())));
+            return new Check(Level.OK, "rules", "rules", settings.offline().ruleCounts());
         }
         if (coverage.spam()) {
             return Check.of(Level.WARN, "rules", "rules-spam-only");
@@ -200,14 +254,31 @@ final class DoctorChecks {
         return Check.of(Level.OK, "cases", settings.cases().storeContent() ? "cases-preview" : "cases-on");
     }
 
-    private static Check events(ModerationApiResult.Kind kind) {
+    /**
+     * What the trial service said about the key, when it said anything; a date value is ISO until shown. A running
+     * trial whose last check was refused for credits has used them up, and this line says what to do.
+     */
+    private static Check plan(CloudPlanWatch.Snapshot plan, ModerationApiResult.Kind last, long nowMillis) {
+        CloudPlanNotices.PlanLine line = CloudPlanNotices.planLine(plan, last, nowMillis);
+        if (line == null) {
+            return null;
+        }
+        boolean fine = line.name().equals("trial") || line.name().equals("standard");
+        return new Check(fine ? Level.OK : Level.FAIL, "cloud-plan", "plan-" + line.name(), line.values());
+    }
+
+    /**
+     * The last cloud check; a refusal in the words its cause needs ({@link CloudPlanNotices#refusal}), or only as
+     * refused when the cloud plan's line says why ({@link CloudPlanNotices#lastCheck}).
+     */
+    private static Check events(ModerationApiResult.Kind kind, CloudPlanWatch.Snapshot plan) {
         if (kind == null) {
             return Check.of(Level.WARN, "events", "events-none");
         }
         return switch (kind) {
             case FLAGGED, CLEAR -> Check.of(Level.OK, "events", "events-ok");
-            case CLIENT_AUTH -> Check.of(Level.FAIL, "events", "events-auth");
-            case INSUFFICIENT_CREDITS -> Check.of(Level.FAIL, "events", "events-credits");
+            case CLIENT_AUTH, INSUFFICIENT_CREDITS -> Check.of(Level.FAIL, "events",
+                    "events-" + CloudPlanNotices.lastCheck(CloudPlanNotices.refusal(plan, kind)));
             case CLIENT_REQUEST -> Check.of(Level.FAIL, "events", "events-request");
             // A busy server is its own check, never recorded as the cloud's result.
             case TRANSIENT_TRANSPORT, OVERLOADED -> Check.of(Level.WARN, "events", "events-transient");

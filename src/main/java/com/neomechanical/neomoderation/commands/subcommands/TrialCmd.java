@@ -2,20 +2,19 @@ package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.commands.SubCommand;
+import com.neomechanical.neomoderation.commands.TrialPromptSupport;
 import com.neomechanical.neomoderation.config.ConfigPaths;
 import com.neomechanical.neomoderation.config.ModerationApiSettings;
 import com.neomechanical.neomoderation.messages.DateText;
 import com.neomechanical.neomoderation.messages.MenuRenderer;
 import com.neomechanical.neomoderation.messages.MessageService;
+import com.neomechanical.neomoderation.moderation.CloudPlanNotices;
 import com.neomechanical.neomoderation.moderation.CloudRecovery;
 import com.neomechanical.neomoderation.moderation.TrialClient;
 import com.neomechanical.neomoderation.platform.InstallIdentity;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.time.Instant;
-import java.time.format.DateTimeParseException;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -24,12 +23,9 @@ import java.util.Map;
  * The free 14-day cloud trial. {@code /nmod trial} says what a trial sends and
  * how its decisions work, then offers {@code /nmod trial start}; with a key set
  * it shows how the trial is going: days left, what the cloud caught, and the
- * link to keep it.
+ * button that keeps it, in game only (its link is a key to the trial).
  */
 public class TrialCmd implements SubCommand {
-    /** How long a trial runs, to count back from its end. */
-    private static final int TRIAL_DAYS = 14;
-
     private final NeoModerationPlugin plugin;
     private final TrialClient trialClient;
 
@@ -128,7 +124,8 @@ public class TrialCmd implements SubCommand {
         boolean moderationOn = plugin.settings().enabled();
         reply(sender, () -> {
             MessageService messages = plugin.messages();
-            messages.send(sender, "trial.activated", Map.of("expires", DateText.of(messages, sender, result.expiresAt())));
+            messages.send(sender, "trial.activated",
+                    Map.of("expires", DateText.of(messages, sender, result.expiresAt())));
             messages.send(sender, "trial.activated-monitor");
             if (!moderationOn) {
                 // Starting a trial never switches moderation back on behind the admin's back.
@@ -149,25 +146,16 @@ public class TrialCmd implements SubCommand {
         plugin.runAsync(() -> {
             try {
                 TrialClient.TrialStatusResult status = trialClient.fetchTrialStatus(api);
-                long caught = caughtDuring(status);
+                plugin.cloudPlan().accept(api.apiKey(), status);
+                long caught = TrialPromptSupport.caughtDuringTrial(plugin, status);
                 reply(sender, () -> sendStatus(sender, status, caught));
             } catch (TrialClient.TrialException e) {
-                reply(sender, () -> sendFailure(sender, e));
+                if (e.error() == TrialClient.TrialError.FORBIDDEN) {
+                    plugin.cloudPlan().rejected(api.apiKey());
+                }
+                reply(sender, () -> sendStatusFailure(sender, e));
             }
         });
-    }
-
-    /** What the cloud caught since the trial began, from the case history; -1 when there is none to read. */
-    private long caughtDuring(TrialClient.TrialStatusResult status) {
-        if (!status.isTrial() || !plugin.settings().cases().enabled()) {
-            return -1L;
-        }
-        try {
-            Instant started = Instant.parse(status.expiresAt()).minus(TRIAL_DAYS, ChronoUnit.DAYS);
-            return plugin.caseLog().countCloudSince(started.toEpochMilli());
-        } catch (DateTimeParseException e) {
-            return -1L;
-        }
     }
 
     private void sendStatus(CommandSender sender, TrialClient.TrialStatusResult status, long caught) {
@@ -177,32 +165,66 @@ public class TrialCmd implements SubCommand {
             return;
         }
         String expires = DateText.of(messages, sender, status.expiresAt());
-        if (status.isExpired()) {
-            messages.send(sender, "trial.status-expired", Map.of("expires", expires));
+        if (status.hasEnded()) {
+            // A revoked trial names no date: the service sends the planned end, not the day it stopped.
+            messages.send(sender, status.isRevoked() ? "trial.status-revoked" : "trial.status-expired",
+                    Map.of("expires", expires));
         } else {
             messages.send(sender, "trial.status-active",
                     Map.of("days", String.valueOf(status.daysRemaining()), "expires", expires));
-            // The case history covers the whole trial; without it only this run's count is known.
-            messages.send(sender, caught >= 0 ? "trial.status-caught" : "trial.status-caught-startup",
-                    Map.of("count", String.valueOf(caught >= 0 ? caught : plugin.monitorStats().cloudTotal())));
+            if (CloudPlanNotices.creditsUsedUp(plugin.cloudPlan().current(), plugin.coordinator().lastCloudResultKind())) {
+                // Credits bought in another account fund another workspace; the trial is kept first.
+                messages.send(sender, "trial.status-credits");
+            }
+            TrialPromptSupport.Caught counted = TrialPromptSupport.caught(caught, plugin.monitorStats().cloudTotal());
+            if (counted != null) {
+                messages.send(sender, counted.wholeTrial() ? "trial.status-caught" : "trial.status-caught-startup",
+                        Map.of("count", String.valueOf(counted.count())));
+            }
         }
-        sendKeepButton(sender, status.upgradeUrl());
+        if (status.hasEnded()) {
+            // An ended trial cannot be kept: its way on is a new account.
+            sendButton(sender, "trial.create-account-button", CloudRecovery.SIGNUP_URL);
+        } else {
+            sendKeepButton(sender, status.upgradeUrl());
+        }
     }
 
-    private void sendKeepButton(CommandSender sender, String url) {
-        MessageService messages = plugin.messages();
-        if (sender instanceof Player) {
-            messages.sendMenu(sender, List.of(MenuRenderer.clickableLine(messages.text(sender, "trial.keep-button"), url,
-                    messages.format(sender, "trial.keep-hover", Map.of("url", url)), MenuRenderer.ClickAction.OPEN_URL)));
-        } else {
-            sender.sendMessage(messages.text(sender, "trial.keep-button") + " " + url);
+    /**
+     * The button that keeps a running trial. Its link is the trial's claim link, which whoever opens it first can use,
+     * so only a player gets it, as a button: the console's lines are the server log, which hosts keep and admins paste
+     * when they ask for help. The console is told to run the command in game.
+     */
+    private void sendKeepButton(CommandSender sender, String claimUrl) {
+        if (!(sender instanceof Player)) {
+            plugin.messages().send(sender, "trial.keep-in-game");
+            return;
         }
+        sendButton(sender, "trial.keep-button", claimUrl == null || claimUrl.isBlank() ? CloudRecovery.SIGNUP_URL : claimUrl);
+    }
+
+    /** A button in game; the console, which cannot click, gets its link written out. Never a claim link. */
+    private void sendButton(CommandSender sender, String label, String url) {
+        if (sender instanceof Player player) {
+            TrialPromptSupport.sendLinkButton(plugin.messages(), player, label, url);
+        } else {
+            sender.sendMessage(plugin.messages().text(sender, label) + " " + url);
+        }
+    }
+
+    /** Reading the trial failed; nothing was started, so the words are not those of {@link #sendFailure}. */
+    private void sendStatusFailure(CommandSender sender, TrialClient.TrialException e) {
+        MessageService messages = plugin.messages();
+        // From the status call a 401 means only that the key was rejected (TrialClient.fetchTrialStatus).
+        String error = e.error() == TrialClient.TrialError.FORBIDDEN ? "key-rejected" : errorKey(e.error());
+        messages.send(sender, "trial.status-failed", Map.of("error", messages.text(sender, "trial.error." + error)));
     }
 
     private void sendFailure(CommandSender sender, TrialClient.TrialException e) {
         MessageService messages = plugin.messages();
         switch (e.error()) {
-            case ALREADY_CLAIMED -> messages.send(sender, "trial.already-claimed", Map.of("url", CloudRecovery.BILLING_URL));
+            // An install that used its trial has no account yet: the way on is one, never billing's sign-in.
+            case ALREADY_CLAIMED -> messages.send(sender, "trial.already-claimed", Map.of("url", CloudRecovery.SIGNUP_URL));
             case RATE_LIMITED -> messages.send(sender, "trial.rate-limited", Map.of("url", CloudRecovery.SIGNUP_URL));
             default -> messages.send(sender, "trial.failed", Map.of("error",
                     messages.text(sender, "trial.error." + errorKey(e.error()))));

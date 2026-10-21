@@ -163,6 +163,52 @@ class InstallTelemetryTest {
     }
 
     @Test
+    void anEndedTrialIsNotABadKey() {
+        ModerationSettings withKey = settings("moderation.api.apiKey", "k");
+        assertEquals("trial_ended", InstallTelemetry.cloudState(withKey, false, "CLIENT_AUTH", "TRIAL_ENDED"));
+        assertEquals("trial_ended", InstallTelemetry.cloudState(withKey, false, null, "TRIAL_ENDED"),
+                "known at startup, before any chat");
+        assertEquals("trial_working", InstallTelemetry.cloudState(withKey, false, "CLEAR", "TRIAL_ACTIVE"));
+        assertEquals("key_working", InstallTelemetry.cloudState(withKey, false, "CLEAR", "STANDARD"));
+        assertEquals("key_rejected", InstallTelemetry.cloudState(withKey, false, "CLIENT_AUTH", "KEY_REJECTED"));
+        assertEquals("no_credits", InstallTelemetry.cloudState(withKey, false, "INSUFFICIENT_CREDITS", "STANDARD"));
+        assertEquals("no_key", InstallTelemetry.cloudState(settings(), false, null, "TRIAL_ENDED"));
+    }
+
+    @Test
+    void bucketsTheChatDetectionRatePerThousandMessagesOnlyOnceThereIsChatToJudge() {
+        assertEquals("too_little_chat", InstallTelemetry.chatDetectionRate(99, 50));
+        assertEquals("0", InstallTelemetry.chatDetectionRate(100, 0));
+        assertEquals("under_5", InstallTelemetry.chatDetectionRate(1000, 4));
+        assertEquals("5_to_20", InstallTelemetry.chatDetectionRate(1000, 5));
+        assertEquals("20_to_50", InstallTelemetry.chatDetectionRate(1000, 20));
+        assertEquals("50_plus", InstallTelemetry.chatDetectionRate(1000, 50));
+    }
+
+    @Test
+    void bucketsTheAllowListAndTheTrustSetting() {
+        assertEquals("0", InstallTelemetry.allowListSize(settings()));
+        YamlConfiguration twoAllowed = new YamlConfiguration();
+        twoAllowed.set("moderation.offline.allowedWords", java.util.List.of("scunthorpe", "cockpit"));
+        assertEquals("1_to_5", InstallTelemetry.allowListSize(ModerationSettings.from(new BukkitConfigView(twoAllowed))));
+        assertEquals("off", InstallTelemetry.playerLanguageTrust(settings()));
+        assertEquals("on", InstallTelemetry.playerLanguageTrust(
+                settings("moderation.offline.trustPlayerLanguage", "true")));
+    }
+
+    @Test
+    void countsPlayersInALanguageNeitherTheServersNorEnglish() {
+        assertEquals("no_players", InstallTelemetry.playersInAnotherLanguage("en_US", java.util.List.of()));
+        assertEquals("none", InstallTelemetry.playersInAnotherLanguage("fr_FR", java.util.List.of("fr_fr", "en_gb")));
+        assertEquals("under_25_percent", InstallTelemetry.playersInAnotherLanguage("en_US",
+                java.util.List.of("da_dk", "en_us", "en_us", "en_us", "en_us")));
+        assertEquals("25_to_50_percent", InstallTelemetry.playersInAnotherLanguage("en_US",
+                java.util.List.of("da_dk", "en_us", "en_us")));
+        assertEquals("50_percent_plus", InstallTelemetry.playersInAnotherLanguage("en_US",
+                java.util.List.of("da_dk", "nb_no", "en_us")));
+    }
+
+    @Test
     void bucketsDetectionVolumeByOrderOfMagnitude() {
         assertEquals("0", InstallTelemetry.detectionsBucket(0));
         assertEquals("1-9", InstallTelemetry.detectionsBucket(1));
@@ -211,5 +257,17 @@ class InstallTelemetryTest {
         assertEquals("on_but_no_key", InstallTelemetry.mapArtState(settings()));
         assertEquals("on", InstallTelemetry.mapArtState(settings("moderation.api.apiKey", "k")));
         assertEquals("off", InstallTelemetry.mapArtState(settings("moderation.mapArt.enabled", "false")));
+    }
+
+    @Test
+    void chatMessagesADayAreCountedFromTheRunSoFarOnceTheServerHasBeenUpAnHour() {
+        long hour = 3_600_000L;
+        assertEquals("under_1_hour_up", InstallTelemetry.chatMessagesPerDay(5_000, hour - 1));
+        assertEquals("0", InstallTelemetry.chatMessagesPerDay(0, hour));
+        assertEquals("under_100", InstallTelemetry.chatMessagesPerDay(4, hour), "96 a day");
+        assertEquals("100_to_1k", InstallTelemetry.chatMessagesPerDay(5, hour), "120 a day");
+        assertEquals("1k_to_10k", InstallTelemetry.chatMessagesPerDay(2_000, 24 * hour));
+        assertEquals("10k_to_50k", InstallTelemetry.chatMessagesPerDay(10_000, 24 * hour));
+        assertEquals("50k_plus", InstallTelemetry.chatMessagesPerDay(50_000, 24 * hour));
     }
 }

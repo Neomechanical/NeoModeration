@@ -7,8 +7,10 @@ import com.neomechanical.neomoderation.commands.TrialPromptSupport;
 import com.neomechanical.neomoderation.config.ModerationMode;
 import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.messages.ActionText;
+import com.neomechanical.neomoderation.messages.DateText;
 import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.messages.Reasons;
+import com.neomechanical.neomoderation.moderation.CloudPlanNotices;
 import com.neomechanical.neomoderation.moderation.CloudRecovery;
 import com.neomechanical.neomoderation.moderation.DetectionHandler;
 import com.neomechanical.neomoderation.moderation.ModerationApiResult;
@@ -122,16 +124,18 @@ public class TestCmd implements SubCommand {
             long start = System.nanoTime();
             ModerationApiResult result = plugin.apiClient().moderateText(
                     senderName, senderUuid, message, settings.api(), settings.categories());
-            plugin.coordinator().recordApiResult(result);
+            plugin.coordinator().recordApiResult(result, settings.api());
             String ms = String.valueOf((System.nanoTime() - start) / 1_000_000L);
             plugin.runSync(() -> {
-                Map<String, String> values = switch (result.kind()) {
-                    case CLIENT_AUTH -> Map.of("ms", ms, "url", CloudRecovery.API_KEYS_URL);
-                    case INSUFFICIENT_CREDITS -> Map.of("ms", ms, "url", CloudRecovery.BILLING_URL);
-                    case FLAGGED -> Map.of("ms", ms, "reason", Reasons.describe(messages, sender, result.reason()));
-                    default -> Map.of("ms", ms);
-                };
-                messages.send(sender, cloudMessageKey(result.kind()), values);
+                // A refusal in the words its cause needs: an ended trial is not a bad key.
+                CloudPlanNotices.Reason refused = CloudPlanNotices.refusal(plugin.cloudPlan().current(), result.kind());
+                Map<String, String> values = refused != null
+                        ? Map.of("ms", ms, "url", refused.url(), "date", DateText.of(messages, sender, refused.dateIso()))
+                        : result.kind() == ModerationApiResult.Kind.FLAGGED
+                        ? Map.of("ms", ms, "reason", Reasons.describe(messages, sender, result.reason()))
+                        : Map.of("ms", ms);
+                messages.send(sender, refused != null ? "test.cloud-" + refused.name() : cloudMessageKey(result.kind()),
+                        values);
                 sendCloudOutcome(sender, settings, result);
                 messages.send(sender, "test.note");
                 messages.sendFooter(sender);

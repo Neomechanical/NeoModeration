@@ -1,0 +1,1 @@
+Anti-swear chat filter and chat moderation for Minecraft. Blocks or censors profanity and slurs with a word filter, plus anti-spam, anti-advertising for server ads and scam links, and optional AI checks. No account needed.

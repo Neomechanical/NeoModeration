@@ -1,4 +1,4 @@
-# Fingerprints of every tr_TR text bundled from 1.2.2 to 1.7.0, from git history.
+# Fingerprints of every tr_TR text bundled from 1.2.2 to 1.7.1, from git history.
 # An on-disk text matching one of these was never edited by the server, so an update may replace it.
 # Written by the release tooling; never edit by hand.
 action.add-usage	81e262d4701c939a,e5474078f32f926b
@@ -82,6 +82,17 @@ category.sexual	2d1985d99b61ae98
 category.spam	4e388ab32b10dc8d
 category.violence	ee330f5871fe41d4
 chat.cloud-unavailable	1d5dc3aeaedc5090,a791f389ef1c656d
+cloud-plan.caught-during-trial	25bca2bd2793687c
+cloud-plan.caught-since-startup	e659d686338f2891
+cloud-plan.console-auth	2aa84ad87c1e3db0
+cloud-plan.console-credits	871f5a89224e26ae
+cloud-plan.console-trial-credits	f41b3784a696a204
+cloud-plan.console-trial-ended	5623a749c3c14e26
+cloud-plan.console-trial-revoked	6c1aa8ba931d5a1c
+cloud-plan.join-trial-credits	bd20403403e2c4b2
+cloud-plan.join-trial-ended	5f0a9e44ef40b3bb
+cloud-plan.join-trial-ending	7af17cec992e981b
+cloud-plan.join-trial-revoked	ef13b155450cf3bd
 cloudmode.current	401c4826c6dd67b9,d134a10e462f03ee
 cloudmode.set-enforce	0a3da4ff5741c44d,b8d6521d91418b7f
 cloudmode.set-monitor	ad2f120eefdab1c7,f9a4e858ce5241c4
@@ -100,6 +111,9 @@ discord.field-reason	f5c4d46aac63e888
 discord.field-then	67aec82a5fd4d997
 discord.field-where	653eceb4529c6f7c
 discord.invalid	1fa1995bb5265b04
+discord.moderator-bot	d63731558a2c1c0a
+discord.moderator-bot-button	12d317138e78b39e
+discord.moderator-bot-hover	30b208e267b52ad2
 discord.more	679e0a45be37ec15,7c344ef81f9a6c17
 discord.not-set	9e933ee88e2a4789
 discord.off	7dfb28c916166314
@@ -119,6 +133,7 @@ doctor.check.cases	476af1ad22315b02
 doctor.check.circuit	073f27c6507daa37
 doctor.check.cloud	398a28a097bd77d6
 doctor.check.cloud-mode	d0381f624fb95581
+doctor.check.cloud-plan	53d0619e09711805
 doctor.check.credits	d7b82790b8304d2c
 doctor.check.discord	d2d1cef4766b4809
 doctor.check.endpoint	32c6bebf1cb00776
@@ -126,6 +141,7 @@ doctor.check.events	20b50f9fd52f1bf9
 doctor.check.fail-policy	306d058b5c163754
 doctor.check.local-mode	6c3019ff5a4b4197
 doctor.check.moderation	a8d93ef1ff2cbb8e
+doctor.check.player-languages	1fa900ab3261017d
 doctor.check.rules	9cc4262aecb2cae7
 doctor.check.server-ads	ae4938b61ae0a8d1
 doctor.check.spam	374fc434ef49594b
@@ -138,6 +154,8 @@ doctor.detail.account-credits	d2f5c6a0e1dc4d16
 doctor.detail.account-down	5716cda82078d366
 doctor.detail.account-ok	ff6dfdd344512ea4
 doctor.detail.account-request	1bf84fb3ee04965c
+doctor.detail.account-trial-credits	3c1e69bceb393380
+doctor.detail.account-trial-ended	815b481299971bf0
 doctor.detail.actions-list	5302bd22b616d790
 doctor.detail.actions-none	b12e213056513e83,dadee4f12d7fef5d
 doctor.detail.ads-off	824d446ada8e7f40
@@ -152,6 +170,7 @@ doctor.detail.cloud-enforce	d2c2662c238b4a77
 doctor.detail.cloud-monitor	46c2678a4ba01de4
 doctor.detail.cloud-nothing	f1a1cbcad0d3abbc
 doctor.detail.credits-left	834ef241bea52c54
+doctor.detail.credits-none	ffb2eeda0a7a38c3
 doctor.detail.discord-bad-url	11bfc6e2d8966940
 doctor.detail.discord-failing	a2c3225bbd28981f
 doctor.detail.discord-gone	92a8e25b5c137ee7
@@ -164,6 +183,7 @@ doctor.detail.events-busy	002e3da123e56030,10eaa4d982f2f224,2d55b90d29121563,916
 doctor.detail.events-credits	4631db6a71b14a39
 doctor.detail.events-none	5714d23e57756a6b
 doctor.detail.events-ok	c93c70aa4488b994
+doctor.detail.events-refused	f427621c93e7c8de
 doctor.detail.events-request	539f8663ca4282fa
 doctor.detail.events-transient	e66e32d92ace0cf3
 doctor.detail.fail-closed	7647853fd1b29309
@@ -176,6 +196,12 @@ doctor.detail.no-key	a6f571101e968a4e
 doctor.detail.off	7236eadd7818dc2d
 doctor.detail.off-plain	358e18ead1a3a038
 doctor.detail.on	f5c3d31594e289e0
+doctor.detail.plan-standard	8a1f9b5e4df777cd
+doctor.detail.plan-trial	7f631857d348f248
+doctor.detail.plan-trial-credits	a919db9b21dce133
+doctor.detail.plan-trial-ended	bd273c3fcb8388bc
+doctor.detail.plan-trial-revoked	fa83a0020bebb561
+doctor.detail.player-languages-other	b9ec7f732a0c2e2e
 doctor.detail.rules	4be016aa6c46004d,ebc4ba4eb8745cc2
 doctor.detail.rules-cloud-only	ca0da10a3807bb44
 doctor.detail.rules-none	69095bf82ac6d73e
@@ -415,9 +441,15 @@ status.cloud	2a2a676c0680796d,ee16f055ad0de4e7
 status.cloud-auth	787f27dfc80ede76,dd47d11a293ad303
 status.cloud-busy	411b743a44844a90
 status.cloud-credits	69674cca7c99d229,9852a09b8758e2db
+status.cloud-key-rejected	2e7f8cde7cd456b3
 status.cloud-no-key	1e1b29565fc72080,db61967523891783
 status.cloud-no-key-staff	0424ade059efa984
+status.cloud-plan-trial	350c8d6108e3e759
+status.cloud-plan-trial-credits	c44368887e28f62b
+status.cloud-plan-trial-ended	5ddb364b627a661a
+status.cloud-plan-trial-revoked	c7875eee531040b8
 status.cloud-ready	cdb61d9b66df50c6,d00d1ced68ff8a0f
+status.cloud-refused	352f534b278c72d0
 status.cloud-request-error	15acd25f8056e7ec,6397a1ff93c7edda
 status.cloud-transient	01ebfc430fa55242,234c9614654e9a09
 status.cloud-unverified	89f5ee47e22c0bfe,938af921f5b1aec2
@@ -489,6 +521,9 @@ test.cloud-skipped-circuit	87eaf4e13767d46c,95753fd6826716b6
 test.cloud-skipped-key	19a247c5b8d0f587,eea2c33ee339c793
 test.cloud-skipped-key-staff	1c26dafde529ebfe
 test.cloud-skipped-local	1c2890ce38750d1c,471606af46e5a4df
+test.cloud-trial-credits	32612bad917957fc
+test.cloud-trial-ended	ca86e4b446f4303a
+test.cloud-trial-revoked	8b8fb0e316fa85af
 test.disabled	437fd2527a4e9b69,f2b12bb6a8907024
 test.local-clear	4345210916214470,4c9e23c40141a831
 test.local-flagged	21b59efdd47bd7af,c12f491bb66b3c98
@@ -508,14 +543,16 @@ toggle.on	6f19bb07e8774a82
 toggle.true	710d363e79af49e0
 trial.activated	08a22894aebbe680,da996a7d09131e62
 trial.activated-monitor	e0cefdd9e3692e91
-trial.already-claimed	3ae78ac97412f7a2,86be43cd50bcd4d9
+trial.already-claimed	3ae78ac97412f7a2,86be43cd50bcd4d9,b09b0b8e186f13ae
 trial.already-configured	308f6e29f21ee7f1
 trial.configuration-changed	0d624ab788749e3f,e8231c6d9a2b6a52
+trial.create-account-button	f909681a50541a02
 trial.cta-button	03601945ee5a7f51,559c81ce06123767,ce99ad523554b76a
 trial.cta-hover	7baa2194e40e6491
 trial.error.forbidden	70cb4f95d999443d
 trial.error.invalid-endpoint	8963ca2f982eb42c
 trial.error.invalid-response	8edca59c35e13680
+trial.error.key-rejected	6f4830b949097810
 trial.error.server	3e49148ae09cef7a
 trial.error.transport	a7c926ea718fc4ef
 trial.explain-monitor	ed85d6be38c8428c
@@ -524,6 +561,7 @@ trial.explain-title	400c5f67b5e48d9d
 trial.failed	0c1110cb17eebd89,4a4b8758135870ec
 trial.keep-button	dc1c5ad05ec35a55
 trial.keep-hover	54df5af905fdbae1
+trial.keep-in-game	5de40883e0978cad
 trial.moderation-off	0dd2cf2bfac21b2c
 trial.pending	cf857c13e5293be0,dd2cc7bdc5b2663f
 trial.rate-limited	b56002c585ff750c,f2de2d1b500ce3e6
@@ -535,18 +573,25 @@ trial.status-active	267479eda3ff1e41,a16c569da60a3558,bb57b0f2c63c58e1
 trial.status-caught	01c0a27face19e79,d2d5e7db19651f1b,fec3137ad220df6d
 trial.status-caught-startup	fec3137ad220df6d
 trial.status-checking	2f165a7f0ebdfa95,86bc136897487e9d
-trial.status-expired	62ae66c46c130b03,cfd4e3624d1c6c4c
+trial.status-credits	6bcd2c78a1e52b97
+trial.status-expired	62ae66c46c130b03,cfd4e3624d1c6c4c,e9104edb027afa3a
+trial.status-failed	38234b5d0545d9bb
 trial.status-no-key	03e4b2cb0cdbd2fb,16e81233396a9dc8
+trial.status-revoked	43977543b397a66a
 trial.status-standard	d1d518fd7457d720,dfa40226353505ca
 update.available	2e60417956267c8d,e617e846e90c2018
 update.button	9c3c79fbb8a3df22
 update.hover	54df5af905fdbae1
 usage.credits	9492d197ea1207ee,e923feda1416829c
 usage.credits-empty	0791d70f4fcd2215,660d0131733d08b0
+usage.credits-empty-trial	fc7e780adc5c07dc
 usage.error	9added84992ef17c,c9c8e77a456f534c
 usage.error-auth	3c9d0e1b8dce64c5,94a4119c5374babd
 usage.error-credits	562c6dbfe1f69c1f,f446fef8ceaafd31
 usage.error-request	72481fd4e00583a5,b7c9bc17c22745ba
+usage.error-trial-credits	82d4c29b33f367b1
+usage.error-trial-ended	27a7f7be819855ec
+usage.error-trial-revoked	b79ac0b0cf576560
 usage.fetching	2136b90ac4f5ba7e,f0c358f01870569c
 usage.nsfw	2d7980fc090c4eb0,93a528423aff085f
 usage.plan	85383ada9f780ada,dd2814443f19832b

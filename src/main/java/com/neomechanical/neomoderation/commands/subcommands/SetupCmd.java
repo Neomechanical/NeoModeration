@@ -1,13 +1,12 @@
 package com.neomechanical.neomoderation.commands.subcommands;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
+import com.neomechanical.neomoderation.commands.ApiKeyArgument;
 import com.neomechanical.neomoderation.commands.SubCommand;
 import com.neomechanical.neomoderation.config.ConfigPaths;
-import com.neomechanical.neomoderation.config.InputLimits;
 import com.neomechanical.neomoderation.moderation.CloudRecovery;
 import org.bukkit.command.CommandSender;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -42,18 +41,9 @@ public class SetupCmd implements SubCommand {
             new TrialCmd(plugin).execute(sender, label, args);
             return;
         }
-        String apiKey = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
-        if (apiKey.isEmpty()) {
-            plugin.messages().send(sender, "setup.usage", Map.of(
-                    "label", label,
-                    "url", CloudRecovery.SIGNUP_URL
-            ));
-            return;
-        }
-        if (!InputLimits.isApiKeyLengthValid(apiKey)) {
-            plugin.messages().send(sender, "error.api-key-too-long", Map.of(
-                    "max", String.valueOf(InputLimits.MAX_API_KEY_LENGTH)
-            ));
+        String apiKey = ApiKeyArgument.read(plugin.messages(), sender, args, 1, () -> plugin.messages().send(sender,
+                "setup.usage", Map.of("label", label, "url", CloudRecovery.SIGNUP_URL)));
+        if (apiKey == null) {
             return;
         }
         plugin.editConfig(config -> {

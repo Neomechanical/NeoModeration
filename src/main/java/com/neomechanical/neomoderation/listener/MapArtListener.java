@@ -157,7 +157,7 @@ public final class MapArtListener implements Listener {
             act(sighting, mapId, cachedCategory, settings);
             return;
         }
-        if (cleanMaps.contains(key) || !plugin.coordinator().isRemoteCallAllowed()
+        if (cleanMaps.contains(key) || !plugin.coordinator().shouldCallAutomatically()
                 || !mayCheck(sighting.player(), settings.mapArt())) {
             return;
         }
@@ -167,7 +167,7 @@ public final class MapArtListener implements Listener {
         }
         ModerationApiResult result = plugin.apiClient().moderateImage(sighting.actorName(), sighting.actorId(),
                 image, settings.api(), settings.categories());
-        plugin.coordinator().recordApiResult(result);
+        plugin.coordinator().recordApiResult(result, settings.api());
         if (!isCacheableResult(result)) {
             return;
         }

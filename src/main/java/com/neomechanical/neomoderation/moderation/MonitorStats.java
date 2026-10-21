@@ -15,12 +15,40 @@ public final class MonitorStats {
     private final Map<String, Long> byReason = new LinkedHashMap<>();
     private final Instant since = Instant.now();
     private long total;
+    private long chatMessages;
+    private long chatDetections;
 
     public void record(String reason) {
         String bucket = bucket(reason);
         synchronized (lock) {
             total++;
             byReason.merge(bucket, 1L, Long::sum);
+        }
+    }
+
+    /** A chat message the rules looked at (moderation on, sender without bypass), for the detection rate. */
+    public void recordChatMessage() {
+        synchronized (lock) {
+            chatMessages++;
+        }
+    }
+
+    /** A detection in chat, beside {@link #record}, for the detection rate. */
+    public void recordChatDetection() {
+        synchronized (lock) {
+            chatDetections++;
+        }
+    }
+
+    public long chatMessages() {
+        synchronized (lock) {
+            return chatMessages;
+        }
+    }
+
+    public long chatDetections() {
+        synchronized (lock) {
+            return chatDetections;
         }
     }
 
