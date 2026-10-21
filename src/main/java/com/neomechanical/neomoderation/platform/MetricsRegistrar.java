@@ -5,6 +5,8 @@ import com.neomechanical.neomoderation.moderation.ModerationApiResult;
 import org.bstats.bukkit.Metrics;
 import org.bstats.charts.SimplePie;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Locale;
 
 /**
@@ -37,7 +39,7 @@ public final class MetricsRegistrar {
     }
 
     /**
-     * Registers all 14 custom bStats charts for NeoModeration.
+     * Registers all 19 custom bStats charts for NeoModeration.
      *
      * @param plugin           the plugin instance
      * @param bstatsPluginId   the registered bStats plugin id
@@ -75,8 +77,23 @@ public final class MetricsRegistrar {
             return InstallTelemetry.cloudState(
                     plugin.settings(),
                     callBlocked,
-                    kind == null ? null : kind.name());
+                    kind == null ? null : kind.name(),
+                    plugin.cloudPlan().state().name());
         }));
+
+        // What real servers see, with no message text: the detection rate, the operator's allow-list, how many
+        // players write in another language, whether their language is trusted, and how much chat a day (1.7.1).
+        metrics.addCustomChart(new SimplePie("chat_detection_rate", () -> InstallTelemetry.chatDetectionRate(
+                plugin.monitorStats().chatMessages(), plugin.monitorStats().chatDetections())));
+        metrics.addCustomChart(new SimplePie("allow_list_size",
+                () -> InstallTelemetry.allowListSize(plugin.settings())));
+        metrics.addCustomChart(new SimplePie("players_other_language", () -> InstallTelemetry.playersInAnotherLanguage(
+                plugin.settings().offline().locale(), GameLanguage.ofOnlinePlayers(plugin.getServer()))));
+        metrics.addCustomChart(new SimplePie("chat_messages_per_day", () -> InstallTelemetry.chatMessagesPerDay(
+                plugin.monitorStats().chatMessages(),
+                Duration.between(plugin.monitorStats().since(), Instant.now()).toMillis())));
+        metrics.addCustomChart(new SimplePie("player_language_trust",
+                () -> InstallTelemetry.playerLanguageTrust(plugin.settings())));
 
         // What did the operator actually configure?
         metrics.addCustomChart(new SimplePie("word_list_state",
@@ -90,7 +107,7 @@ public final class MetricsRegistrar {
         metrics.addCustomChart(new SimplePie("map_art_state",
                 () -> InstallTelemetry.mapArtState(plugin.settings())));
         metrics.addCustomChart(new SimplePie("locale_state",
-                () -> InstallTelemetry.localeState(plugin.getConfig().getString("locale", "en_US"))));
+                () -> InstallTelemetry.localeState(plugin.settings().offline().locale())));
 
         // Did Folia support reach anyone?
         metrics.addCustomChart(new SimplePie("platform_family",

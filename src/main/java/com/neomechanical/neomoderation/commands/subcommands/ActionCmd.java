@@ -62,16 +62,26 @@ public class ActionCmd implements SubCommand {
         }
     }
 
-    private void addAction(CommandSender sender, String label, String[] args) {
+    /**
+     * The action type named after {@code add} or {@code remove}, or null once the sender was told the usage
+     * ({@code usageKey}) or that no such action exists.
+     */
+    private ModerationActionType typeArgument(CommandSender sender, String label, String[] args, String usageKey) {
         if (args.length < 3) {
-            plugin.messages().send(sender, "action.add-usage", Map.of("label", label));
-            return;
+            plugin.messages().send(sender, usageKey, Map.of("label", label));
+            return null;
         }
-
         String kind = args[2].toLowerCase(Locale.ROOT);
         ModerationActionType type = parseSimpleActionType(kind);
         if (type == null) {
             plugin.messages().send(sender, "action.unknown", Map.of("value", kind));
+        }
+        return type;
+    }
+
+    private void addAction(CommandSender sender, String label, String[] args) {
+        ModerationActionType type = typeArgument(sender, label, args, "action.add-usage");
+        if (type == null) {
             return;
         }
 
@@ -109,14 +119,8 @@ public class ActionCmd implements SubCommand {
     }
 
     private void removeAction(CommandSender sender, String label, String[] args) {
-        if (args.length < 3) {
-            plugin.messages().send(sender, "action.remove-usage", Map.of("label", label));
-            return;
-        }
-        String kind = args[2].toLowerCase(Locale.ROOT);
-        ModerationActionType type = parseSimpleActionType(kind);
+        ModerationActionType type = typeArgument(sender, label, args, "action.remove-usage");
         if (type == null) {
-            plugin.messages().send(sender, "action.unknown", Map.of("value", kind));
             return;
         }
 
@@ -124,7 +128,7 @@ public class ActionCmd implements SubCommand {
                 .filter(action -> action.type() == type)
                 .findFirst();
         if (existing.isEmpty()) {
-            plugin.messages().send(sender, "action.missing", Map.of("value", kind));
+            plugin.messages().send(sender, "action.missing", Map.of("value", args[2].toLowerCase(Locale.ROOT)));
             return;
         }
         plugin.editConfig(config -> {

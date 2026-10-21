@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
  * added, and a text the server never edited follows the bundled text when an
  * update changes it. "Never edited" means it matches a text some release shipped:
  * {@code locale/history/<code>.txt} in the jar fingerprints every text up to
- * 1.7.0, and {@code .shipped.yml} beside the files records what this install
+ * this release, and {@code .shipped.yml} beside the files records what this install
  * wrote since. A text the server edited is never touched. A key the plugin no
  * longer uses is removed only while it still holds a shipped text.</p>
  */

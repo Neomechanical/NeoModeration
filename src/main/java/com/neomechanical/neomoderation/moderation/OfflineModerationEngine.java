@@ -67,30 +67,53 @@ public final class OfflineModerationEngine {
             }
         }
 
-        if (rules.words().isEmpty()) {
+        WordScan scan = WordScan.of(rules, settings, message, speaker);
+        if (scan == null) {
             return OfflineModerationResult.clear();
         }
-
-        TextNormalizer.Normalized text = TextNormalizer.normalize(message, settings.normalizeLeetspeak());
-        if (text.length() == 0) {
-            return OfflineModerationResult.clear();
-        }
-        String language = settings.wordLanguage(speaker);
-        boolean[] masked = OfflineRuleCompiler.maskAllowedPhrases(text, allowedFor(rules, text, language));
-        EverydayWords everyday = new EverydayWords(text, rules.everydayScope(language), speakerWords(language));
-
         for (CompiledWord word : rules.words()) {
-            if (!text.collapsed().contains(word.collapsed())) {
+            if (!scan.mayHold(word)) {
                 continue;
             }
-            int[] match = OfflineRuleCompiler.findWord(text, word, masked, everyday, 0);
+            int[] match = scan.find(word, 0);
             if (match != null) {
-                String spaced = OfflineRuleCompiler.crossesSpace(text, match[0], match[1]) ? "spaced_" : "";
+                String spaced = RuleMatcher.crossesSpace(scan.text(), match[0], match[1]) ? "spaced_" : "";
                 return OfflineModerationResult.flagged(spaced + "blocked_word:" + word.original());
             }
         }
 
         return OfflineModerationResult.clear();
+    }
+
+    /**
+     * A message made ready for the banned words: normalised, with allowed phrases masked and the everyday words of
+     * its languages known. Checking a message and censoring it share it, so both read every word the same way.
+     */
+    private record WordScan(TextNormalizer.Normalized text, boolean[] masked, EverydayWords everyday) {
+
+        /** Null when there is nothing to scan: no banned words, or no letters. */
+        static WordScan of(CompiledRules rules, OfflineModerationSettings settings, String message, String speaker) {
+            if (rules.words().isEmpty()) {
+                return null;
+            }
+            TextNormalizer.Normalized text = TextNormalizer.normalize(message, settings.normalizeLeetspeak());
+            if (text.length() == 0) {
+                return null;
+            }
+            String language = settings.wordLanguage(speaker);
+            return new WordScan(text, RuleMatcher.maskAllowedPhrases(text, allowedFor(rules, text, language)),
+                    new EverydayWords(text, rules.everydayScope(language), speakerWords(language)));
+        }
+
+        /** False when the word cannot be in the text at all: the cheap test before the search. */
+        boolean mayHold(CompiledWord word) {
+            return text.collapsed().contains(word.collapsed());
+        }
+
+        /** Where {@code word} matches from {@code from} on, or null. */
+        int[] find(CompiledWord word, int from) {
+            return RuleMatcher.findWord(text, word, masked, everyday, from);
+        }
     }
 
     /** The everyday words of a trusted speaker's {@code language}, or {@code null} for none. */
@@ -153,23 +176,18 @@ public final class OfflineModerationEngine {
             }
         }
 
-        if (!rules.words().isEmpty()) {
-            TextNormalizer.Normalized text =
-                    TextNormalizer.normalize(new String(raw), settings.normalizeLeetspeak());
-            if (text.length() > 0) {
-                String language = settings.wordLanguage(speaker);
-                boolean[] masked = OfflineRuleCompiler.maskAllowedPhrases(text, allowedFor(rules, text, language));
-                EverydayWords everyday = new EverydayWords(text, rules.everydayScope(language), speakerWords(language));
-                for (CompiledWord word : rules.words()) {
-                    if (!text.collapsed().contains(word.collapsed())) {
-                        continue;
-                    }
-                    int from = 0;
-                    int[] match;
-                    while ((match = OfflineRuleCompiler.findWord(text, word, masked, everyday, from)) != null) {
-                        star(raw, text.rawIndex()[match[0]], text.rawIndex()[match[1] - 1] + 1);
-                        from = match[1];
-                    }
+        WordScan scan = WordScan.of(rules, settings, new String(raw), speaker);
+        if (scan != null) {
+            int[] rawIndex = scan.text().rawIndex();
+            for (CompiledWord word : rules.words()) {
+                if (!scan.mayHold(word)) {
+                    continue;
+                }
+                int from = 0;
+                int[] match;
+                while ((match = scan.find(word, from)) != null) {
+                    star(raw, rawIndex[match[0]], rawIndex[match[1] - 1] + 1);
+                    from = match[1];
                 }
             }
         }

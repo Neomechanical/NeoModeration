@@ -10,6 +10,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -19,6 +20,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 /**
  * Starter lists of swear words and slurs in languages other than English, kept
@@ -173,12 +176,7 @@ public final class BundledWordPacks {
      * da and no. Empty for any other word.
      */
     public static List<String> languagesUsing(String word) {
-        String exact = word == null ? "" : word.trim().toLowerCase(Locale.ROOT);
-        return languageLists().entrySet().stream()
-                .filter(entry -> entry.getValue().contains(exact))
-                .map(Map.Entry::getKey)
-                .sorted()
-                .toList();
+        return languagesWhere(Spelling.asListed(word)::equals);
     }
 
     /**
@@ -190,15 +188,7 @@ public final class BundledWordPacks {
      * counts, since the player may well have written it.
      */
     public static List<String> languagesUsing(String word, String written) {
-        String exact = word == null ? "" : word.trim().toLowerCase(Locale.ROOT);
-        String wanted = matchedForm(word);
-        Set<String> writtenWords = wordsIn(written);
-        return languageLists().entrySet().stream()
-                .filter(entry -> entry.getValue().stream().anyMatch(listed -> listed.equals(exact)
-                        || matchedForm(listed).equals(wanted) && (writtenWords == null || writtenWords.contains(listed))))
-                .map(Map.Entry::getKey)
-                .sorted()
-                .toList();
+        return languagesWhere(Spelling.of(word, written)::matches);
     }
 
     /**
@@ -208,18 +198,50 @@ public final class BundledWordPacks {
      * "pute"), or the listed one when the text was not kept, else {@code word}.
      */
     public static String nativeSpelling(String word, String written) {
-        String exact = word == null ? "" : word.trim().toLowerCase(Locale.ROOT);
-        String wanted = matchedForm(word);
-        Set<String> writtenWords = wordsIn(written);
-        boolean listed = languageLists().values().stream().anyMatch(words -> words.contains(exact));
-        if (listed) {
-            return exact;
+        Spelling spelling = Spelling.of(word, written);
+        if (listedWords().anyMatch(spelling.exact()::equals)) {
+            return spelling.exact();
         }
-        return languageLists().values().stream().flatMap(List::stream)
-                .filter(listedWord -> matchedForm(listedWord).equals(wanted)
-                        && (writtenWords == null || writtenWords.contains(listedWord)))
-                .findFirst()
-                .orElse(exact);
+        return listedWords().filter(spelling::writtenAs).findFirst().orElse(spelling.exact());
+    }
+
+    /** The codes, sorted, of the languages whose list holds a word {@code uses} accepts. */
+    private static List<String> languagesWhere(Predicate<String> uses) {
+        return languageLists().entrySet().stream()
+                .filter(entry -> entry.getValue().stream().anyMatch(uses))
+                .map(Map.Entry::getKey)
+                .sorted()
+                .toList();
+    }
+
+    /** Every word of every language's list, in the order {@code languages.txt} gives them. */
+    private static Stream<String> listedWords() {
+        return languageLists().values().stream().flatMap(List::stream);
+    }
+
+    /**
+     * A word the filter matched, as the language lists are looked up for it: {@code exact} as a list would hold it,
+     * {@code form} as the filter matched it, and the words of the kept text ({@code null} when none was kept).
+     */
+    private record Spelling(String exact, String form, Set<String> written) {
+        static Spelling of(String word, String written) {
+            return new Spelling(asListed(word), matchedForm(word), wordsIn(written));
+        }
+
+        /** {@code word} as a list holds it: trimmed and in lower case. */
+        static String asListed(String word) {
+            return word == null ? "" : word.trim().toLowerCase(Locale.ROOT);
+        }
+
+        /** Whether {@code listed} is the word itself or a spelling of it the text holds. */
+        boolean matches(String listed) {
+            return listed.equals(exact) || writtenAs(listed);
+        }
+
+        /** Whether {@code listed} reads as the word once letter runs collapse, and the kept text, if any, holds it. */
+        boolean writtenAs(String listed) {
+            return matchedForm(listed).equals(form) && (written == null || written.contains(listed));
+        }
     }
 
     /** The words of {@code written}, lower-cased, or {@code null} when no text was kept. */
@@ -301,9 +323,10 @@ public final class BundledWordPacks {
                 lists.computeIfAbsent(language, key -> new ArrayList<>()).addAll(List.of(words.split("\\s+")));
             }
         }
+        // In the file's order, so a lookup that takes the first fit (nativeSpelling) answers the same on every run.
         Map<String, List<String>> copied = new LinkedHashMap<>();
         lists.forEach((language, words) -> copied.put(language, List.copyOf(words)));
-        return Map.copyOf(copied);
+        return Collections.unmodifiableMap(copied);
     }
 
     /** The lines of {@code wordpacks/<name>.txt}, trimmed, without blank lines and {@code #} comments. */

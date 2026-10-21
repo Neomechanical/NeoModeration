@@ -3,9 +3,11 @@ package com.neomechanical.neomoderation.commands.subcommands;
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.commands.SubCommand;
 import com.neomechanical.neomoderation.config.ConfigPaths;
+import com.neomechanical.neomoderation.messages.MenuRenderer;
 import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.moderation.DiscordAlerts;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -13,6 +15,12 @@ import java.util.Map;
 
 /** /nmod discord: set, test or turn off the Discord webhook staff alerts go to. */
 public class DiscordCmd implements SubCommand {
+
+    /**
+     * Moderator Bot's invite, tagged so its installs from here can be counted. An admin who connects a webhook has
+     * just shown they run a Discord server, so the reply names the company's bot once, in their own command's output.
+     */
+    static final String MODERATOR_BOT_INVITE = "https://modbot.neomechanical.com/api/invite?src=neomoderation_discord";
 
     private final NeoModerationPlugin plugin;
 
@@ -46,7 +54,20 @@ public class DiscordCmd implements SubCommand {
                 }
                 plugin.setConfig(ConfigPaths.DISCORD_WEBHOOK, value);
                 messages.send(sender, "discord.saved", Map.of("label", label));
+                tellAboutModeratorBot(sender);
             }
+        }
+    }
+
+    private void tellAboutModeratorBot(CommandSender sender) {
+        MessageService messages = plugin.messages();
+        messages.send(sender, "discord.moderator-bot");
+        if (sender instanceof Player) {
+            messages.sendMenu(sender, List.of(MenuRenderer.clickableLine(messages.text(sender, "discord.moderator-bot-button"),
+                    MODERATOR_BOT_INVITE, messages.text(sender, "discord.moderator-bot-hover"),
+                    MenuRenderer.ClickAction.OPEN_URL)));
+        } else {
+            sender.sendMessage(messages.text(sender, "discord.moderator-bot-button") + " " + MODERATOR_BOT_INVITE);
         }
     }
 

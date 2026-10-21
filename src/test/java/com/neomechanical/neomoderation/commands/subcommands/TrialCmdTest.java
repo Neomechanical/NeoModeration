@@ -3,6 +3,8 @@ package com.neomechanical.neomoderation.commands.subcommands;
 import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.config.BukkitConfigView;
 import com.neomechanical.neomoderation.config.ModerationSettings;
+import com.neomechanical.neomoderation.moderation.CloudPlanWatch;
+import com.neomechanical.neomoderation.moderation.ModerationApiResult;
 import com.neomechanical.neomoderation.moderation.TrialClient;
 import com.neomechanical.neomoderation.testing.TestPlugin;
 import org.bukkit.Server;
@@ -101,8 +103,7 @@ class TrialCmdTest {
                 "[NeoMod] Your 14-day cloud trial is on until 15 October 2026.",
                 "[NeoMod] Cloud decisions alert staff first. Run /nmod cloudmode enforce when you trust them.",
                 "[NeoMod] Moderation is off, so nothing is checked yet. Run /nmod on when you are ready.",
-                "  [Keep cloud moderation] https://neomechanical.com/signup?src=neomoderation"),
-                lines());
+                KEEP_IN_GAME), lines());
     }
 
     @Test
@@ -135,7 +136,7 @@ class TrialCmdTest {
     }
 
     @Test
-    void alreadyClaimedShowsBillingUrl() throws Exception {
+    void alreadyClaimedSendsTheAdminToSignUpNotToBilling() throws Exception {
         NeoModerationPlugin plugin = plugin("");
         when(trialClient.activateTrial(any(), any(), any()))
                 .thenThrow(new TrialClient.TrialException(TrialClient.TrialError.ALREADY_CLAIMED, "claimed"));
@@ -143,8 +144,9 @@ class TrialCmdTest {
         new TrialCmd(plugin, trialClient).execute(sender, "nmod", new String[]{"trial", "start"});
 
         String last = lines().get(lines().size() - 1);
-        assertTrue(last.startsWith("[NeoMod] This server already used its free trial. Get a key at https://neomechanical.com/billing"),
-                last);
+        assertEquals("[NeoMod] This server already used its free trial. Create a free account at "
+                + "https://neomechanical.com/signup?src=neomoderation for a key.", last,
+                "an install that used its trial has no account to sign in to");
         verify(plugin).finishTrialActivation();
     }
 
@@ -209,8 +211,7 @@ class TrialCmdTest {
         assertEquals(List.of(
                 "[NeoMod] Checking the cloud trial...",
                 "[NeoMod] Cloud trial until 22 October 2026. Days left: 12",
-                "[NeoMod] Caught by the cloud during the trial: 0",
-                "  [Keep cloud moderation] " + BILLING), lines());
+                KEEP_IN_GAME), lines(), "nothing caught yet says nothing");
     }
 
     @Test
@@ -223,8 +224,9 @@ class TrialCmdTest {
 
         assertEquals(List.of(
                 "[NeoMod] Checking the cloud trial...",
-                "[NeoMod] The cloud trial ended on 1 October 2026. Local rules still run.",
-                "  [Keep cloud moderation] " + BILLING), lines());
+                "[NeoMod] The cloud trial ended on 1 October 2026. Local rules still run. To keep cloud checks, "
+                        + "create a free account, then a key, and run /nmod setup <key>.",
+                "  [Create a free account] https://neomechanical.com/signup?src=neomoderation"), lines());
     }
 
     @Test
@@ -236,4 +238,117 @@ class TrialCmdTest {
         assertEquals(List.of("[NeoMod] No cloud key yet. Run /nmod trial for a free 14-day trial."), lines());
         verifyNoInteractions(trialClient);
     }
+
+    @Test
+    void statusSaysARevokedTrialWasStopped() throws Exception {
+        NeoModerationPlugin plugin = plugin("nmt_trial_key_999");
+        when(trialClient.fetchTrialStatus(any())).thenReturn(
+                new TrialClient.TrialStatusResult(true, "revoked", "2026-10-01T00:00:00Z", 0, BILLING));
+
+        new TrialCmd(plugin, trialClient).execute(sender, "nmod", new String[]{"trial", "status"});
+
+        assertEquals(List.of(
+                "[NeoMod] Checking the cloud trial...",
+                "[NeoMod] The cloud trial was stopped. Local rules still run. To keep cloud checks, create a free "
+                        + "account, then a key, and run /nmod setup <key>.",
+                "  [Create a free account] https://neomechanical.com/signup?src=neomoderation"), lines());
+    }
+
+    @Test
+    void theStatusItFetchesIsWhatTheRestOfThePluginKnows() throws Exception {
+        NeoModerationPlugin plugin = plugin("nmt_trial_key_999");
+        // The test plugin's watch never sends its own questions, so only the status the command fetched can tell it.
+        when(trialClient.fetchTrialStatus(any())).thenReturn(
+                new TrialClient.TrialStatusResult(true, "expired", "2026-10-01T00:00:00Z", 0, BILLING));
+
+        new TrialCmd(plugin, trialClient).execute(sender, "nmod", new String[]{"trial", "status"});
+
+        assertEquals(CloudPlanWatch.State.TRIAL_ENDED, plugin.cloudPlan().state());
+    }
+
+    @Test
+    void aStatusTheServiceRefusesSaysTheKeyWasRejectedAndTellsThePlugin() throws Exception {
+        NeoModerationPlugin plugin = plugin("nmt_trial_key_999");
+        when(trialClient.fetchTrialStatus(any()))
+                .thenThrow(new TrialClient.TrialException(TrialClient.TrialError.FORBIDDEN, "API key rejected"));
+
+        new TrialCmd(plugin, trialClient).execute(sender, "nmod", new String[]{"trial", "status"});
+
+        assertEquals(List.of(
+                "[NeoMod] Checking the cloud trial...",
+                "[NeoMod] Could not read the cloud trial: the key was rejected."), lines(),
+                "nothing was started, so it is not \"the trial didn't start\"");
+        assertEquals(CloudPlanWatch.State.KEY_REJECTED, plugin.cloudPlan().state());
+    }
+
+    @Test
+    void aRunningTrialThatRanOutOfCreditsIsToldToKeepItBeforeAddingAnyAndTheConsoleNeverGetsItsLink() throws Exception {
+        // The console's lines are the server log, and whoever opens the claim link first owns the trial: 1.7.0 printed
+        // it there.
+        NeoModerationPlugin plugin = plugin("nmt_trial_key_999");
+        plugin.cloudPlan().refused(ModerationApiResult.Kind.INSUFFICIENT_CREDITS);
+        when(trialClient.fetchTrialStatus(any())).thenReturn(
+                new TrialClient.TrialStatusResult(true, "active", "2026-10-22T00:00:00Z", 12, CLAIM));
+
+        new TrialCmd(plugin, trialClient).execute(sender, "nmod", new String[]{"trial", "status"});
+
+        assertEquals(List.of(
+                "[NeoMod] Checking the cloud trial...",
+                "[NeoMod] Cloud trial until 22 October 2026. Days left: 12",
+                "[NeoMod] The trial's credits are used up. Keep it in a free account first, then add credits there.",
+                KEEP_IN_GAME), lines());
+        assertTrue(lines().stream().noneMatch(line -> line.contains("trial=")), String.join("\n", lines()));
+    }
+
+    @Test
+    void startingTheTrialFromTheConsoleNeverPrintsItsClaimLink() throws Exception {
+        NeoModerationPlugin plugin = plugin("");
+        when(trialClient.activateTrial(any(), any(), any()))
+                .thenReturn(new TrialClient.TrialResult("nmt_trial_key_999", "2026-10-15T00:00:00Z", 14, CLAIM));
+
+        new TrialCmd(plugin, trialClient).execute(sender, "nmod", new String[]{"trial", "start"});
+
+        assertTrue(lines().stream().noneMatch(line -> line.contains("trial=")), String.join("\n", lines()));
+        assertEquals(KEEP_IN_GAME, lines().get(lines().size() - 1));
+    }
+
+    @Test
+    void anAdminInGameGetsTheClaimLinkAsAButtonOnly() throws Exception {
+        NeoModerationPlugin plugin = plugin("nmt_trial_key_999");
+        org.bukkit.entity.Player admin = TestPlugin.player("Ana", "en_us");
+        org.bukkit.entity.Player.Spigot spigot = mock(org.bukkit.entity.Player.Spigot.class);
+        when(admin.spigot()).thenReturn(spigot);
+        when(trialClient.fetchTrialStatus(any())).thenReturn(
+                new TrialClient.TrialStatusResult(true, "active", "2026-10-22T00:00:00Z", 12, CLAIM));
+
+        new TrialCmd(plugin, trialClient).execute(admin, "nmod", new String[]{"trial", "status"});
+
+        org.mockito.ArgumentCaptor<net.md_5.bungee.api.chat.BaseComponent[]> sent =
+                org.mockito.ArgumentCaptor.forClass(net.md_5.bungee.api.chat.BaseComponent[].class);
+        verify(admin.spigot()).sendMessage(sent.capture());
+        assertEquals(List.of(CLAIM), clicks(sent.getValue()), "the button opens the claim link");
+        assertTrue(TestPlugin.lines(admin).stream().noneMatch(line -> line.contains("trial=")),
+                "and no chat line spells it out");
+    }
+
+    private static List<String> clicks(net.md_5.bungee.api.chat.BaseComponent[] components) {
+        List<String> urls = new java.util.ArrayList<>();
+        for (net.md_5.bungee.api.chat.BaseComponent component : components) {
+            collectClicks(component, urls);
+        }
+        return urls;
+    }
+
+    private static void collectClicks(net.md_5.bungee.api.chat.BaseComponent component, List<String> urls) {
+        if (component.getClickEvent() != null) {
+            urls.add(component.getClickEvent().getValue());
+        }
+        if (component.getExtra() != null) {
+            component.getExtra().forEach(extra -> collectClicks(extra, urls));
+        }
+    }
+
+    private static final String CLAIM = "https://neomechanical.com/signup?trial=t&src=neomoderation_trial";
+    private static final String KEEP_IN_GAME = "  To keep the trial, run /nmod trial status in game and click [Keep cloud moderation]. Whoever opens its link "
+                        + "first owns the trial, so the server log never shows it.";
 }

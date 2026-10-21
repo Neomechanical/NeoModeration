@@ -7,6 +7,7 @@ import com.neomechanical.neomoderation.config.SurfaceSettings;
 import com.neomechanical.neomoderation.messages.ActionText;
 import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.messages.Reasons;
+import com.neomechanical.neomoderation.moderation.CloudPlanNotices;
 import com.neomechanical.neomoderation.moderation.Outcome;
 import com.neomechanical.neomoderation.testing.TestPlugin;
 import org.bukkit.command.CommandSender;
@@ -127,6 +128,22 @@ class LocaleKeysTest {
         }
         for (String surface : List.of("chat", "sign", "book", "anvil", "command", "map_art", "map_frame")) {
             assertString("surface-name." + surface);
+        }
+        // A refused cloud check is named once (CloudPlanNotices.refusal) and said in each surface's words; the last-check
+        // lines name only what the plan line beside them does not say (CloudPlanNotices.lastCheck).
+        for (String reason : CloudPlanNotices.REASONS) {
+            assertString("test.cloud-" + reason);
+            assertString("cloud-plan.console-" + reason);
+            assertString("usage.error-" + reason);
+        }
+        for (String lastCheck : CloudPlanNotices.LAST_CHECKS) {
+            assertString("status.cloud-" + lastCheck);
+            assertString("doctor.detail.events-" + lastCheck);
+        }
+        for (String ended : List.of("trial-ended", "trial-revoked")) {
+            assertString("cloud-plan.join-" + ended);
+            assertString("doctor.detail.plan-" + ended);
+            assertString("status.cloud-plan-" + ended);
         }
         for (Outcome.Verdict verdict : Outcome.Verdict.values()) {
             String name = verdict.name().toLowerCase(Locale.ROOT);

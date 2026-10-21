@@ -79,6 +79,22 @@ class ChatModerationCoordinatorTest {
     }
 
     @Test
+    void anEndpointTheClientRefusesToSendToIsATransportFailure() {
+        // The port builds into a request; only sending it fails. Chat reads that as a failed call, as it always did.
+        ModerationSettings outOfRange = settings("https://127.0.0.1:99999/v1/events", true);
+
+        ModerationApiResult result = new ModerationApiClient().moderateText(
+                "Tester",
+                "00000000-0000-0000-0000-000000000001",
+                "hello",
+                outOfRange.api(),
+                outOfRange.categories()
+        );
+
+        assertEquals(ModerationApiResult.Kind.TRANSIENT_TRANSPORT, result.kind());
+    }
+
+    @Test
     void malformedOrMissingVerdictsAreNotCleanScans() throws Exception {
         assertEquals(ModerationApiResult.Kind.TRANSIENT_TRANSPORT, resultKindFor(200, "not JSON"));
         assertEquals(ModerationApiResult.Kind.TRANSIENT_TRANSPORT, resultKindFor(200, "{}"));
@@ -202,6 +218,48 @@ class ChatModerationCoordinatorTest {
                 Thread.sleep(20);
             }
             assertFalse(coordinator.isRemoteCallAllowed(), "three answers slower than chat can wait pause the cloud");
+        }
+    }
+
+    @Test
+    void aRefusalThatCameTooLateForChatStillPausesChatsCallsAndIsReported() throws Exception {
+        // The cloud answers only once chat has gone on without it, however slow the machine running the test.
+        CountDownLatch chatWentOn = new CountDownLatch(1);
+        ModerationApiClient apiClient = mock(ModerationApiClient.class);
+        when(apiClient.moderateText(anyString(), anyString(), anyString(),
+                any(ModerationApiSettings.class), any(ModerationCategorySettings.class))).thenAnswer(invocation -> {
+            chatWentOn.await(5, TimeUnit.SECONDS);
+            return ModerationApiResult.insufficientCredits();
+        });
+        ModerationCircuitBreaker breaker = new ModerationCircuitBreaker(Logger.getLogger("test"));
+        java.util.concurrent.CompletableFuture<ModerationApiResult.Kind> heard =
+                new java.util.concurrent.CompletableFuture<>();
+        breaker.onRefusal(heard::complete);
+
+        try (ChatModerationCoordinator coordinator = new ChatModerationCoordinator(breaker, apiClient, 1, 0)) {
+            assertEquals(ModerationApiResult.Kind.TRANSIENT_TRANSPORT,
+                    coordinator.checkMessage(player(), "hello", settings("http://127.0.0.1:1", true)).kind(),
+                    "chat went on without it");
+            chatWentOn.countDown();
+            assertEquals(ModerationApiResult.Kind.INSUFFICIENT_CREDITS, heard.get(3, TimeUnit.SECONDS));
+            assertEquals(ModerationApiResult.Kind.INSUFFICIENT_CREDITS, coordinator.lastCloudResultKind());
+            assertFalse(coordinator.shouldCallAutomatically(), "a late 402 is still a 402");
+        }
+    }
+
+    @Test
+    void aResultForAKeyTheServerHasSinceReplacedIsNotRecorded() {
+        // An old key's 401, landing after /nmod setup, says nothing about the new key and must not pause it.
+        ModerationApiSettings oldKey = new ModerationApiSettings("http://127.0.0.1:1", "nm_old", 100, 100);
+        ModerationApiSettings newKey = new ModerationApiSettings("http://127.0.0.1:1", "nm_new", 100, 100);
+        try (ChatModerationCoordinator coordinator = new ChatModerationCoordinator(
+                new ModerationCircuitBreaker(Logger.getLogger("test")), mock(ModerationApiClient.class), 1, 0)) {
+            coordinator.useApi(newKey);
+            coordinator.recordApiResult(ModerationApiResult.clientAuth(), oldKey);
+            assertEquals(null, coordinator.lastCloudResultKind());
+            assertTrue(coordinator.shouldCallAutomatically());
+            coordinator.recordApiResult(ModerationApiResult.clientAuth(), newKey);
+            assertEquals(ModerationApiResult.Kind.CLIENT_AUTH, coordinator.lastCloudResultKind());
         }
     }
 

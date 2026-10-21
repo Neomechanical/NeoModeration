@@ -7,13 +7,17 @@ import com.neomechanical.neomoderation.commands.TrialPromptSupport;
 import com.neomechanical.neomoderation.config.ModerationMode;
 import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.messages.ActionText;
+import com.neomechanical.neomoderation.messages.DateText;
 import com.neomechanical.neomoderation.messages.MessageService;
+import com.neomechanical.neomoderation.moderation.CloudPlanNotices;
+import com.neomechanical.neomoderation.moderation.CloudPlanWatch;
 import com.neomechanical.neomoderation.moderation.CloudRecovery;
 import com.neomechanical.neomoderation.moderation.DiscordAlerts;
 import com.neomechanical.neomoderation.moderation.ModerationApiResult;
 import com.neomechanical.neomoderation.moderation.ModerationCoverage;
 import org.bukkit.command.CommandSender;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -69,11 +73,7 @@ public class StatusCmd implements SubCommand {
         sender.sendMessage(dashboard(plugin, sender));
         messages.send(sender, "status.enabled", Map.of("value", onOff(messages, sender, settings.enabled())));
         messages.send(sender, "status.local", Map.of("value", messages.text(sender, localKey(settings, coverage))));
-        messages.send(sender, "status.rules", Map.of(
-                "words", String.valueOf(settings.offline().effectiveWords().size()),
-                "urls", String.valueOf(settings.offline().bannedUrls().size()),
-                "exceptions", String.valueOf(settings.offline().allowedWords().size()
-                        + settings.offline().allowedUrls().size())));
+        messages.send(sender, "status.rules", settings.offline().ruleCounts());
         messages.send(sender, "status.packs", Map.of("value", settings.offline().languagePacks().isEmpty()
                 ? messages.text(sender, "label.none")
                 : String.join(", ", settings.offline().languagePacks())));
@@ -105,9 +105,15 @@ public class StatusCmd implements SubCommand {
             return;
         }
         messages.send(sender, "status.cloud", Map.of("value", cloudValue(messages, sender, settings, coverage)));
-        messages.send(sender, cloudStatusKey(plugin.coordinator().lastCloudResultKind()), Map.of(
-                "keysUrl", CloudRecovery.API_KEYS_URL,
-                "billingUrl", CloudRecovery.BILLING_URL));
+        CloudPlanWatch.Snapshot plan = plugin.cloudPlan().current();
+        ModerationApiResult.Kind last = plugin.coordinator().lastCloudResultKind();
+        sendPlanLine(messages, sender, plan, last, plugin.cloudPlan().now());
+        String lastCheck = cloudStatusKey(last, plan);
+        if (lastCheck != null) {
+            messages.send(sender, lastCheck, Map.of(
+                    "keysUrl", CloudRecovery.API_KEYS_URL,
+                    "billingUrl", CloudRecovery.BILLING_URL));
+        }
         long busy = plugin.coordinator().busySkipped();
         if (busy > 0) {
             messages.send(sender, "status.cloud-busy", Map.of("count", String.valueOf(busy)));
@@ -135,14 +141,45 @@ public class StatusCmd implements SubCommand {
                 "mode", modeLabel(messages, sender, settings.cloudMode())));
     }
 
+    /**
+     * The cloud plan as the trial service said it last, with what to do when it needs anything: a running trial's
+     * end and days left (counted now), an ended or stopped one with the way to a key, a trial out of credits (the
+     * last check was refused for them) with the way to keep it. The last-check line beside it then only says the
+     * check was refused. The trial's claim link never goes in text; {@code /nmod trial status} gives it in game.
+     */
+    private static void sendPlanLine(MessageService messages, CommandSender sender, CloudPlanWatch.Snapshot plan,
+                                     ModerationApiResult.Kind last, long nowMillis) {
+        CloudPlanNotices.PlanLine line = CloudPlanNotices.planLine(plan, last, nowMillis);
+        // A key from an account needs no plan line here: the last check says all there is to say about it.
+        if (line == null || line.name().equals("standard")) {
+            return;
+        }
+        Map<String, String> values = new HashMap<>(line.values());
+        values.computeIfPresent("date", (key, iso) -> DateText.of(messages, sender, iso));
+        messages.send(sender, "status.cloud-plan-" + line.name(), values);
+    }
+
     static String cloudStatusKey(ModerationApiResult.Kind kind) {
+        return cloudStatusKey(kind, CloudPlanWatch.Snapshot.UNKNOWN);
+    }
+
+    /**
+     * The last check, in the words its cause needs ({@link CloudPlanNotices#refusal}): an ended trial is not a bad
+     * key, and a refusal the plan line explains is only said to be one. Before any check: nothing when the plan line
+     * says the trial ended, and a key the trial service does not know is said to be rejected, as no check was.
+     */
+    static String cloudStatusKey(ModerationApiResult.Kind kind, CloudPlanWatch.Snapshot plan) {
         if (kind == null) {
-            return "status.cloud-unverified";
+            CloudPlanNotices.Reason known = CloudPlanNotices.knownProblem(plan);
+            if (known == null) {
+                return "status.cloud-unverified";
+            }
+            return known.name().equals("auth") ? "status.cloud-key-rejected" : null;
         }
         return switch (kind) {
             case FLAGGED, CLEAR -> "status.cloud-ready";
-            case CLIENT_AUTH -> "status.cloud-auth";
-            case INSUFFICIENT_CREDITS -> "status.cloud-credits";
+            case CLIENT_AUTH, INSUFFICIENT_CREDITS ->
+                    "status.cloud-" + CloudPlanNotices.lastCheck(CloudPlanNotices.refusal(plan, kind));
             case CLIENT_REQUEST -> "status.cloud-request-error";
             // A busy server is counted on its own line, never recorded as the cloud's result.
             case TRANSIENT_TRANSPORT, OVERLOADED -> "status.cloud-transient";

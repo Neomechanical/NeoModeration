@@ -6,7 +6,10 @@ import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.moderation.CaseLog;
 import com.neomechanical.neomoderation.moderation.ChatModerationCoordinator;
+import com.neomechanical.neomoderation.moderation.CloudPlanWatch;
+import com.neomechanical.neomoderation.moderation.ModerationApiResult;
 import com.neomechanical.neomoderation.moderation.MonitorStats;
+import com.neomechanical.neomoderation.moderation.TrialClient;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -17,6 +20,7 @@ import org.mockito.ArgumentCaptor;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Predicate;
@@ -35,10 +39,15 @@ import static org.mockito.Mockito.withSettings;
  * A mocked plugin around real settings and the real bundled messages, so a test
  * checks the words an admin or player reads rather than which key was asked for.
  * Scheduled tasks run at once on the calling thread, and config edits change the
- * in-memory config without saving it.
+ * in-memory config without saving it. Its cloud plan watch is real, keyed to the
+ * settings' key, with its clock at {@link #NOW}; each of its questions lands at
+ * once with no answer, so it keeps what {@link #plan} says the trial service
+ * answered.
  */
 public final class TestPlugin {
     public static final String VERSION = "test-version";
+    /** The plan watch's clock in every test plugin. */
+    public static final long NOW = Instant.parse("2026-10-20T00:00:00Z").toEpochMilli();
 
     private TestPlugin() {
     }
@@ -60,11 +69,28 @@ public final class TestPlugin {
         when(plugin.caseLog()).thenReturn(caseLog);
         ChatModerationCoordinator coordinator = mock(ChatModerationCoordinator.class);
         when(coordinator.isRemoteCallAllowed()).thenReturn(true);
+        when(coordinator.shouldCallAutomatically()).thenReturn(true);
         when(plugin.coordinator()).thenReturn(coordinator);
+        // A mocked client returns no status: no answer, which keeps the last one.
+        CloudPlanWatch watch = new CloudPlanWatch(mock(TrialClient.class), () -> plugin.settings().api(), Runnable::run,
+                () -> NOW, (snapshot, refusal) -> { });
+        watch.keyChanged(settings.api().apiKey());
+        when(plugin.cloudPlan()).thenReturn(watch);
         when(plugin.getDescription()).thenReturn(new PluginDescriptionFile("NeoModeration", VERSION, "test.Main"));
         runTasksAtOnce(plugin);
         editsConfigInMemory(plugin);
         return plugin;
+    }
+
+    /** The trial service answered {@code status} about the plugin's key, then refused {@code refusals}, in order. */
+    public static CloudPlanWatch plan(NeoModerationPlugin plugin, TrialClient.TrialStatusResult status,
+                                      ModerationApiResult.Kind... refusals) {
+        CloudPlanWatch watch = plugin.cloudPlan();
+        watch.accept(plugin.settings().api().apiKey(), status);
+        for (ModerationApiResult.Kind refusal : refusals) {
+            watch.refused(refusal);
+        }
+        return watch;
     }
 
     /** Makes the plugin's config edits change whatever {@code getConfig()} returns, without saving. */
@@ -88,6 +114,10 @@ public final class TestPlugin {
             call.<Runnable>getArgument(1).run();
             return null;
         }).when(plugin).runForEntity(any(), any(Runnable.class));
+        doAnswer(call -> {
+            call.<Runnable>getArgument(1).run();
+            return null;
+        }).when(plugin).runForEntity(any(), any(Runnable.class), any());
     }
 
     /** A bundled locale file, such as {@code de_DE}. */

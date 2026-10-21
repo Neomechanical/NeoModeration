@@ -78,6 +78,9 @@ public final class DetectionHandler {
                               Disposition requested, Source source) {
         ModerationSettings settings = plugin.settings();
         monitorStats.record(reason);
+        if ("chat".equals(surface)) {
+            monitorStats.recordChatDetection();
+        }
 
         boolean alertOnly = source.modeIn(settings) == ModerationMode.MONITOR || requested == Disposition.ALLOW;
         Disposition effective = alertOnly ? Disposition.ALLOW : requested;
@@ -117,6 +120,9 @@ public final class DetectionHandler {
     public void handleAfter(Player player, String surface, String reason, String message, boolean blocked) {
         ModerationSettings settings = plugin.settings();
         monitorStats.record(reason);
+        if ("chat".equals(surface)) {
+            monitorStats.recordChatDetection();
+        }
         Outcome outcome = new Outcome(blocked ? Outcome.Verdict.BLOCKED : Outcome.Verdict.REVIEW, List.of(), 0);
         DetectionNotifier.Detection detection =
                 new DetectionNotifier.Detection(player.getName(), surface, reason, message, outcome);

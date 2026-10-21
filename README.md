@@ -6,7 +6,7 @@ NeoModeration by Neomechanical moderates chat and map art on Minecraft servers. 
 
 ## Setup
 
-1. Drop `NeoModeration-1.7.0.jar` into `plugins/` and restart.
+1. Drop `NeoModeration-1.7.1.jar` into `plugins/` and restart.
 2. Run `/nmod test badword`. It shows "Local rules: caught" and "Result: blocked". The preview never blocks or punishes anyone. It checks content rules; message rate, repeats and split messages need live chat.
 3. Optional: for cloud moderation, start a free 14-day trial. It needs no account. `/nmod trial` first says what a trial sends and how its decisions work, then offers a button (or `/nmod trial start` in the console) to begin.
 
@@ -48,7 +48,7 @@ The free 14-day trial runs on your own chat, and while it runs its decisions onl
 ## Staff tools
 
 - Players with `neomoderation.notify` see each detection in chat. Those who may open cases can click it for that player's history. During a raid, alerts about one player pause after three in 30 seconds, and all alerts after a dozen in 10 seconds or 30 in a minute. A pause ends after a quiet minute or five minutes; then one line says how many were missed. The console and case history still get every one. `moderation.alerts.includeMessage: false` hides the message text.
-- `/nmod discord <webhook URL>` sends the same alerts to a Discord channel, batched so a raid cannot flood it, with mentions turned off. `/nmod discord test` checks it, and `/nmod doctor` says when Discord refuses alerts.
+- `/nmod discord <webhook URL>` sends the same alerts to a Discord channel, batched so a raid cannot flood it, with mentions turned off. `/nmod discord test` checks it, and `/nmod doctor` says when Discord refuses alerts. [Moderator Bot](https://modbot.neomechanical.com/api/invite?src=neomoderation_readme), also by Neomechanical, can moderate that Discord server.
 - `/nmod mute <player> [duration]` and `/nmod unmute <player>` mute a player by hand, with no other plugin. A mute covers public chat, private messages (`/msg`, `/tell`, `/r` and any alias the server has for them, such as EssentialsX's `/m`), `/me`, sending `/mail`, `/teammsg`, mcMMO party chat and the rest of `scannedCommands`. Channel chat other plugins add, such as TownyChat's, is not covered.
 - `/nmod allow word|url add <value>` fixes a false positive at once. Allowed phrases and links always win.
 - `/nmod preset family|community|minimal` sets how strict the cloud is without touching local rules or actions. Each category also takes its own threshold (0.05 to 0.99) in `config.yml`.
@@ -111,7 +111,7 @@ Messages ship in English (`en_US`), Spanish (`es_ES`), French (`fr_FR`), German 
 Supports Spigot, Paper and Purpur on Minecraft 1.18.2 through the current
 Paper releases, 26.2 and 26.3, and Folia. Every check runs before each release,
 with a game client chatting on each server: Paper 1.18.2, 1.19.4, 1.20.6, 1.21.11,
-26.1.2, 26.2 and 26.3, Folia 1.21.11 and Spigot 1.21.11. A blocked line never
+26.1.2, 26.2 and 26.3, Folia 1.21.11, Spigot 1.21.11 and Purpur 1.21.11. A blocked line never
 reaches chat and leaves a case, the kick action runs, capitals arrive in lower
 case and "bad'word" is caught. A French player's "quel retard ce train" is
 blocked by default. Once the server trusts players' game languages it passes,
@@ -155,7 +155,7 @@ moderation:
 
 ## Notes
 
-- Without a key or a Discord webhook, local rules and anti-spam run and no chat or map content leaves your server. bStats reports technical metrics and aggregate configuration and detection buckets (including cloud state); it sends no chat, player names or API keys. Turn reporting off in `plugins/bStats/config.yml`.
+- Without a key or a Discord webhook, local rules and anti-spam run and no chat or map content leaves your server. bStats reports technical metrics and aggregate buckets: configuration, cloud state, detections, the detection rate and chat messages a day, how many words are allowed, and the share of online players in another language; it sends no chat, player names or API keys. Turn reporting off in `plugins/bStats/config.yml`.
 - With a key, checked chat is sent to `https://api.neomechanical.com/v1/events` with `no_store` retention and training turned off. Details: [PRIVACY.md](PRIVACY.md).
 - Cloud failures and a busy cloud follow `moderation.chat.failOpen` (true by default). In cloud enforce mode, fail-closed blocks that message without strikes, mutes or other punishment. In cloud monitor mode it goes through; local rules still run.
 - In cloud monitor mode (the trial's default) a message goes through at once and is checked in the background. In enforce mode it waits for the answer, at most 2.5 seconds. Eight cloud requests run at once with a short queue behind them. Map checks run two at a time and never check the same map twice at once.

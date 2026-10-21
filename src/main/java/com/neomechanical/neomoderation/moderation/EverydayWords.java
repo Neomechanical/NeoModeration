@@ -87,7 +87,7 @@ final class EverydayWords {
      * speaker's own language counts only when {@code speakerCounts}.
      */
     boolean innocent(int start, int end, boolean speakerCounts) {
-        if (!OfflineRuleCompiler.crossesSpace(text, start, end)) {
+        if (!RuleMatcher.crossesSpace(text, start, end)) {
             return false;
         }
         index();
@@ -186,8 +186,8 @@ final class EverydayWords {
         Set<String> theirs = new HashSet<>();
         boolean theirsOnly = false;
         Set<String> englishOnly = new HashSet<>();
-        for (int[] token : OfflineRuleCompiler.tokensOf(text)) {
-            String letters = new String(text.chars(), token[0], token[1] - token[0]);
+        for (int[] token : RuleMatcher.tokensOf(text)) {
+            String letters = letters(text, token);
             if (judged.contains(letters)) {
                 continue;
             }
@@ -215,8 +215,8 @@ final class EverydayWords {
      * words are {@code words} does not use itself: "y0u", "dirty", "get out".
      */
     static boolean framedInEnglish(TextNormalizer.Normalized text, Set<String> words) {
-        for (int[] token : OfflineRuleCompiler.tokensOf(text)) {
-            String letters = new String(text.chars(), token[0], token[1] - token[0]);
+        for (int[] token : RuleMatcher.tokensOf(text)) {
+            String letters = letters(text, token);
             if (!words.contains(letters) && INSULT_FRAMES.contains(collapse(letters))) {
                 return true;
             }
@@ -240,7 +240,7 @@ final class EverydayWords {
         if (tokenAt != null) {
             return;
         }
-        List<int[]> tokens = OfflineRuleCompiler.tokensOf(text);
+        List<int[]> tokens = RuleMatcher.tokensOf(text);
         List<Set<String>> languages = scope.languages();
         tokenAt = new int[text.length()];
         languagesOf = new int[tokens.size()];
@@ -253,7 +253,7 @@ final class EverydayWords {
             for (int i = token[0]; i < token[1]; i++) {
                 tokenAt[i] = t;
             }
-            String letters = new String(text.chars(), token[0], token[1] - token[0]);
+            String letters = letters(text, token);
             sharedFrame[t] = speakerWords != null && speakerWords.contains(letters)
                     && INSULT_FRAME_WORDS.contains(letters);
             String before = t > 0 ? plain(text, tokens.get(t - 1)) : null;
@@ -316,6 +316,11 @@ final class EverydayWords {
                 return null;
             }
         }
+        return letters(text, token);
+    }
+
+    /** The token as the normalised text holds it: its letters (a digit or symbol typed for one read as it) or a number's digits. */
+    private static String letters(TextNormalizer.Normalized text, int[] token) {
         return new String(text.chars(), token[0], token[1] - token[0]);
     }
 }

@@ -40,7 +40,7 @@ public class AllowCmd implements SubCommand {
             return SubCommand.filterPrefix(args[1], "word", "url");
         }
         if (args.length == 3) {
-            return SubCommand.filterPrefix(args[2], "add", "remove", "list");
+            return RuleListEditor.completeAction(args[2]);
         }
         return List.of();
     }

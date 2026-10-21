@@ -63,9 +63,7 @@ public final class StartupSummary {
             active.add(line(messages, console, "startup.item-spam", Map.of()));
         }
         if (coverage.localRules()) {
-            active.add(line(messages, console, "startup.item-rules", Map.of(
-                    "words", String.valueOf(settings.offline().effectiveWords().size()),
-                    "urls", String.valueOf(settings.offline().bannedUrls().size()))));
+            active.add(line(messages, console, "startup.item-rules", settings.offline().ruleCounts()));
             if (settings.offline().blockServerAds()) {
                 active.add(line(messages, console, "startup.item-server-ads", Map.of()));
             }

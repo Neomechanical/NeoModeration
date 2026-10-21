@@ -70,6 +70,10 @@ public final class ChatModerationProcessor {
         if (!settings.enabled() || !settings.scanAsyncChat()) {
             return ChatDecision.allow();
         }
+        MonitorStats stats = plugin.monitorStats();
+        if (stats != null) {
+            stats.recordChatMessage();
+        }
 
         Optional<String> spamReason = spamDetector.checkMessage(
                 player.getUniqueId(), player.getName(), message, settings.spam(), System.currentTimeMillis());

@@ -3,6 +3,7 @@ package com.neomechanical.neomoderation;
 import com.neomechanical.neomoderation.commands.NeoModerationCommand;
 import com.neomechanical.neomoderation.config.BukkitConfigView;
 import com.neomechanical.neomoderation.config.ConfigMigrations;
+import com.neomechanical.neomoderation.config.ModerationApiSettings;
 import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.listener.AdminJoinListener;
 import com.neomechanical.neomoderation.listener.ChatModerationListener;
@@ -16,6 +17,8 @@ import com.neomechanical.neomoderation.moderation.ChatModerationActionExecutor;
 import com.neomechanical.neomoderation.moderation.ChatModerationCoordinator;
 import com.neomechanical.neomoderation.moderation.ChatModerationProcessor;
 import com.neomechanical.neomoderation.moderation.ClientIdentity;
+import com.neomechanical.neomoderation.moderation.CloudPlanWatch;
+import com.neomechanical.neomoderation.moderation.CloudWiring;
 import com.neomechanical.neomoderation.moderation.DetectionHandler;
 import com.neomechanical.neomoderation.moderation.DetectionNotifier;
 import com.neomechanical.neomoderation.moderation.DiscordAlerts;
@@ -25,6 +28,7 @@ import com.neomechanical.neomoderation.moderation.PlayerMuteService;
 import com.neomechanical.neomoderation.moderation.SpamDetector;
 import com.neomechanical.neomoderation.moderation.StartupSummary;
 import com.neomechanical.neomoderation.moderation.StrikeService;
+import com.neomechanical.neomoderation.moderation.TrialClient;
 import com.neomechanical.neomoderation.moderation.UpdateChecker;
 import com.neomechanical.neomoderation.platform.MetricsRegistrar;
 import com.neomechanical.neomoderation.platform.PlatformScheduler;
@@ -63,6 +67,9 @@ public final class NeoModerationPlugin extends JavaPlugin {
     private Set<String> editedLocales = Set.of();
     private final AtomicBoolean trialActivationPending = new AtomicBoolean();
     private final AtomicReference<String> newerVersion = new AtomicReference<>();
+    private CloudWiring cloud;
+    /** Cancels the ten-minute refresh of what the trial service said. */
+    private Runnable stopCloudPlanRefresh = () -> { };
 
     @Override
     public void onEnable() {
@@ -74,6 +81,10 @@ public final class NeoModerationPlugin extends JavaPlugin {
         reloadModerationConfig();
         muteService = new PlayerMuteService(this);
         coordinator = new ChatModerationCoordinator(getLogger());
+        cloud = new CloudWiring(coordinator, new TrialClient(), () -> settings.api(), this::runAsync,
+                System::currentTimeMillis, () -> messages, () -> getServer().getConsoleSender(), getLogger()::warning);
+        cloud.settingsLoaded(null, settings.api(), false);
+        stopCloudPlanRefresh = scheduler.runAsyncEvery(10, cloud.plan()::refreshIfStale);
         monitorStats = new MonitorStats();
         discordAlerts = new DiscordAlerts();
         spamDetector = new SpamDetector();
@@ -144,6 +155,7 @@ public final class NeoModerationPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        stopCloudPlanRefresh.run();
         if (coordinator != null) {
             coordinator.close();
         }
@@ -162,9 +174,16 @@ public final class NeoModerationPlugin extends JavaPlugin {
     /**
      * Re-reads config.yml after it changed. Messages are re-read only when the
      * language settings changed, so an in-game edit does not parse every locale file.
+     * The cloud's pauses and last result reset only when the key or endpoint changed:
+     * {@code /nmod allow word add} is no reason to call a refused key again.
      */
     public void reloadModerationConfig() {
+        reloadModerationConfig(false);
+    }
+
+    private void reloadModerationConfig(boolean resetCloud) {
         synchronized (configLock) {
+            ModerationApiSettings cloudBefore = settings == null ? null : settings.api();
             reloadConfig();
             String serverLocale = MessageService.resolveLocaleCode(getConfig().getString("locale", "en_US"));
             // A locale file of the server's own ("my_texts") holds texts it wrote, as an edited bundled one does.
@@ -181,18 +200,26 @@ public final class NeoModerationPlugin extends JavaPlugin {
             }
             migrated.forEach(change ->
                     getLogger().info(MessageService.plain(messages.format(change.key(), change.values()))));
-            if (coordinator != null) {
-                coordinator.resetCircuit();
+            if (cloud != null) {
+                cloud.settingsLoaded(cloudBefore, settings.api(), resetCloud);
             }
         }
     }
 
-    /** /nmod reload: config.yml and every locale file, including files an admin edited by hand. */
+    /** What the trial service said last about this server's key. */
+    public CloudPlanWatch cloudPlan() {
+        return cloud == null ? null : cloud.plan();
+    }
+
+    /**
+     * /nmod reload: config.yml and every locale file, including files an admin edited by hand, and the cloud tries
+     * again now.
+     */
     public void reloadEverything() {
         synchronized (configLock) {
             editedLocales = MessageService.prepareFiles(this);
             messagesLocale = null;
-            reloadModerationConfig();
+            reloadModerationConfig(true);
         }
     }
 
@@ -263,6 +290,11 @@ public final class NeoModerationPlugin extends JavaPlugin {
      */
     public void runForEntity(Entity entity, Runnable task) {
         scheduler.runForEntity(entity, task);
+    }
+
+    /** As {@link #runForEntity(Entity, Runnable)}; {@code retired} runs when Folia drops the task for an entity gone. */
+    public void runForEntity(Entity entity, Runnable task, Runnable retired) {
+        scheduler.runForEntity(entity, task, retired);
     }
 
     public PlatformScheduler scheduler() {

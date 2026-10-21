@@ -4,10 +4,13 @@ import com.neomechanical.neomoderation.NeoModerationPlugin;
 import com.neomechanical.neomoderation.commands.SubCommand;
 import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.messages.ActionText;
+import com.neomechanical.neomoderation.messages.DateText;
 import com.neomechanical.neomoderation.messages.MessageService;
+import com.neomechanical.neomoderation.moderation.CloudPlanWatch;
 import com.neomechanical.neomoderation.moderation.DiscordAlerts;
 import com.neomechanical.neomoderation.moderation.NeoMechanicalUsageClient;
 import com.neomechanical.neomoderation.moderation.UsageSummary;
+import com.neomechanical.neomoderation.platform.GameLanguage;
 import org.bukkit.command.CommandSender;
 
 import java.util.HashMap;
@@ -46,9 +49,15 @@ public class DoctorCmd implements SubCommand {
         messages.send(sender, "doctor.title");
         DiscordAlerts.Problem discordProblem = plugin.discordAlerts() == null ? null : plugin.discordAlerts().lastProblem();
         DoctorChecks.local(settings, plugin.caseLog().isAvailable(), discordProblem).forEach(check -> render(sender, check));
+        DoctorChecks.Check languages = DoctorChecks.playerLanguages(settings,
+                GameLanguage.ofOnlinePlayers(plugin.getServer()));
+        if (languages != null) {
+            render(sender, languages);
+        }
+        CloudPlanWatch.Snapshot plan = plugin.cloudPlan().current();
         List<DoctorChecks.Check> cloud = DoctorChecks.cloudSetup(settings,
                 plugin.coordinator().isRemoteCallAllowed(), plugin.coordinator().lastCloudResultKind(),
-                plugin.coordinator().busySkipped());
+                plugin.coordinator().busySkipped(), plan, plugin.cloudPlan().now());
         cloud.forEach(check -> render(sender, check));
         if (!DoctorChecks.readyForAccountCheck(cloud)) {
             messages.sendFooter(sender);
@@ -60,9 +69,9 @@ public class DoctorCmd implements SubCommand {
             List<DoctorChecks.Check> account;
             try {
                 UsageSummary usage = usageClient.fetchUsage(settings.api());
-                account = DoctorChecks.account(usage, elapsedMs(start));
+                account = DoctorChecks.account(usage, elapsedMs(start), plan, plugin.coordinator().lastCloudResultKind());
             } catch (NeoMechanicalUsageClient.UsageException e) {
-                account = List.of(DoctorChecks.accountFailure(e, elapsedMs(start)));
+                account = List.of(DoctorChecks.accountFailure(e, elapsedMs(start), plan));
             }
             List<DoctorChecks.Check> result = account;
             plugin.runSync(() -> {
@@ -75,6 +84,9 @@ public class DoctorCmd implements SubCommand {
     private void render(CommandSender sender, DoctorChecks.Check check) {
         MessageService messages = plugin.messages();
         Map<String, String> values = new HashMap<>(check.values());
+        if (values.containsKey("date")) {
+            values.put("date", DateText.of(messages, sender, values.get("date")));
+        }
         if ("actions-list".equals(check.detail())) {
             values.put("actions", ActionText.describe(messages, sender, plugin.settings().actions()));
         }

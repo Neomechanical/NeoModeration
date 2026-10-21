@@ -46,6 +46,17 @@ class ListingCopyTest {
     private static final int SUMMARY_LIMIT = 100;
 
     /**
+     * Modrinth's summary, which its search reads with the title and nothing else, so it carries the words server
+     * owners search for. On 20 Oct 2026 the plugin was absent from Modrinth's results for "chat moderation", "word
+     * filter", "censor" and "anti advertising" while the shared summary lacked them.
+     */
+    private static final Path MODRINTH_SUMMARY = DIR.resolve("summary-modrinth.txt");
+    private static final int MODRINTH_SUMMARY_LIMIT = 256;
+    private static final List<String> MODRINTH_SEARCH_WORDS = List.of("chat moderation", "chat filter",
+            "word filter", "anti-swear", "profanity", "censor", "slurs", "anti-spam", "anti-advertising",
+            "server ads", "scam links");
+
+    /**
      * A command written as code, the argument after it, and any alternatives that follow it:
      * {@code `/nmod preset family`, `community` or `minimal`}.
      */
@@ -92,6 +103,18 @@ class ListingCopyTest {
     }
 
     @Test
+    void modrinthsSummaryCarriesTheSearchWordsAndFits() throws IOException {
+        String summary = Files.readString(MODRINTH_SUMMARY).strip();
+        assertFalse(summary.contains("\n"), "Modrinth's summary must be one line");
+        assertTrue(summary.length() <= MODRINTH_SUMMARY_LIMIT,
+                "Modrinth's summary is " + summary.length() + " characters; Modrinth takes " + MODRINTH_SUMMARY_LIMIT);
+        for (String words : MODRINTH_SEARCH_WORDS) {
+            assertTrue(summary.toLowerCase(Locale.ROOT).contains(words),
+                    "Modrinth's summary must say \"" + words + "\": its search reads only the title and the summary");
+        }
+    }
+
+    @Test
     void everyPageIntroducesTheProductByTheCompany() throws IOException {
         for (Path page : PAGES.keySet()) {
             assertTrue(Files.readString(page).startsWith("NeoModeration by Neomechanical "),
@@ -128,6 +151,7 @@ class ListingCopyTest {
         List<String> violations = new ArrayList<>();
         List<Path> files = new ArrayList<>(PAGES.keySet());
         files.add(SUMMARY);
+        files.add(MODRINTH_SUMMARY);
         files.add(Path.of("README.md"));
         files.add(Path.of("PRIVACY.md"));
         for (Path file : files) {

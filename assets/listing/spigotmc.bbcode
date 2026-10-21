@@ -33,7 +33,7 @@ To have local rules alert staff without blocking, run [FONT=Courier New]/nmod mo
 [/LIST]
 
 [B]Optional cloud checks[/B]
-The Neomechanical Moderation API can read each chat message for its meaning, in eight categories: sexual content, hate, harassment, violence, scams, spam, illicit activity and self-harm. It can also check map art when a player holds a filled map, puts one in an item frame or right-clicks one there, up to 30 new pictures per player an hour.
+The Neomechanical Moderation API's AI models can read each chat message for its meaning, in eight categories: sexual content, hate, harassment, violence, scams, spam, illicit activity and self-harm. It can also check map art when a player holds a filled map, puts one in an item frame or right-clicks one there, up to 30 new pictures per player an hour.
 [LIST]
 [*][FONT=Courier New]/nmod trial[/FONT] explains what a free 14-day trial sends, and [FONT=Courier New]/nmod trial start[/FONT] starts it. It needs no account, and each server can start one trial.
 [*]To use your own workspace, [URL='https://neomechanical.com/signup?src=neomoderation_spigot']create an account[/URL], create an API key with the [FONT=Courier New]events:write[/FONT] and [FONT=Courier New]usage:read[/FONT] scopes, and run [FONT=Courier New]/nmod setup <key>[/FONT].
@@ -48,7 +48,7 @@ The Neomechanical Moderation API can read each chat message for its meaning, in 
 Without an API key or a Discord webhook, no chat or map content leaves your server. NeoModeration sends technical metrics to bStats, which hold no chat, player names or API keys. Turn them off in [FONT=Courier New]plugins/bStats/config.yml[/FONT]. Once at startup, NeoModeration asks GitHub whether a newer version exists. Turn that off with [FONT=Courier New]updateCheck[/FONT] in [FONT=Courier New]config.yml[/FONT].
 
 [B]Compatibility[/B]
-NeoModeration runs on Spigot, Paper and Purpur, Minecraft 1.18.2 to 26.3, and on Folia. Release checks run on Paper 1.18.2, 1.19.4, 1.20.6, 1.21.11, 26.1.2, 26.2 and 26.3, on Folia 1.21.11 and on Spigot 1.21.11. In-game messages are in English, Spanish, French, German, Portuguese or Turkish, and each player reads them in their own game language.
+NeoModeration runs on Spigot, Paper and Purpur, Minecraft 1.18.2 to 26.3, and on Folia. Release checks run on Paper 1.18.2, 1.19.4, 1.20.6, 1.21.11, 26.1.2, 26.2 and 26.3, on Folia 1.21.11, on Spigot 1.21.11 and on Purpur 1.21.11. In-game messages are in English, Spanish, French, German, Portuguese or Turkish, and each player reads them in their own game language.
 
 [B]Links[/B]
 [LIST]

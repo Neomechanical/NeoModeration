@@ -31,8 +31,8 @@ public final class NeoModerationCommand implements CommandExecutor, TabCompleter
         registerCommand(new KeyCmd(plugin));
         registerCommand(new StatusCmd(plugin));
         registerCommand(new ReloadCmd(plugin));
-        registerCommand(new WordCmd(plugin));
-        registerCommand(new UrlCmd(plugin));
+        registerCommand(new BannedListCmd(plugin, RuleListEditor.RuleList.BANNED_WORDS));
+        registerCommand(new BannedListCmd(plugin, RuleListEditor.RuleList.BANNED_URLS));
         registerCommand(new ActionCmd(plugin));
         registerCommand(new SurfaceCmd(plugin));
         registerCommand(new UsageCmd(plugin));
