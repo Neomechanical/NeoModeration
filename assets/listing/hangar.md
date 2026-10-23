@@ -1,5 +1,7 @@
 NeoModeration by Neomechanical filters Minecraft chat. It blocks swearing, slurs, scam links, ads for other servers and spam as soon as it is installed, with no account or API key.
 
+![A staff alert: NeoModeration blocks a server ad and tells staff why](https://raw.githubusercontent.com/Neomechanical/NeoModeration/main/assets/screenshots/staff-alert.jpg)
+
 ## What a new install does
 
 - Blocks messages that contain a word from starter lists of swear words and slurs: English, plus the Spanish, French, German, Portuguese or Turkish list that matches `locale` in `config.yml` (`languagePacks` turns on more). A word only matches from the start of a word to the end of one, so "assignment" and "Scunthorpe" stay clean, and so do everyday words that together spell a listed word, as in "put a torch here". A word one language uses every day, such as French "retard" (late), passes on servers in that language, and for players writing in it if you allow that.
