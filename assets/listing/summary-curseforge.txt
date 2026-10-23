@@ -1,0 +1,1 @@
+Anti-swear chat filter that blocks profanity, slurs, spam, scam links and server ads, with no account needed.
