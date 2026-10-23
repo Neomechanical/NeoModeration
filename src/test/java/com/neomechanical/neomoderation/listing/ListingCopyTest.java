@@ -246,9 +246,10 @@ class ListingCopyTest {
                 "the copy must give TrialClient.TRIAL_DAYS as the trial length");
     }
 
-    /** The words of a Markdown page, without its markup. */
+    /** The words of a Markdown page, without its markup or its pictures (a store with no gallery shows one in the page). */
     private static String markdownText(String markdown) {
         return words(markdown
+                .replaceAll("!\\[[^\\]]*\\]\\([^)]+\\)", "")
                 .replaceAll("\\[([^\\]]+)\\]\\([^)]+\\)", "$1")
                 .replaceAll("(?m)^(#+|-|\\d+\\.)\\s+", "")
                 .replace("`", ""));
