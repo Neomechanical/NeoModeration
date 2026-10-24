@@ -1,8 +1,16 @@
 package com.neomechanical.neomoderation.moderation;
 
-public record ModerationApiResult(Kind kind, String category) {
+/**
+ * One cloud answer. {@code retryAfterSeconds} is how long the free plan asked the server to wait (its cap, its picture
+ * allowance or a busy minute), 0 for everything else.
+ */
+public record ModerationApiResult(Kind kind, String category, long retryAfterSeconds) {
     public ModerationApiResult(Kind kind) {
         this(kind, null);
+    }
+
+    public ModerationApiResult(Kind kind, String category) {
+        this(kind, category, 0L);
     }
 
     public enum Kind {
@@ -12,7 +20,15 @@ public record ModerationApiResult(Kind kind, String category) {
         OVERLOADED,
         CLIENT_AUTH,
         INSUFFICIENT_CREDITS,
-        CLIENT_REQUEST
+        CLIENT_REQUEST,
+        /** The free plan's cloud checks for today are used up: chat and map art wait for the reset. */
+        FREE_PLAN_CAPPED,
+        /** The free plan's map pictures for today are used up: map art waits for the reset, chat goes on. */
+        FREE_PLAN_PICTURES,
+        /** The free plan is busy this minute: wait the seconds it gave, and tell no player. */
+        FREE_PLAN_BUSY,
+        /** The free plan refused the request's shape: a bug in this version, logged once. */
+        FREE_PLAN_REQUEST_SHAPE
     }
 
     public boolean isFlagged() {
@@ -57,6 +73,21 @@ public record ModerationApiResult(Kind kind, String category) {
 
     public static ModerationApiResult clientRequest() {
         return new ModerationApiResult(Kind.CLIENT_REQUEST);
+    }
+
+    /**
+     * Classifies a refusal by the free plan's own code ({@code free_plan_daily_cap}, {@code free_plan_image_allowance},
+     * {@code free_plan_busy}, {@code free_plan_request_shape}), and any other by its status alone.
+     */
+    public static ModerationApiResult fromRefusal(int status, String code, long retryAfterSeconds) {
+        long wait = Math.max(0L, retryAfterSeconds);
+        return switch (code == null ? "" : code) {
+            case "free_plan_daily_cap" -> new ModerationApiResult(Kind.FREE_PLAN_CAPPED, null, wait);
+            case "free_plan_image_allowance" -> new ModerationApiResult(Kind.FREE_PLAN_PICTURES, null, wait);
+            case "free_plan_busy" -> new ModerationApiResult(Kind.FREE_PLAN_BUSY, null, wait);
+            case "free_plan_request_shape" -> new ModerationApiResult(Kind.FREE_PLAN_REQUEST_SHAPE);
+            default -> fromHttpFailureStatus(status);
+        };
     }
 
     /**

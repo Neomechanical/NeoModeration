@@ -1,10 +1,14 @@
 package com.neomechanical.neomoderation.platform;
 
 import com.neomechanical.neomoderation.NeoModerationPlugin;
+import com.neomechanical.neomoderation.moderation.CloudPlanNotices;
+import com.neomechanical.neomoderation.moderation.CloudPlanWatch;
+import com.neomechanical.neomoderation.moderation.FreePlan;
 import com.neomechanical.neomoderation.moderation.ModerationApiResult;
 import org.bstats.bukkit.Metrics;
 import org.bstats.charts.SimplePie;
 
+import java.io.File;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
@@ -39,7 +43,7 @@ public final class MetricsRegistrar {
     }
 
     /**
-     * Registers all 19 custom bStats charts for NeoModeration.
+     * Registers all 23 custom bStats charts for NeoModeration.
      *
      * @param plugin           the plugin instance
      * @param bstatsPluginId   the registered bStats plugin id
@@ -108,6 +112,21 @@ public final class MetricsRegistrar {
                 () -> InstallTelemetry.mapArtState(plugin.settings())));
         metrics.addCustomChart(new SimplePie("locale_state",
                 () -> InstallTelemetry.localeState(plugin.settings().offline().locale())));
+
+        // The free plan (1.8.0): how old installs are, which plan each is on, which offers admins saw, and why a
+        // start was refused (decision 0298 call 9 reads the refusals).
+        metrics.addCustomChart(new SimplePie("install_age",
+                () -> InstallAge.bucket(plugin.getDataFolder(), InstallAge.todayUtc())));
+        metrics.addCustomChart(new SimplePie("cloud_plan", () -> {
+            CloudPlanWatch.Snapshot plan = plugin.cloudPlan().current();
+            FreePlan free = plan.status() == null ? null : plan.status().freePlan();
+            return InstallTelemetry.cloudPlan(!plugin.settings().api().apiKey().isBlank(), plan.state().name(),
+                    free != null && free.claimed(), free != null && free.claimPending());
+        }));
+        metrics.addCustomChart(new SimplePie("plan_offer", () -> InstallTelemetry.planOffer(
+                new File(plugin.getDataFolder(), CloudPlanNotices.FREE_OFFER_MARKER).exists(),
+                new File(plugin.getDataFolder(), CloudPlanNotices.COME_BACK_MARKER).exists())));
+        metrics.addCustomChart(new SimplePie("start_refused", plugin::lastStartRefusal));
 
         // Did Folia support reach anyone?
         metrics.addCustomChart(new SimplePie("platform_family",

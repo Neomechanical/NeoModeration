@@ -117,6 +117,34 @@ class MapArtListenerTest {
     }
 
     @Test
+    void aPictureTheFreePlanCannotCheckTodayStaysUncheckedByDefaultAndChatIsNotPaused() {
+        ModerationApiResult usedUp = ModerationApiResult.fromRefusal(429, "free_plan_image_allowance", 3600);
+        try (Fixture f = new Fixture(ModerationMode.ENFORCE, usedUp)) {
+            f.listener.onItemHeld(f.heldEvent);
+            f.pixels[0] = 12;
+            f.listener.onItemHeld(f.heldEvent);
+
+            verify(f.client, times(1)).moderateImage(anyString(), anyString(), anyString(), any(), any());
+            verify(f.handler, never()).handle(any(), anyString(), anyString(), anyString(), any(), any());
+            assertTrue(f.coordinator.shouldCallAutomatically(), "chat goes on");
+            assertFalse(f.coordinator.shouldCheckPictures());
+        }
+    }
+
+    @Test
+    void failClosedHoldsEveryMapTheCloudCannotCheckWithoutRememberingItAsFlagged() {
+        ModerationApiResult usedUp = ModerationApiResult.fromRefusal(429, "free_plan_image_allowance", 3600);
+        try (Fixture f = new Fixture(ModerationMode.ENFORCE, usedUp, 30, true)) {
+            f.listener.onItemHeld(f.heldEvent);
+            f.listener.onItemHeld(f.heldEvent);
+
+            verify(f.handler, times(2)).handle(eq(f.player), eq("map_art"), eq("map_art:unchecked"), anyString(),
+                    eq(DetectionHandler.Disposition.BLOCK), eq(DetectionHandler.Source.CLOUD));
+            verify(f.client, times(1)).moderateImage(anyString(), anyString(), anyString(), any(), any());
+        }
+    }
+
+    @Test
     void aFlaggedMapFoundInAFrameIsTakenDownWithoutBlamingTheFinder() {
         try (Fixture f = new Fixture(ModerationMode.ENFORCE, ModerationApiResult.flagged("sexual"))) {
             ItemFrame frame = mock(ItemFrame.class);
@@ -160,7 +188,11 @@ class MapArtListenerTest {
         }
 
         Fixture(ModerationMode cloudMode, ModerationApiResult answer, int checksPerPlayerPerHour) {
-            ModerationSettings settings = settings(cloudMode, checksPerPlayerPerHour);
+            this(cloudMode, answer, checksPerPlayerPerHour, false);
+        }
+
+        Fixture(ModerationMode cloudMode, ModerationApiResult answer, int checksPerPlayerPerHour, boolean failClosed) {
+            ModerationSettings settings = settings(cloudMode, checksPerPlayerPerHour, failClosed);
             when(plugin.settings()).thenReturn(settings);
             when(plugin.messages()).thenReturn(messages);
             when(plugin.detectionHandler()).thenReturn(handler);
@@ -202,7 +234,7 @@ class MapArtListenerTest {
         }
     }
 
-    private static ModerationSettings settings(ModerationMode cloudMode, int checksPerPlayerPerHour) {
+    private static ModerationSettings settings(ModerationMode cloudMode, int checksPerPlayerPerHour, boolean failClosed) {
         return new ModerationSettings(
                 true,
                 ModerationMode.ENFORCE,
@@ -210,7 +242,7 @@ class MapArtListenerTest {
                 new ModerationApiSettings("https://api.neomechanical.com/v1/events", "test-key", 100, 100),
                 new OfflineModerationSettings(true, false, true, List.of(), List.of(), List.of(), List.of()),
                 new ModerationCategorySettings(Map.of()),
-                new MapArtSettings(true, true, true, true, 1000, checksPerPlayerPerHour),
+                new MapArtSettings(true, true, true, true, 1000, checksPerPlayerPerHour, failClosed),
                 List.of(),
                 true,
                 true,

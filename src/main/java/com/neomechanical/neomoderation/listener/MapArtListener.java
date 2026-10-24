@@ -51,6 +51,8 @@ import java.util.concurrent.Semaphore;
  */
 public final class MapArtListener implements Listener {
     private static final String SURFACE = "map_art";
+    /** The category a map that could not be checked is handled under, with {@code mapArt.failClosed} on. */
+    static final String UNCHECKED = "unchecked";
     private static final String FRAME_SURFACE = "map_frame";
     /** Who the cloud is told showed a map that was already hanging: the frame, not whoever clicked it. */
     private static final String FRAME_ACTOR = "item_frame";
@@ -157,8 +159,11 @@ public final class MapArtListener implements Listener {
             act(sighting, mapId, cachedCategory, settings);
             return;
         }
-        if (cleanMaps.contains(key) || !plugin.coordinator().shouldCallAutomatically()
-                || !mayCheck(sighting.player(), settings.mapArt())) {
+        if (cleanMaps.contains(key)) {
+            return;
+        }
+        if (!plugin.coordinator().shouldCheckPictures() || !mayCheck(sighting.player(), settings.mapArt())) {
+            uncheckable(sighting, mapId, settings);
             return;
         }
         String image = MapArtScanner.pngBase64(pixels);
@@ -169,6 +174,7 @@ public final class MapArtListener implements Listener {
                 image, settings.api(), settings.categories());
         plugin.coordinator().recordApiResult(result, settings.api());
         if (!isCacheableResult(result)) {
+            uncheckable(sighting, mapId, settings);
             return;
         }
         if (!result.isFlagged()) {
@@ -178,6 +184,17 @@ public final class MapArtListener implements Listener {
         String category = result.category() == null ? "" : result.category();
         flaggedMaps.put(key, category);
         act(sighting, mapId, category, settings);
+    }
+
+    /**
+     * A new map the cloud could not check. With {@code mapArt.failClosed} on, it is handled as a flagged one, under
+     * {@link #UNCHECKED}, and never remembered as flagged: the next sighting asks the cloud again. Off (the default),
+     * it stays unchecked.
+     */
+    private void uncheckable(Sighting sighting, int mapId, ModerationSettings settings) {
+        if (settings.mapArt().failClosed()) {
+            act(sighting, mapId, UNCHECKED, settings);
+        }
     }
 
     /**

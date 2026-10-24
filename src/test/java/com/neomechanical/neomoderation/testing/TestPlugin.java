@@ -6,6 +6,7 @@ import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.moderation.CaseLog;
 import com.neomechanical.neomoderation.moderation.ChatModerationCoordinator;
+import com.neomechanical.neomoderation.moderation.PlayerCloudBudget;
 import com.neomechanical.neomoderation.moderation.CloudPlanWatch;
 import com.neomechanical.neomoderation.moderation.ModerationApiResult;
 import com.neomechanical.neomoderation.moderation.MonitorStats;
@@ -70,6 +71,8 @@ public final class TestPlugin {
         ChatModerationCoordinator coordinator = mock(ChatModerationCoordinator.class);
         when(coordinator.isRemoteCallAllowed()).thenReturn(true);
         when(coordinator.shouldCallAutomatically()).thenReturn(true);
+        when(coordinator.shouldCheckPictures()).thenReturn(true);
+        when(coordinator.playerBudget()).thenReturn(new PlayerCloudBudget());
         when(plugin.coordinator()).thenReturn(coordinator);
         // A mocked client returns no status: no answer, which keeps the last one.
         CloudPlanWatch watch = new CloudPlanWatch(mock(TrialClient.class), () -> plugin.settings().api(), Runnable::run,

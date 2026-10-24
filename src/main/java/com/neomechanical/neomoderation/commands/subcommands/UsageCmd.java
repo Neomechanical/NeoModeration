@@ -84,7 +84,9 @@ public class UsageCmd implements SubCommand {
             case CLIENT_AUTH -> "usage.error-auth";
             case INSUFFICIENT_CREDITS -> "usage.error-credits";
             case CLIENT_REQUEST -> "usage.error-request";
-            case TRANSIENT_TRANSPORT, OVERLOADED, FLAGGED, CLEAR -> "usage.error";
+            // The usage call never meets the free plan's codes, which only cloud checks are refused with.
+            case TRANSIENT_TRANSPORT, OVERLOADED, FLAGGED, CLEAR, FREE_PLAN_CAPPED, FREE_PLAN_PICTURES, FREE_PLAN_BUSY,
+                 FREE_PLAN_REQUEST_SHAPE -> "usage.error";
         };
     }
 }

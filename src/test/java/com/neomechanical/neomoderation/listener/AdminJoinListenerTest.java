@@ -32,7 +32,7 @@ class AdminJoinListenerTest {
             "  [Try a message]",
             "  [Let players share your server's address]",
             "  [Check signs, books and commands too]",
-            "  [Free 14-day cloud trial]");
+            "  [Free cloud checks]");
 
     @TempDir
     Path tempDir;

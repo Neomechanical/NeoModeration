@@ -30,6 +30,15 @@ public final class DateText {
         }
     }
 
+    /** {@code iso}'s time of day in UTC, "00:07"; empty when it is no instant. The same in every language. */
+    public static String utcTime(String iso) {
+        try {
+            return DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneOffset.UTC).format(Instant.parse(iso.trim()));
+        } catch (RuntimeException notAnInstant) {
+            return "";
+        }
+    }
+
     static LocalDate parse(String iso) {
         if (iso == null || iso.isBlank()) {
             return null;

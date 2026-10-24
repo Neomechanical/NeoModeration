@@ -22,6 +22,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.Arrays;
+import java.time.Instant;
 import java.util.Map;
 
 /**
@@ -133,7 +134,9 @@ public class TestCmd implements SubCommand {
                         ? Map.of("ms", ms, "url", refused.url(), "date", DateText.of(messages, sender, refused.dateIso()))
                         : result.kind() == ModerationApiResult.Kind.FLAGGED
                         ? Map.of("ms", ms, "reason", Reasons.describe(messages, sender, result.reason()))
-                        : Map.of("ms", ms);
+                        : result.kind() == ModerationApiResult.Kind.FREE_PLAN_CAPPED
+                        ? backAt(messages, sender, ms)
+                        : Map.of("ms", ms, "url", CloudRecovery.ISSUES_URL);
                 messages.send(sender, refused != null ? "test.cloud-" + refused.name() : cloudMessageKey(result.kind()),
                         values);
                 sendCloudOutcome(sender, settings, result);
@@ -141,6 +144,12 @@ public class TestCmd implements SubCommand {
                 messages.sendFooter(sender);
             });
         });
+    }
+
+    /** When the free plan's checks come back, as the date and the UTC time a message names. */
+    private Map<String, String> backAt(MessageService messages, CommandSender sender, String ms) {
+        String back = plugin.coordinator().freeChecksBackAt().map(Instant::toString).orElse("");
+        return Map.of("ms", ms, "date", DateText.of(messages, sender, back), "time", DateText.utcTime(back));
     }
 
     private void sendOutcome(CommandSender sender, ModerationSettings settings, boolean detected,
@@ -173,7 +182,11 @@ public class TestCmd implements SubCommand {
             case CLIENT_AUTH -> "test.cloud-auth";
             case INSUFFICIENT_CREDITS -> "test.cloud-credits";
             case CLIENT_REQUEST -> "test.cloud-request-error";
-            case TRANSIENT_TRANSPORT, OVERLOADED -> "test.cloud-error";
+            case FREE_PLAN_CAPPED -> "test.cloud-free-capped";
+            case FREE_PLAN_BUSY -> "test.cloud-free-busy";
+            case FREE_PLAN_REQUEST_SHAPE -> "test.cloud-free-plan-bug";
+            // A text check never meets the picture allowance.
+            case TRANSIENT_TRANSPORT, OVERLOADED, FREE_PLAN_PICTURES -> "test.cloud-error";
         };
     }
 

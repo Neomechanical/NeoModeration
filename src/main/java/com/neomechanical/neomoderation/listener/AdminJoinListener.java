@@ -62,16 +62,20 @@ public final class AdminJoinListener implements Listener {
         }
         File dataFolder = plugin.getDataFolder();
         CloudPlanWatch.Snapshot plan = plugin.cloudPlan().current();
-        CloudPlanNotices.Notice planNotice = plugin.settings().api().apiKey().isBlank()
-                ? null : CloudPlanNotices.join(plan, plugin.cloudPlan().now());
-        if (planNotice != null) {
+        List<CloudPlanNotices.Notice> planNotices = plugin.settings().api().apiKey().isBlank()
+                ? List.of() : CloudPlanNotices.joinNotices(plan, plugin.cloudPlan().now());
+        if (!planNotices.isEmpty()) {
             plugin.runAsync(() -> {
-                String marker = CloudPlanNotices.joinMarker(planNotice);
-                if (claimMarker(dataFolder, marker)) {
-                    // Off the main thread: the count reads the case history.
-                    long caught = TrialPromptSupport.caughtDuringTrial(plugin, plan.status());
-                    showOnce(player, () -> showPlanNotice(player, planNotice, caught),
-                            () -> plugin.runAsync(() -> new File(dataFolder, marker).delete()));
+                // The first notice not yet shown on this install; one a join.
+                for (CloudPlanNotices.Notice planNotice : planNotices) {
+                    String marker = CloudPlanNotices.joinMarker(planNotice);
+                    if (claimMarker(dataFolder, marker)) {
+                        // Off the main thread: the count reads the case history.
+                        long caught = TrialPromptSupport.caughtDuringTrial(plugin, plan.status());
+                        showOnce(player, () -> showPlanNotice(player, planNotice, caught),
+                                () -> plugin.runAsync(() -> new File(dataFolder, marker).delete()));
+                        return;
+                    }
                 }
             });
         }
@@ -138,7 +142,14 @@ public final class AdminJoinListener implements Listener {
         messages.send(player, notice.key(), Map.of(
                 "date", DateText.of(messages, player, notice.dateIso()),
                 "caught", caughtClause(messages, player, caught, plugin.monitorStats().cloudTotal())));
-        TrialPromptSupport.sendLinkButton(messages, player, CloudPlanNotices.joinButton(notice), notice.url());
+        String label = CloudPlanNotices.joinButton(notice);
+        if (CloudPlanNotices.runsCommand(notice)) {
+            messages.sendMenu(player, List.of(MenuRenderer.clickableLine(messages.text(player, label), notice.url(),
+                    messages.format(player, "trial.start-hover", Map.of("command", notice.url())),
+                    MenuRenderer.ClickAction.RUN)));
+        } else {
+            TrialPromptSupport.sendLinkButton(messages, player, label, notice.url());
+        }
     }
 
     /**

@@ -6,9 +6,9 @@ NeoModeration by Neomechanical moderates chat and map art on Minecraft servers. 
 
 ## Setup
 
-1. Drop `NeoModeration-1.7.1.jar` into `plugins/` and restart.
+1. Drop `NeoModeration-1.8.0.jar` into `plugins/` and restart.
 2. Run `/nmod test badword`. It shows "Local rules: caught" and "Result: blocked". The preview never blocks or punishes anyone. It checks content rules; message rate, repeats and split messages need live chat.
-3. Optional: for cloud moderation, start a free 14-day trial. It needs no account. `/nmod trial` first says what a trial sends and how its decisions work, then offers a button (or `/nmod trial start` in the console) to begin.
+3. Optional: for cloud moderation, start free cloud checks. They need no account. `/nmod trial` first says what they send, how their decisions work and which terms starting accepts, then offers a button (or `/nmod trial start` in the console) to begin. Where the free plan is open, your server gets a set number of cloud checks and map pictures a day, with no end date. Otherwise it gets a 14-day trial, which can move to the free plan once that opens.
 
 ```text
 /nmod trial
@@ -31,7 +31,7 @@ Or connect an existing workspace key:
 
 The local rules catch listed words, links and server ads, including spaced-out, accented and look-alike spellings. What they cannot do is read meaning. Harassment and threats in plain words, encouragement to self-harm, scams that never use a banned word, sexual talk and abuse in languages without a word pack all pass a word list. The cloud reads each message for its meaning in eight categories and checks map art.
 
-The free 14-day trial runs on your own chat, and while it runs its decisions only alert staff, so you can judge them before they block anything. [How the cloud checks Minecraft chat](https://neomechanical.com/docs/use-cases/minecraft?src=neomoderation_github).
+Free cloud checks run on your own chat, and their decisions only alert staff until you turn blocking on, so you can judge them before they block anything. On the free plan, `/nmod status` shows today's checks. When they are used up, local rules carry on alone until 00:00 UTC (or, with `moderation.chat.failOpen: false`, chat waits for them), and each player can use at most a quarter of the day's checks. Keep the plan in a free account (`/nmod trial status` in game) to keep checking past the daily limit on credits. [How the cloud checks Minecraft chat](https://neomechanical.com/docs/use-cases/minecraft?src=neomoderation_github).
 
 ## What runs without a key
 
@@ -78,7 +78,7 @@ Mute durations: `30s`, `5m`, `1h`, `1d` (or bare seconds), up to 30 days. Kick a
 | Command | What it does |
 |---------|----------------|
 | `/nmod help [2]` | The clickable command menu |
-| `/nmod trial [start\|status]` | Explain the free 14-day cloud trial and start it, or see how it is going |
+| `/nmod trial [start\|status\|free]` | Explain free cloud checks and start them, see how they are going, or move a running trial to the free plan |
 | `/nmod setup <key>` | Save a cloud API key; check it with `/nmod doctor` |
 | `/nmod status` | What is protected right now |
 | `/nmod mode [monitor\|enforce]` | Show or switch local rules between alerting and blocking |
@@ -132,7 +132,10 @@ once, and drawing on it makes it a new picture. In enforce cloud mode a flagged
 map is taken from the player holding it, and a flagged map already hanging in a
 frame is taken down without blaming the player who found it. In monitor mode,
 staff are alerted instead. Each player can have 30 new pictures checked an hour,
-so nobody can use up your credits by drawing maps. Tune it under
+so nobody can use up your credits by drawing maps. A map the cloud cannot check
+(the free plan's pictures for the day are used up, the cloud is paused, or the
+player has spent their hourly allowance) stays unchecked unless you set
+`failClosed: true`, which handles it as a flagged map. Tune it under
 `moderation.mapArt` in `config.yml`:
 
 ```yaml
@@ -144,6 +147,7 @@ moderation:
     confiscate: true      # false = alert staff and leave the map
     cacheSize: 1000
     checksPerPlayerPerHour: 30   # 0 = no limit
+    failClosed: false     # true = treat a map the cloud cannot check as flagged
 ```
 
 ## Permissions

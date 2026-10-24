@@ -199,8 +199,9 @@ final class DoctorChecks {
             case INSUFFICIENT_CREDITS -> new Check(Level.FAIL, "credits", "account-credits",
                     Map.of("ms", elapsed, "url", CloudRecovery.BILLING_URL));
             case CLIENT_REQUEST -> new Check(Level.FAIL, "account", "account-request", Map.of("ms", elapsed));
-            case TRANSIENT_TRANSPORT, OVERLOADED, FLAGGED, CLEAR ->
-                    new Check(Level.WARN, "account", "account-down", Map.of("ms", elapsed));
+            // The usage call never meets the free plan's codes, which only cloud checks are refused with.
+            case TRANSIENT_TRANSPORT, OVERLOADED, FLAGGED, CLEAR, FREE_PLAN_CAPPED, FREE_PLAN_PICTURES, FREE_PLAN_BUSY,
+                 FREE_PLAN_REQUEST_SHAPE -> new Check(Level.WARN, "account", "account-down", Map.of("ms", elapsed));
         };
     }
 
@@ -263,8 +264,13 @@ final class DoctorChecks {
         if (line == null) {
             return null;
         }
-        boolean fine = line.name().equals("trial") || line.name().equals("standard");
-        return new Check(fine ? Level.OK : Level.FAIL, "cloud-plan", "plan-" + line.name(), line.values());
+        Level level = switch (line.name()) {
+            case "trial", "standard", "free", "free-claimed", "free-claimed-over" -> Level.OK;
+            // Today's free checks come back by themselves; a claim waits only on its account's email.
+            case "free-capped", "free-pending" -> Level.WARN;
+            default -> Level.FAIL;
+        };
+        return new Check(level, "cloud-plan", "plan-" + line.name(), line.values());
     }
 
     /**
@@ -280,8 +286,14 @@ final class DoctorChecks {
             case CLIENT_AUTH, INSUFFICIENT_CREDITS -> Check.of(Level.FAIL, "events",
                     "events-" + CloudPlanNotices.lastCheck(CloudPlanNotices.refusal(plan, kind)));
             case CLIENT_REQUEST -> Check.of(Level.FAIL, "events", "events-request");
-            // A busy server is its own check, never recorded as the cloud's result.
-            case TRANSIENT_TRANSPORT, OVERLOADED -> Check.of(Level.WARN, "events", "events-transient");
+            // The cloud-plan check says when the free plan's checks come back.
+            case FREE_PLAN_CAPPED -> Check.of(Level.WARN, "events", "events-free-capped");
+            case FREE_PLAN_REQUEST_SHAPE -> new Check(Level.FAIL, "events", "events-free-plan-bug",
+                    Map.of("url", CloudRecovery.ISSUES_URL));
+            // A busy server is its own check, never recorded as the cloud's result; nor are the free plan's picture
+            // allowance and busy minutes.
+            case TRANSIENT_TRANSPORT, OVERLOADED, FREE_PLAN_PICTURES, FREE_PLAN_BUSY ->
+                    Check.of(Level.WARN, "events", "events-transient");
         };
     }
 

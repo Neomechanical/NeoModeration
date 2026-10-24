@@ -1,8 +1,13 @@
 package com.neomechanical.neomoderation.moderation;
 
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.EnumSet;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.LongSupplier;
 import java.util.logging.Logger;
 
 public final class ModerationCircuitBreaker {
@@ -15,22 +20,46 @@ public final class ModerationCircuitBreaker {
      * {@code /nmod test} still asks, so a fixed key shows at once.
      */
     static final long REFUSAL_PAUSE_NANOS = TimeUnit.MINUTES.toNanos(10);
+    /** The longest a busy free plan is waited for, whatever it asks: a minute's budget turns each minute. */
+    static final long MAX_BUSY_SECONDS = 60;
+    private static final long DAY_MILLIS = TimeUnit.DAYS.toMillis(1);
+    private static final DateTimeFormatter LOG_TIME = DateTimeFormatter.ofPattern("HH:mm 'UTC'").withZone(ZoneOffset.UTC);
 
     private final Logger logger;
+    /** The wall clock, which the free plan's pauses run on: its reset is a time of day (00:00 UTC). */
+    private final LongSupplier wallClock;
     private final Object lock = new Object();
     private int transientFailures;
     private long pausedUntilNanos;
     private long refusedUntilNanos;
     private ModerationApiResult.Kind lastResultKind;
+    /** Until when the free plan's checks for today are used up (chat and map art wait); 0 when they are not. */
+    private long cappedUntilMillis;
+    /** Until when the free plan's map pictures for today are used up (map art waits); 0 when they are not. */
+    private long picturesUntilMillis;
+    /** Until when the free plan asked for a pause while it is busy; 0 when it did not. */
+    private long busyUntilMillis;
     private final EnumSet<ModerationApiResult.Kind> loggedFailures =
             EnumSet.noneOf(ModerationApiResult.Kind.class);
     /** Told the first 401 or 402 of each run of them, in place of the log line, by whoever can say why. */
     private volatile Consumer<ModerationApiResult.Kind> refusalListener;
+    /** Told the free plan's cap when a check first finds it, with when checks come back. */
+    private volatile Consumer<Instant> cappedListener;
     /** Told the first check that works after a reset or any failure. */
     private volatile Runnable successListener;
 
     public ModerationCircuitBreaker(Logger logger) {
+        this(logger, System::currentTimeMillis);
+    }
+
+    public ModerationCircuitBreaker(Logger logger, LongSupplier wallClock) {
         this.logger = logger;
+        this.wallClock = wallClock;
+    }
+
+    /** Told when the free plan's checks for today are first found used up, with when they come back. */
+    public void onCapped(Consumer<Instant> listener) {
+        this.cappedListener = listener;
     }
 
     /** {@link CloudPlanWatch#refused}, so an ended trial is never logged as a rejected key. */
@@ -49,6 +78,9 @@ public final class ModerationCircuitBreaker {
             pausedUntilNanos = 0L;
             refusedUntilNanos = 0L;
             lastResultKind = null;
+            cappedUntilMillis = 0L;
+            picturesUntilMillis = 0L;
+            busyUntilMillis = 0L;
             loggedFailures.clear();
         }
     }
@@ -78,8 +110,71 @@ public final class ModerationCircuitBreaker {
             if (refusedUntilNanos != 0L && System.nanoTime() - refusedUntilNanos >= 0) {
                 refusedUntilNanos = 0L;
             }
-            return refusedUntilNanos == 0L;
+            long now = wallClock.getAsLong();
+            return refusedUntilNanos == 0L && !freePlanPaused(now);
         }
+    }
+
+    /** Whether map art may ask the cloud now: as {@link #shouldCallAutomatically}, unless today's pictures are used up. */
+    public boolean shouldCheckPictures() {
+        if (!shouldCallAutomatically()) {
+            return false;
+        }
+        synchronized (lock) {
+            if (picturesUntilMillis != 0L && wallClock.getAsLong() >= picturesUntilMillis) {
+                picturesUntilMillis = 0L;
+                loggedFailures.remove(ModerationApiResult.Kind.FREE_PLAN_PICTURES);
+            }
+            return picturesUntilMillis == 0L;
+        }
+    }
+
+    /**
+     * The free plan's checks are no longer held for the day: its plan was claimed, so checks past the cap are billed to
+     * its account and go on now.
+     */
+    public void freeChecksBack() {
+        synchronized (lock) {
+            cappedUntilMillis = 0L;
+            loggedFailures.remove(ModerationApiResult.Kind.FREE_PLAN_CAPPED);
+            if (lastResultKind == ModerationApiResult.Kind.FREE_PLAN_CAPPED) {
+                lastResultKind = null;
+            }
+        }
+    }
+
+    /** When the free plan's checks come back, while today's are used up; empty otherwise. */
+    public Optional<Instant> cappedUntil() {
+        synchronized (lock) {
+            freePlanPaused(wallClock.getAsLong());
+            return cappedUntilMillis == 0L ? Optional.empty() : Optional.of(Instant.ofEpochMilli(cappedUntilMillis));
+        }
+    }
+
+    /** When the free plan's map pictures come back, while today's are used up; empty otherwise. */
+    public Optional<Instant> picturesUntil() {
+        synchronized (lock) {
+            if (picturesUntilMillis != 0L && wallClock.getAsLong() >= picturesUntilMillis) {
+                picturesUntilMillis = 0L;
+                loggedFailures.remove(ModerationApiResult.Kind.FREE_PLAN_PICTURES);
+            }
+            return picturesUntilMillis == 0L ? Optional.empty() : Optional.of(Instant.ofEpochMilli(picturesUntilMillis));
+        }
+    }
+
+    /** Under the lock: whether the free plan's cap or a busy minute holds now; a pause that ran out is let go. */
+    private boolean freePlanPaused(long now) {
+        if (cappedUntilMillis != 0L && now >= cappedUntilMillis) {
+            cappedUntilMillis = 0L;
+            loggedFailures.remove(ModerationApiResult.Kind.FREE_PLAN_CAPPED);
+            if (lastResultKind == ModerationApiResult.Kind.FREE_PLAN_CAPPED) {
+                lastResultKind = null;
+            }
+        }
+        if (busyUntilMillis != 0L && now >= busyUntilMillis) {
+            busyUntilMillis = 0L;
+        }
+        return cappedUntilMillis != 0L || busyUntilMillis != 0L;
     }
 
     public ModerationApiResult.Kind lastResultKind() {
@@ -91,6 +186,9 @@ public final class ModerationCircuitBreaker {
     public void record(ModerationApiResult result) {
         if (result.kind() == ModerationApiResult.Kind.OVERLOADED) {
             // A busy server, not something the cloud did: ChatModerationCoordinator counts it.
+            return;
+        }
+        if (recordFreePlanPause(result)) {
             return;
         }
         Report report = recordLocked(result);
@@ -114,6 +212,53 @@ public final class ModerationCircuitBreaker {
                         + CloudRecovery.BILLING_URL + ", then run /nmod test <message>.");
             }
         }
+    }
+
+    /**
+     * The free plan's pauses: its cap (chat and map art wait until the reset, logged once, its listener told), its
+     * picture allowance (map art waits, logged once) and a busy minute (everything waits the seconds it gave, at most
+     * {@link #MAX_BUSY_SECONDS}, and nobody is told). Neither a picture allowance nor a busy minute is the last
+     * check's result: chat may still be working. True when {@code result} was one of them.
+     */
+    private boolean recordFreePlanPause(ModerationApiResult result) {
+        ModerationApiResult.Kind kind = result.kind();
+        if (kind != ModerationApiResult.Kind.FREE_PLAN_CAPPED && kind != ModerationApiResult.Kind.FREE_PLAN_PICTURES
+                && kind != ModerationApiResult.Kind.FREE_PLAN_BUSY) {
+            return false;
+        }
+        long now = wallClock.getAsLong();
+        Instant capped = null;
+        synchronized (lock) {
+            transientFailures = 0;
+            if (kind == ModerationApiResult.Kind.FREE_PLAN_BUSY) {
+                long seconds = Math.min(MAX_BUSY_SECONDS, Math.max(1L, result.retryAfterSeconds()));
+                busyUntilMillis = Math.max(busyUntilMillis, now + seconds * 1000L);
+                return true;
+            }
+            long until = result.retryAfterSeconds() > 0
+                    ? now + Math.min(DAY_MILLIS, result.retryAfterSeconds() * 1000L)
+                    : (Math.floorDiv(now, DAY_MILLIS) + 1) * DAY_MILLIS;
+            if (kind == ModerationApiResult.Kind.FREE_PLAN_PICTURES) {
+                picturesUntilMillis = Math.max(picturesUntilMillis, until);
+                if (loggedFailures.add(kind)) {
+                    logger.warning("Today's free map checks are used up until " + LOG_TIME.format(Instant.ofEpochMilli(until))
+                            + ". Map art waits until then; chat checks go on.");
+                }
+                return true;
+            }
+            cappedUntilMillis = Math.max(cappedUntilMillis, until);
+            lastResultKind = kind;
+            if (loggedFailures.add(kind)) {
+                capped = Instant.ofEpochMilli(cappedUntilMillis);
+                logger.warning("Today's free cloud checks are used up until " + LOG_TIME.format(capped)
+                        + ". Local rules still run. Run /nmod trial status to add an account and keep checking.");
+            }
+        }
+        Consumer<Instant> listener = cappedListener;
+        if (capped != null && listener != null) {
+            listener.accept(capped);
+        }
+        return true;
     }
 
     /** What {@link #record} tells its listeners once the lock is released. */
@@ -142,6 +287,15 @@ public final class ModerationCircuitBreaker {
                 return Report.NOTHING;
             }
 
+            if (result.kind() == ModerationApiResult.Kind.FREE_PLAN_REQUEST_SHAPE) {
+                transientFailures = 0;
+                if (loggedFailures.add(result.kind())) {
+                    logger.warning("The free plan refused a request this version of NeoModeration sent. This is a bug: "
+                            + "please report it at " + CloudRecovery.ISSUES_URL + ". Local rules still run.");
+                }
+                return Report.NOTHING;
+            }
+
             if (result.tripsTransientBreaker()) {
                 transientFailures++;
                 if (transientFailures >= TRANSIENT_TRIP_THRESHOLD) {
@@ -157,7 +311,10 @@ public final class ModerationCircuitBreaker {
             transientFailures = 0;
             pausedUntilNanos = 0L;
             refusedUntilNanos = 0L;
-            loggedFailures.clear();
+            // A check that works means the day's checks are back (a reset, or an account that pays past the cap).
+            cappedUntilMillis = 0L;
+            busyUntilMillis = 0L;
+            loggedFailures.retainAll(EnumSet.of(ModerationApiResult.Kind.FREE_PLAN_PICTURES));
             return new Report(null, before != ModerationApiResult.Kind.FLAGGED && before != ModerationApiResult.Kind.CLEAR);
         }
     }

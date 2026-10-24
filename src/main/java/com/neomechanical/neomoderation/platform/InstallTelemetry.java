@@ -1,5 +1,6 @@
 package com.neomechanical.neomoderation.platform;
 
+import com.neomechanical.neomoderation.moderation.TrialClient;
 import com.neomechanical.neomoderation.config.ModerationMode;
 import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.config.SurfaceSettings.SurfaceMode;
@@ -105,13 +106,61 @@ public final class InstallTelemetry {
             return "key_untested";
         }
         return switch (lastResultKind) {
-            case "FLAGGED", "CLEAR" -> plan.equals("TRIAL_ACTIVE") ? "trial_working" : "key_working";
+            case "FLAGGED", "CLEAR" -> plan.equals("TRIAL_ACTIVE") ? "trial_working"
+                    : plan.equals("FREE_PLAN") ? "free_working" : "key_working";
+            case "FREE_PLAN_CAPPED" -> "free_capped";
+            case "FREE_PLAN_REQUEST_SHAPE" -> "bad_request";
             case "CLIENT_AUTH" -> "key_rejected";
             case "INSUFFICIENT_CREDITS" -> "no_credits";
             case "CLIENT_REQUEST" -> "bad_request";
             case "OVERLOADED" -> "busy";
             case "TRANSIENT_TRANSPORT" -> circuitOpen ? "key_failing" : "transport_flaky";
             default -> "key_untested";
+        };
+    }
+
+    /**
+     * The server's cloud plan, as the trial service said it last: no_key, unknown, trial, trial_ended, free (unclaimed),
+     * free_pending (an account waits on its email), free_claimed or account.
+     */
+    public static String cloudPlan(boolean hasKey, String planState, boolean freeClaimed, boolean freePending) {
+        if (!hasKey) {
+            return "no_key";
+        }
+        return switch (planState == null ? "UNKNOWN" : planState) {
+            case "TRIAL_ACTIVE" -> "trial";
+            case "TRIAL_ENDED" -> "trial_ended";
+            case "FREE_PLAN" -> freeClaimed ? "free_claimed" : freePending ? "free_pending" : "free";
+            case "STANDARD" -> "account";
+            default -> "unknown";
+        };
+    }
+
+    /**
+     * Which of the free plan's offers this install has shown an admin (the join notices' markers): none, free_offer
+     * (a running trial asked to move), come_back (an ended trial offered the way back) or both.
+     */
+    public static String planOffer(boolean freeOfferShown, boolean comeBackShown) {
+        if (freeOfferShown && comeBackShown) {
+            return "both";
+        }
+        return freeOfferShown ? "free_offer" : comeBackShown ? "come_back" : "none";
+    }
+
+    /**
+     * Why a start of cloud checks was refused, as the {@code start_refused} chart's bucket: lifetime, cooldown, busy,
+     * closed, already_used, rate_limited, a move's or come-back's own code, or other.
+     */
+    public static String startRefusal(TrialClient.TrialError error, String code) {
+        return switch (error) {
+            case LIFETIME_LIMIT -> "lifetime";
+            case COOLDOWN -> "cooldown";
+            case BUSY -> "busy";
+            case FREE_PLAN_CLOSED -> "closed";
+            case ALREADY_CLAIMED -> "already_used";
+            case RATE_LIMITED -> "rate_limited";
+            case REFUSED -> code == null || code.isBlank() ? "other" : code;
+            default -> "other";
         };
     }
 

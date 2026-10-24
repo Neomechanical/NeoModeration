@@ -233,6 +233,12 @@ moderation:
     # Most new pictures one player can have checked in an hour, so nobody can
     # use up the server's cloud credits by drawing maps. 0 means no limit.
     checksPerPlayerPerHour: 30
+    # Treat a new map the cloud cannot check as a flagged one: the free plan's
+    # pictures for today are used up, the cloud is paused, or the player has
+    # spent their hourly allowance. It is taken only with confiscate: true, and
+    # the player gets no strike, since nobody judged it. When false, such a map
+    # stays unchecked.
+    failClosed: false
 
   # ---- Extra actions after a message is blocked ---------------------------
   # Empty by default: block the matching message, alert staff, log a case,

@@ -4,6 +4,8 @@ import com.neomechanical.neomoderation.config.ModerationApiSettings;
 import com.neomechanical.neomoderation.config.ModerationSettings;
 import org.bukkit.entity.Player;
 
+import java.time.Instant;
+import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -46,6 +48,7 @@ public final class ChatModerationCoordinator implements AutoCloseable {
     private final AtomicLong lastBusyWarning = new AtomicLong();
     private final Logger logger;
     private final ModerationCircuitBreaker circuit;
+    private final PlayerCloudBudget playerBudget = new PlayerCloudBudget();
     private final ModerationApiClient apiClient;
     private final ThreadPoolExecutor workers;
     /** The settings cloud calls are made with now; null until the plugin says. */
@@ -81,16 +84,19 @@ public final class ChatModerationCoordinator implements AutoCloseable {
 
     /**
      * One cloud call on a worker, recorded as the cloud's own result. An answer slower than chat can wait counts as a
-     * failure, except a refusal, which stays one: a late 401 or 402 still pauses chat's calls and is reported.
+     * failure, except a refusal, which stays one: a late 401 or 402, or the free plan's cap, still pauses chat's calls
+     * and is reported.
      */
     private ModerationApiResult ask(String name, String uuid, String message, ModerationSettings settings,
                                     long chatWaitMs) {
         long started = System.nanoTime();
         ModerationApiResult result = apiClient.moderateText(name, uuid, message, settings.api(), settings.categories());
         long tookMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
-        boolean refused = result.kind() == ModerationApiResult.Kind.CLIENT_AUTH
-                || result.kind() == ModerationApiResult.Kind.INSUFFICIENT_CREDITS
-                || result.kind() == ModerationApiResult.Kind.CLIENT_REQUEST;
+        boolean refused = switch (result.kind()) {
+            case FLAGGED, CLEAR, TRANSIENT_TRANSPORT, OVERLOADED -> false;
+            case CLIENT_AUTH, INSUFFICIENT_CREDITS, CLIENT_REQUEST, FREE_PLAN_CAPPED, FREE_PLAN_PICTURES, FREE_PLAN_BUSY,
+                 FREE_PLAN_REQUEST_SHAPE -> true;
+        };
         recordApiResult(tookMs > chatWaitMs && !refused ? ModerationApiResult.transientTransport() : result,
                 settings.api());
         return result;
@@ -115,6 +121,11 @@ public final class ChatModerationCoordinator implements AutoCloseable {
         circuit.onFirstSuccess(listener);
     }
 
+    /** Who hears when the free plan's checks for today are first found used up, with when they come back. */
+    public void onCapped(Consumer<Instant> listener) {
+        circuit.onCapped(listener);
+    }
+
     public ModerationApiClient apiClient() {
         return apiClient;
     }
@@ -126,6 +137,31 @@ public final class ChatModerationCoordinator implements AutoCloseable {
     /** Whether chat and map art may ask the cloud now; see {@link ModerationCircuitBreaker#shouldCallAutomatically}. */
     public boolean shouldCallAutomatically() {
         return circuit.shouldCallAutomatically();
+    }
+
+    /** Each player's share of the free plan's day. */
+    public PlayerCloudBudget playerBudget() {
+        return playerBudget;
+    }
+
+    /** Whether map art may ask the cloud now; see {@link ModerationCircuitBreaker#shouldCheckPictures}. */
+    public boolean shouldCheckPictures() {
+        return circuit.shouldCheckPictures();
+    }
+
+    /** The free plan was claimed: checks past its cap are billed, so they go on now ({@link CloudWiring}). */
+    public void freePlanClaimed() {
+        circuit.freeChecksBack();
+    }
+
+    /** When the free plan's checks come back, while today's are used up. */
+    public Optional<Instant> freeChecksBackAt() {
+        return circuit.cappedUntil();
+    }
+
+    /** When the free plan's map pictures come back, while today's are used up. */
+    public Optional<Instant> freePicturesBackAt() {
+        return circuit.picturesUntil();
     }
 
     public ModerationApiResult.Kind lastCloudResultKind() {

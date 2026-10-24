@@ -38,7 +38,7 @@ class StatusCoverageTest {
         local.set("moderation.offline.bannedWords", List.of("badword"));
         List<String> protectedLines = status(local);
         assertTrue(protectedLines.contains("Local rules: blocking"), String.join("\n", protectedLines));
-        assertTrue(protectedLines.contains("Cloud: no key. Run /nmod trial for a free 14-day trial."),
+        assertTrue(protectedLines.contains("Cloud: no key. Run /nmod trial for free cloud checks."),
                 String.join("\n", protectedLines));
 
         YamlConfiguration inert = new YamlConfiguration();

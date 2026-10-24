@@ -29,6 +29,7 @@ public final class ConfigMigrations {
     static final String TELL_PLAYERS_PATH = "moderation.tellPlayers";
     static final String PER_PLAYER_PATH = "perPlayerLanguage";
     static final String MAP_ART_CAP_PATH = "moderation.mapArt.checksPerPlayerPerHour";
+    static final String MAP_ART_FAIL_CLOSED_PATH = "moderation.mapArt.failClosed";
     static final String TRUST_LANGUAGE_PATH = "moderation.offline.trustPlayerLanguage";
 
     /**
@@ -92,6 +93,10 @@ public final class ConfigMigrations {
             if (!config.getString("moderation.api.apiKey", "").isBlank()) {
                 changes.add(new Change("migrated.map-art-cap", Map.of("count", String.valueOf(cap))));
             }
+        }
+        if (!config.isSet(MAP_ART_FAIL_CLOSED_PATH)) {
+            // 1.8.0's opt-in, off: nothing changes, so the console is not told.
+            add(config, MAP_ART_FAIL_CLOSED_PATH, false);
         }
         if (!config.isSet(TRUST_LANGUAGE_PATH)) {
             // 1.6.6 read no game language, so nothing changes; the console names the words this concerns,

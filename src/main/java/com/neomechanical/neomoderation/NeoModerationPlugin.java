@@ -4,6 +4,7 @@ import com.neomechanical.neomoderation.commands.NeoModerationCommand;
 import com.neomechanical.neomoderation.config.BukkitConfigView;
 import com.neomechanical.neomoderation.config.ConfigMigrations;
 import com.neomechanical.neomoderation.config.ModerationApiSettings;
+import com.neomechanical.neomoderation.config.ModerationMode;
 import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.listener.AdminJoinListener;
 import com.neomechanical.neomoderation.listener.ChatModerationListener;
@@ -11,6 +12,7 @@ import com.neomechanical.neomoderation.listener.MapArtListener;
 import com.neomechanical.neomoderation.listener.PaperAsyncChatBridge;
 import com.neomechanical.neomoderation.listener.PlayerQuitListener;
 import com.neomechanical.neomoderation.listener.SurfaceModerationListener;
+import com.neomechanical.neomoderation.messages.DateText;
 import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.moderation.CaseLog;
 import com.neomechanical.neomoderation.moderation.ChatModerationActionExecutor;
@@ -30,15 +32,20 @@ import com.neomechanical.neomoderation.moderation.StartupSummary;
 import com.neomechanical.neomoderation.moderation.StrikeService;
 import com.neomechanical.neomoderation.moderation.TrialClient;
 import com.neomechanical.neomoderation.moderation.UpdateChecker;
+import com.neomechanical.neomoderation.platform.InstallAge;
+import com.neomechanical.neomoderation.platform.InstallIdentity;
 import com.neomechanical.neomoderation.platform.MetricsRegistrar;
 import com.neomechanical.neomoderation.platform.PlatformScheduler;
 import com.neomechanical.neomoderation.platform.SecretCommandLogFilter;
+import org.bukkit.command.CommandSender;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Entity;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.io.File;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -67,13 +74,18 @@ public final class NeoModerationPlugin extends JavaPlugin {
     private Set<String> editedLocales = Set.of();
     private final AtomicBoolean trialActivationPending = new AtomicBoolean();
     private final AtomicReference<String> newerVersion = new AtomicReference<>();
+    private TrialClient trialClient;
+    private volatile String lastStartRefusal = "none";
     private CloudWiring cloud;
     /** Cancels the ten-minute refresh of what the trial service said. */
     private Runnable stopCloudPlanRefresh = () -> { };
 
     @Override
     public void onEnable() {
+        // A folder with no config.yml yet is a new install: its first start dates the install_age chart.
+        boolean freshInstall = !new File(getDataFolder(), "config.yml").exists();
         saveDefaultConfig();
+        InstallAge.recordFirstStart(getDataFolder(), freshInstall, InstallAge.todayUtc());
         // Before any command can run: keys and webhook URLs typed into /nmod stay out of the log.
         SecretCommandLogFilter.install();
         scheduler = new PlatformScheduler(this);
@@ -81,9 +93,11 @@ public final class NeoModerationPlugin extends JavaPlugin {
         reloadModerationConfig();
         muteService = new PlayerMuteService(this);
         coordinator = new ChatModerationCoordinator(getLogger());
-        cloud = new CloudWiring(coordinator, new TrialClient(), () -> settings.api(), this::runAsync,
+        trialClient = new TrialClient(() -> InstallIdentity.getOrCreate(this));
+        cloud = new CloudWiring(coordinator, trialClient, () -> settings.api(), this::runAsync,
                 System::currentTimeMillis, () -> messages, () -> getServer().getConsoleSender(), getLogger()::warning);
         cloud.settingsLoaded(null, settings.api(), false);
+        coordinator.onCapped(this::tellChatHeldUntil);
         stopCloudPlanRefresh = scheduler.runAsyncEvery(10, cloud.plan()::refreshIfStale);
         monitorStats = new MonitorStats();
         discordAlerts = new DiscordAlerts();
@@ -206,6 +220,26 @@ public final class NeoModerationPlugin extends JavaPlugin {
         }
     }
 
+    /**
+     * The free plan's checks for today are used up until {@code back}. Chat goes on unchecked by the cloud while
+     * {@code failOpen} is at its default; an admin who set it to false keeps that choice, and the console is told once
+     * that chat is held until then.
+     */
+    private void tellChatHeldUntil(Instant back) {
+        ModerationSettings now = settings;
+        if (now.failOpen() || now.cloudMode() != ModerationMode.ENFORCE) {
+            return;
+        }
+        CommandSender console = getServer().getConsoleSender();
+        getLogger().warning(MessageService.plain(messages.format(console, "cloud-plan.console-free-held", Map.of(
+                "date", DateText.of(messages, console, back.toString()), "time", DateText.utcTime(back.toString())))));
+    }
+
+    /** The trial service's client, which names this server's install where a request needs it. */
+    public TrialClient trialClient() {
+        return trialClient;
+    }
+
     /** What the trial service said last about this server's key. */
     public CloudPlanWatch cloudPlan() {
         return cloud == null ? null : cloud.plan();
@@ -274,6 +308,15 @@ public final class NeoModerationPlugin extends JavaPlugin {
 
     public void runSync(Runnable task) {
         scheduler.runGlobal(task);
+    }
+
+    /** Why the last start of cloud checks was refused this run, for the {@code start_refused} chart; "none" if not. */
+    public String lastStartRefusal() {
+        return lastStartRefusal;
+    }
+
+    public void noteStartRefusal(String reason) {
+        this.lastStartRefusal = reason == null || reason.isBlank() ? "other" : reason;
     }
 
     public boolean tryStartTrialActivation() {

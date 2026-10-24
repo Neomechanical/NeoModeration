@@ -77,4 +77,25 @@ class DetectionHandlerTest {
         org.mockito.Mockito.verify(executor, org.mockito.Mockito.never())
                 .execute(eq(player), org.mockito.ArgumentMatchers.argThat(actions -> !actions.isEmpty()));
     }
+
+    @Test
+    void aMapHeldOnlyBecauseTheCloudCouldNotCheckItNeverEarnsAStrike() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("moderation.enabled", true);
+        config.set("moderation.strikes.enabled", true);
+        config.set("moderation.strikes.escalation", List.of(Map.of("atStrikes", 2, "type", "kick")));
+        NeoModerationPlugin plugin = TestPlugin.with(config);
+        StrikeService strikes = new StrikeService();
+        DetectionHandler handler = new DetectionHandler(plugin, executor, plugin.monitorStats(), notifier, strikes);
+        Player player = TestPlugin.player("Steve", "en_us");
+
+        for (int i = 0; i < 5; i++) {
+            handler.handle(player, "map_art", "map_art:unchecked", "#7", DetectionHandler.Disposition.BLOCK,
+                    DetectionHandler.Source.CLOUD);
+        }
+
+        assertEquals(0, strikes.tracked(), "nobody judged the map");
+        org.mockito.Mockito.verify(executor, org.mockito.Mockito.never())
+                .execute(eq(player), org.mockito.ArgumentMatchers.argThat(actions -> !actions.isEmpty()));
+    }
 }

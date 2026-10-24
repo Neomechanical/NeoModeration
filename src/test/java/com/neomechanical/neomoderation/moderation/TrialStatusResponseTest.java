@@ -78,12 +78,19 @@ class TrialStatusResponseTest {
         assertEquals("2026-10-22T00:00:00Z", trial.expiresAt());
         assertEquals("https://c", trial.claimUrl());
 
-        for (String rest : new String[]{",\"plan\":\"free\",\"freePlan\":{\"allowanceCredits\":\"lots\"}",
-                ",\"expiresAt\":null", ",\"claimUrl\":42", ",\"daysRemaining\":-3", ",\"expiresAt\":7"}) {
+        for (String rest : new String[]{",\"expiresAt\":null", ",\"claimUrl\":42", ",\"daysRemaining\":-3",
+                ",\"expiresAt\":7"}) {
             var result = TrialClient.parseSuccess("{\"apiKey\":\"nm_kept\"" + rest + "}");
             assertEquals("nm_kept", result.apiKey(), rest);
             assertFalse(result.expiresAt().isBlank(), rest);
         }
+        // A free plan whose limits this version cannot read keeps its key, as a free plan with unknown limits: never as
+        // a trial with an end it does not have.
+        var free = TrialClient.parseSuccess("{\"apiKey\":\"nm_kept\",\"plan\":\"free\",\"freePlan\":{\"allowanceCredits\":\"lots\"}}");
+        assertEquals("nm_kept", free.apiKey());
+        assertTrue(free.onFreePlan());
+        assertEquals(0, free.freePlan().dailyChecks());
+        assertTrue(free.expiresAt().isBlank());
         assertThrows(TrialClient.TrialException.class, () -> TrialClient.parseSuccess("{\"claimUrl\":\"x\"}"),
                 "with no key there is nothing to keep");
     }
