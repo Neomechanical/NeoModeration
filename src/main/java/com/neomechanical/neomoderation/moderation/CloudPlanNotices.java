@@ -1,5 +1,8 @@
 package com.neomechanical.neomoderation.moderation;
 
+import com.neomechanical.neomoderation.messages.DateText;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -18,6 +21,12 @@ public final class CloudPlanNotices {
     /** Every {@link Reason#name()}: each surface has a message for each. */
     public static final List<String> REASONS = List.of("auth", "credits", "trial-ended", "trial-revoked",
             "trial-credits");
+
+    /** The free plan's two join offers, and the markers that keep each to once per install. */
+    static final String FREE_OFFER = "cloud-plan.join-free-offer";
+    static final String COME_BACK = "cloud-plan.join-come-back";
+    public static final String FREE_OFFER_MARKER = ".join-free-offer";
+    public static final String COME_BACK_MARKER = ".join-come-back";
 
     /** Every {@link #lastCheck}: {@code /nmod status} and {@code /nmod doctor} have a message for each. */
     public static final List<String> LAST_CHECKS = List.of("auth", "credits", "refused");
@@ -72,11 +81,16 @@ public final class CloudPlanNotices {
 
     /**
      * The cloud plan's line, the same on every surface that shows one: its {@code name} ends the message key
-     * ({@code trial}, {@code trial-credits}, {@code trial-ended}, {@code trial-revoked}, {@code standard}), and its
-     * values carry a date as ISO, which each surface writes in the reader's words.
+     * ({@code trial}, {@code trial-credits}, {@code trial-ended}, {@code trial-revoked}, {@code standard}, and for the
+     * free plan {@code free}, {@code free-capped}, {@code free-pending}, {@code free-claimed} and {@code
+     * free-claimed-over}), and its values carry a date as ISO, which each surface writes in the reader's words.
      */
     public record PlanLine(String name, Map<String, String> values) {
     }
+
+    /** Every free plan line's name: each surface that shows plan lines has a message for each. */
+    public static final List<String> FREE_PLAN_LINES = List.of("free", "free-capped", "free-pending", "free-claimed",
+            "free-claimed-over");
 
     /** The plan line for what the trial service said and the last cloud check, or null when nothing was said. */
     public static PlanLine planLine(CloudPlanWatch.Snapshot plan, ModerationApiResult.Kind lastCheck, long nowMillis) {
@@ -89,8 +103,29 @@ public final class CloudPlanNotices {
                 yield new PlanLine(reason.name(), Map.of("date", reason.dateIso(), "url", reason.url()));
             }
             case STANDARD -> new PlanLine("standard", Map.of());
+            case FREE_PLAN -> freePlanLine(status.freePlan(), lastCheck, nowMillis);
             case KEY_REJECTED, UNKNOWN -> null;
         };
+    }
+
+    /**
+     * A free plan's line: today's checks and pictures, with what to do when anything needs doing. An unclaimed plan
+     * whose checks are used up (the service's count, or a check just refused for it) says when they come back; a
+     * claimed one keeps checking at the normal price, and says so once past the cap. A plan waiting on its account's
+     * email says to verify it. {@code date} is the reset, as ISO.
+     */
+    private static PlanLine freePlanLine(FreePlan plan, ModerationApiResult.Kind lastCheck, long nowMillis) {
+        boolean usedUp = plan.checksUsedUp() || lastCheck == ModerationApiResult.Kind.FREE_PLAN_CAPPED;
+        String name = plan.claimed() ? (usedUp ? "free-claimed-over" : "free-claimed")
+                : usedUp ? "free-capped" : plan.claimPending() ? "free-pending" : "free";
+        String resets = plan.resetsAtOr(nowMillis).toString();
+        return new PlanLine(name, Map.of(
+                "checks", String.valueOf(plan.checksToday()),
+                "dailyChecks", String.valueOf(plan.dailyChecks()),
+                "images", String.valueOf(plan.imagesToday()),
+                "dailyImages", String.valueOf(plan.dailyImages()),
+                "date", resets,
+                "time", DateText.utcTime(resets)));
     }
 
     /**
@@ -133,8 +168,35 @@ public final class CloudPlanNotices {
     }
 
     /**
-     * The line an admin gets once on joining, or null. A trial the clock ended but the service has not yet called
-     * ended says nothing yet: it may have been kept in an account in its last hour, and the notice is once per install.
+     * The lines an admin may get on joining, most pressing first; each is shown once per install, so the first whose
+     * marker is still free is the one shown. A running trial the free plan is open to is offered the move once, and an
+     * ended one the way back once ({@code /nmod trial free}, {@code /nmod trial start}), before the trial's own notice.
+     */
+    public static List<Notice> joinNotices(CloudPlanWatch.Snapshot snapshot, long nowMillis) {
+        Notice own = join(snapshot, nowMillis);
+        TrialClient.TrialStatusResult status = snapshot.status();
+        Notice offer = null;
+        if (status != null && status.freePlanOpen() && snapshot.refusal() != ModerationApiResult.Kind.INSUFFICIENT_CREDITS) {
+            if (snapshot.state() == CloudPlanWatch.State.TRIAL_ACTIVE) {
+                offer = new Notice(FREE_OFFER, "/nmod trial free", "");
+            } else if (snapshot.state() == CloudPlanWatch.State.TRIAL_ENDED && status.hasEnded() && !status.isRevoked()) {
+                offer = new Notice(COME_BACK, "/nmod trial start", status.expiresAt());
+            }
+        }
+        List<Notice> notices = new ArrayList<>(2);
+        if (offer != null) {
+            notices.add(offer);
+        }
+        if (own != null) {
+            notices.add(own);
+        }
+        return notices;
+    }
+
+    /**
+     * The trial's own line an admin gets once on joining, or null. A trial the clock ended but the service has not yet
+     * called ended says nothing yet: it may have been kept in an account in its last hour, and the notice is once per
+     * install.
      */
     public static Notice join(CloudPlanWatch.Snapshot snapshot, long nowMillis) {
         TrialClient.TrialStatusResult status = snapshot.status();
@@ -162,10 +224,24 @@ public final class CloudPlanNotices {
         return "." + notice.key().substring(notice.key().lastIndexOf('.') + 1);
     }
 
-    /** The join notice's button: an ended or stopped trial cannot be kept, so its way on is a new account. */
+    /**
+     * The join notice's button: an ended or stopped trial cannot be kept, so its way on is a new account; the free
+     * plan's offers run their command ({@link #runsCommand}).
+     */
     public static String joinButton(Notice notice) {
+        if (notice.key().endsWith("-free-offer")) {
+            return "trial.free-offer-button";
+        }
+        if (notice.key().endsWith("-come-back")) {
+            return "trial.come-back-button";
+        }
         return notice.key().endsWith("-ended") || notice.key().endsWith("-revoked")
                 ? "trial.create-account-button" : "trial.keep-button";
+    }
+
+    /** Whether the notice's button runs a command in game rather than opening a link. */
+    public static boolean runsCommand(Notice notice) {
+        return notice.url().startsWith("/");
     }
 
     /**

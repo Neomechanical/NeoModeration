@@ -20,11 +20,11 @@ import java.util.function.Supplier;
  *
  * <p>Asked when a key is set or changes; on a refusal, at most once in ten minutes; on the first success after an
  * ended trial or a rejected key, as the key may work again; and once an answer is old, every hour while a trial runs
- * (it can be kept in an account at any time), once when a running trial's end date passes, and every six hours
- * otherwise ({@link #refreshIfStale}). Fed by {@code /nmod trial status}. A question that gets no answer (the service
- * unreachable, or an answer this version cannot read) keeps the last one, and the next refresh asks an hour later.
- * Until the service confirms it, a running trial whose end date has passed reads as ended. It never holds the key,
- * only a fingerprint to notice a new one.
+ * or a free plan is unclaimed (either can be kept in an account at any time), once when a running trial's end date
+ * passes, and every six hours otherwise ({@link #refreshIfStale}). Fed by {@code /nmod trial status}. A question that
+ * gets no answer (the service unreachable, or an answer this version cannot read) keeps the last one, and the next
+ * refresh asks an hour later. Until the service confirms it, a running trial whose end date has passed reads as ended.
+ * It never holds the key, only a fingerprint to notice a new one.
  */
 public final class CloudPlanWatch {
 
@@ -44,6 +44,8 @@ public final class CloudPlanWatch {
         TRIAL_ENDED,
         /** A key from an account, or a trial someone kept in one. */
         STANDARD,
+        /** The free plan (1.8.0 on): so many checks a day with no end, claimed by an account or not yet. */
+        FREE_PLAN,
         /** The trial service does not know the key either. */
         KEY_REJECTED
     }
@@ -222,7 +224,7 @@ public final class CloudPlanWatch {
                 boolean endPassed = latest.state() == State.TRIAL_ACTIVE && latest.status().endedBy(now)
                         && !latest.status().endedBy(answeredAt);
                 long limit = latest.state() == State.TRIAL_ACTIVE || latest.state() == State.UNKNOWN
-                        ? TRIAL_REFRESH_MILLIS : REFRESH_MILLIS;
+                        || unclaimedFreePlan(latest) ? TRIAL_REFRESH_MILLIS : REFRESH_MILLIS;
                 if (endPassed || answeredAt == Long.MIN_VALUE || now - answeredAt >= limit) {
                     ask = startAsking(null);
                 }
@@ -342,6 +344,11 @@ public final class CloudPlanWatch {
         }
     }
 
+    /** A free plan nobody has claimed yet, which someone may claim at any time, as a running trial may be kept. */
+    private static boolean unclaimedFreePlan(Snapshot snapshot) {
+        return snapshot.state() == State.FREE_PLAN && !snapshot.status().freePlan().claimed();
+    }
+
     /** A running trial whose end date has passed reads as ended. */
     private Snapshot asOfNow(Snapshot snapshot) {
         if (snapshot.state() == State.TRIAL_ACTIVE && snapshot.status().endedBy(clock.getAsLong())) {
@@ -357,7 +364,7 @@ public final class CloudPlanWatch {
         if (status.isTrial()) {
             return status.hasEnded() ? State.TRIAL_ENDED : State.TRIAL_ACTIVE;
         }
-        return State.STANDARD;
+        return status.onFreePlan() ? State.FREE_PLAN : State.STANDARD;
     }
 
     /** A key's fingerprint as the watch keeps it: none for a blank key. */

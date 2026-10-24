@@ -22,6 +22,13 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class ChatCloudFailureTest {
+
+    /** A coordinator whose calls the test sets, with a real per-player share, which a key that is no free plan never meets. */
+    private static ChatModerationCoordinator coordinatorMock() {
+        ChatModerationCoordinator coordinator = mock(ChatModerationCoordinator.class);
+        when(coordinator.playerBudget()).thenReturn(new PlayerCloudBudget());
+        return coordinator;
+    }
     @ParameterizedTest(name = "{0}, failOpen={1}, cloudMode={2}")
     @MethodSource("cloudResultsAndPolicies")
     void cloudResultsFollowFailurePolicyWithoutAccusingPlayersDuringOutages(
@@ -31,7 +38,7 @@ class ChatCloudFailureTest {
         MessageService messages = mock(MessageService.class);
         when(plugin.messages()).thenReturn(messages);
         when(plugin.settings()).thenReturn(settings);
-        ChatModerationCoordinator coordinator = mock(ChatModerationCoordinator.class);
+        ChatModerationCoordinator coordinator = coordinatorMock();
         DetectionHandler handler = mock(DetectionHandler.class);
         Player player = mock(Player.class);
         when(player.getName()).thenReturn("Tester");
@@ -108,7 +115,7 @@ class ChatCloudFailureTest {
         ModerationSettings settings = settings(false, ModerationMode.ENFORCE);
         NeoModerationPlugin plugin = mock(NeoModerationPlugin.class);
         when(plugin.settings()).thenReturn(settings);
-        ChatModerationCoordinator coordinator = mock(ChatModerationCoordinator.class);
+        ChatModerationCoordinator coordinator = coordinatorMock();
         DetectionHandler handler = mock(DetectionHandler.class);
         Player player = mock(Player.class);
         when(player.getName()).thenReturn("Tester");
@@ -132,7 +139,7 @@ class ChatCloudFailureTest {
         NeoModerationPlugin plugin = mock(NeoModerationPlugin.class);
         when(plugin.settings()).thenReturn(settings);
         when(plugin.messages()).thenReturn(mock(MessageService.class));
-        ChatModerationCoordinator coordinator = mock(ChatModerationCoordinator.class);
+        ChatModerationCoordinator coordinator = coordinatorMock();
         DetectionHandler handler = mock(DetectionHandler.class);
         Player player = mock(Player.class);
         when(player.getName()).thenReturn("Tester");
@@ -165,7 +172,7 @@ class ChatCloudFailureTest {
         when(player.getName()).thenReturn("Tester");
         when(player.getUniqueId()).thenReturn(UUID.randomUUID());
 
-        ChatDecision decision = new ChatModerationProcessor(plugin, mock(ChatModerationCoordinator.class),
+        ChatDecision decision = new ChatModerationProcessor(plugin, coordinatorMock(),
                 mock(PlayerMuteService.class), new SpamDetector(), handler).handleChat(player, "WHO WANTS TO TRADE", true);
 
         assertEquals(ChatDecision.soften("who wants to trade"), decision);
@@ -180,7 +187,7 @@ class ChatCloudFailureTest {
         NeoModerationPlugin plugin = mock(NeoModerationPlugin.class);
         when(plugin.settings()).thenReturn(ModerationSettings.from(new BukkitConfigView(config)));
         Player turkish = com.neomechanical.neomoderation.testing.TestPlugin.player("Ali", "tr_tr");
-        ChatModerationProcessor processor = new ChatModerationProcessor(plugin, mock(ChatModerationCoordinator.class),
+        ChatModerationProcessor processor = new ChatModerationProcessor(plugin, coordinatorMock(),
                 mock(PlayerMuteService.class), new SpamDetector(), mock(DetectionHandler.class));
 
         assertEquals(ChatDecision.soften("ışık nerede"), processor.handleChat(turkish, "IŞIK NEREDE", true));

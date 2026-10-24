@@ -19,16 +19,38 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
- * Handles communication with the Neomechanical 14-day trial activation service.
+ * Handles communication with the Neomechanical trial service: a new install's free plan (1.8.0 on) or 14-day trial,
+ * its status, and a running trial's move onto the free plan.
  *
  * <p>The distributed signature is a public protocol marker, not proof of
  * installation. Trial eligibility and claiming are enforced server-side.
+ *
+ * <p>Status and conversion carry this server's install id in {@value #INSTALL_ID_HEADER}, so a free plan's claim link
+ * goes only to its own install; the moderation API never gets it.
  */
 public final class TrialClient {
     private static final String PLUGIN_SECRET = "nm_trial_sec_2026_eval_sign";
     /** The trial length, as the platform's TRIAL_DURATION_DAYS; used when a reply leaves it out. */
     private static final int TRIAL_DAYS = 14;
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
+    static final String INSTALL_ID_HEADER = "X-NeoModeration-Install-Id";
+    /**
+     * The terms an admin accepts on the start screen ({@code /nmod trial}): the date of Neomechanical's published
+     * terms, which the platform stores with the activation. A date it never published is not stored.
+     */
+    public static final String TERMS_VERSION = "2026-10-12";
+
+    private final Supplier<String> installId;
+
+    /** A client that names no install: status and conversion then carry no install id, and get no claim link. */
+    public TrialClient() {
+        this(() -> "");
+    }
+
+    /** @param installId this server's install id ({@code InstallIdentity}), read when a request needs it */
+    public TrialClient(Supplier<String> installId) {
+        this.installId = installId;
+    }
 
     public static String computeHmac(String installId, long timestampSeconds) {
         try {
@@ -46,7 +68,22 @@ public final class TrialClient {
             String installId,
             String platformInfo
     ) throws TrialException {
-        String body = "{\"installId\":\"" + JsonStrings.escape(installId) + "\",\"platform\":\"" + JsonStrings.escape(platformInfo) + "\"}";
+        return activate(apiSettings, installId, platformInfo, false);
+    }
+
+    /**
+     * Starts this server's cloud plan, having shown the admin the terms ({@link #TERMS_VERSION}). From 1.8.0 a new
+     * install gets the free plan once it is open, else a trial. {@code comeBack}: a trial that ran out asks to come
+     * back on the free plan, once ({@code /nmod trial start} after it ended).
+     */
+    public TrialResult activate(
+            ModerationApiSettings apiSettings,
+            String installId,
+            String platformInfo,
+            boolean comeBack
+    ) throws TrialException {
+        String body = "{\"installId\":\"" + JsonStrings.escape(installId) + "\",\"platform\":\"" + JsonStrings.escape(platformInfo)
+                + "\",\"termsVersion\":\"" + TERMS_VERSION + "\"" + (comeBack ? ",\"plan\":\"free\"" : "") + "}";
         long timestamp = Instant.now().getEpochSecond();
         String hmac = computeHmac(installId, timestamp);
         HttpResponse<String> response = send("Trial", () -> NeomechanicalHttp.request(trialUrl(apiSettings.endpoint()), TIMEOUT)
@@ -60,17 +97,29 @@ public final class TrialClient {
         if (status == 201 || status == 200) {
             return parseSuccess(response.body());
         }
-        throw switch (status) {
-            case 409 -> new TrialException(TrialError.ALREADY_CLAIMED, "Trial has already been claimed for this server");
-            case 429 -> new TrialException(TrialError.RATE_LIMITED, "Trial rate limit reached for this network");
-            case 403 -> new TrialException(TrialError.FORBIDDEN, "Trial is only accessible to verified NeoModeration installations");
-            default -> new TrialException(TrialError.SERVER_ERROR, "HTTP " + status);
-        };
+        throw refusal(response);
+    }
+
+    /**
+     * Moves this server's running trial onto the free plan, keeping its key: the admin said yes in game. Answers the
+     * free plan's status; a refusal names its {@link TrialException#code()} ({@code trial_ended}, {@code
+     * install_mismatch}, {@code free_plan_not_open}...).
+     */
+    public TrialStatusResult convertToFreePlan(ModerationApiSettings apiSettings) throws TrialException {
+        HttpResponse<String> response = send("Free plan", () -> withInstallId(NeomechanicalHttp.withKey(
+                        trialUrl(apiSettings.endpoint()).replaceFirst("/trial$", "/plan"), TIMEOUT, apiSettings.apiKey()))
+                .header("Accept", "application/json")
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"consent\":true}")));
+        if (response.statusCode() == 200) {
+            return parseStatusSuccess(response.body());
+        }
+        throw refusal(response);
     }
 
     public TrialStatusResult fetchTrialStatus(ModerationApiSettings apiSettings) throws TrialException {
-        HttpResponse<String> response = send("Trial status", () -> NeomechanicalHttp.withKey(
-                        trialUrl(apiSettings.endpoint()) + "/status", TIMEOUT, apiSettings.apiKey())
+        HttpResponse<String> response = send("Trial status", () -> withInstallId(NeomechanicalHttp.withKey(
+                        trialUrl(apiSettings.endpoint()) + "/status", TIMEOUT, apiSettings.apiKey()))
                 .header("Accept", "application/json")
                 .GET());
         int status = response.statusCode();
@@ -82,6 +131,74 @@ public final class TrialClient {
         }
         // The trial service itself never answers 403; a proxy in front of it may, and says nothing about the key.
         throw new TrialException(TrialError.SERVER_ERROR, "HTTP " + status);
+    }
+
+    /** The request with this server's install id, when it has one. */
+    private HttpRequest.Builder withInstallId(HttpRequest.Builder request) {
+        String id = installId.get();
+        return id == null || id.isBlank() ? request : request.header(INSTALL_ID_HEADER, id.trim());
+    }
+
+    /**
+     * What a refusal from the trial service means, read from its {@code error} code. An older service, or a proxy,
+     * that names none is read from the status alone, as before 1.8.0.
+     */
+    static TrialException refusal(HttpResponse<String> response) {
+        return refusal(response.statusCode(), response.body(),
+                response.headers().firstValueAsLong("Retry-After").orElse(0L));
+    }
+
+    /** As {@link #refusal(HttpResponse)}, from the status, the body and the Retry-After header's seconds (0: none). */
+    static TrialException refusal(int status, String text, long retryAfterHeader) {
+        JsonObject body = replyObject(text);
+        String code = "";
+        String retryAt = "";
+        if (body != null) {
+            code = lenient(() -> stringField(body, "error", ""), "");
+            retryAt = lenient(() -> stringField(body, "retryAt", ""), "");
+        }
+        long retryAfter = retryAfterSeconds(retryAfterHeader, body);
+        TrialError error = switch (code) {
+            case "trial_already_claimed" -> TrialError.ALREADY_CLAIMED;
+            case "ip_trial_lifetime_limit" -> TrialError.LIFETIME_LIMIT;
+            case "ip_trial_limit_reached" -> TrialError.COOLDOWN;
+            case "trial_activation_busy", "activation_rate_limited", "global_trial_rate_limit" -> TrialError.BUSY;
+            case "free_plan_closed" -> TrialError.FREE_PLAN_CLOSED;
+            case "invalid_api_key", "missing_authorization" -> TrialError.FORBIDDEN;
+            default -> switch (status) {
+                case 409 -> code.isEmpty() ? TrialError.ALREADY_CLAIMED : TrialError.REFUSED;
+                case 429 -> TrialError.RATE_LIMITED;
+                case 401 -> TrialError.FORBIDDEN;
+                case 403 -> code.isEmpty() ? TrialError.FORBIDDEN : TrialError.REFUSED;
+                case 400 -> code.isEmpty() ? TrialError.SERVER_ERROR : TrialError.REFUSED;
+                default -> TrialError.SERVER_ERROR;
+            };
+        };
+        return new TrialException(error, code.isEmpty() ? "HTTP " + status : code, code, retryAt, retryAfter);
+    }
+
+    /** The reply as a JSON object, or null when it is none. */
+    private static JsonObject replyObject(String text) {
+        try {
+            return CloudResponseJson.parseObject(text);
+        } catch (RuntimeException unreadable) {
+            return null;
+        }
+    }
+
+    /** The Retry-After header's seconds, else the reply's {@code retryAfterSeconds}; 0 when neither says. */
+    private static long retryAfterSeconds(long header, JsonObject body) {
+        if (header > 0) {
+            return header;
+        }
+        JsonElement value = body == null ? null : body.get("retryAfterSeconds");
+        try {
+            if (value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isNumber()) {
+                return Math.max(0L, value.getAsLong());
+            }
+        } catch (NumberFormatException ignored) {
+        }
+        return 0L;
     }
 
     /** Sends one request to the trial service; {@code what} ("Trial", "Trial status") names it when no reply came. */
@@ -113,6 +230,12 @@ public final class TrialClient {
         }
         // The key is issued and single-use per install: nothing after this point may lose it, so whatever else this
         // version cannot read falls back. A newer trial service's fields must never strand an install.
+        if (onFreePlan(response)) {
+            // A free plan has no end. Limits this version cannot read show as unknown (0), never as a trial's days.
+            FreePlan plan = FreePlan.read(response);
+            return new TrialResult(apiKey, "", 0, lenient(() -> stringField(response, "claimUrl", ""), ""),
+                    plan != null ? plan : new FreePlan(0, 0, 0, 0, "", false, false));
+        }
         int days = lenient(() -> daysField(response, TRIAL_DAYS), TRIAL_DAYS);
         String expires = lenient(() -> expiresAt(response, days),
                 Instant.now().plus(days, ChronoUnit.DAYS).toString());
@@ -139,6 +262,11 @@ public final class TrialClient {
         return sent.isBlank() ? Instant.now().plus(Math.max(0, daysLeft), ChronoUnit.DAYS).toString() : sent;
     }
 
+    /** A reply about a free plan ({@code plan: "free"}), which carries no trial's end. */
+    private static boolean onFreePlan(JsonObject response) {
+        return "free".equals(lenient(() -> stringField(response, "plan", ""), ""));
+    }
+
     static TrialStatusResult parseStatusSuccess(String body) throws TrialException {
         JsonObject response = responseObject(body);
         JsonElement trial = response.get("isTrial");
@@ -147,6 +275,16 @@ public final class TrialClient {
         }
         boolean isTrial = trial.getAsBoolean();
         String status = stringField(response, "status", "");
+        if (!isTrial && onFreePlan(response)) {
+            FreePlan plan = FreePlan.read(response);
+            if (plan == null || !status.equals("free_plan")) {
+                throw new TrialException(TrialError.INVALID_RESPONSE, "Invalid free plan in trial status response");
+            }
+            // An unclaimed plan's link comes only to its own install; a claimed plan's way to credits is its account.
+            String claimUrl = stringField(response, "claimUrl", "");
+            return new TrialStatusResult(false, status, "", 0,
+                    plan.claimed() ? CloudRecovery.BILLING_URL : claimUrl, "", plan, false);
+        }
         // A trial the platform revoked ends like one that ran out; "revoked" has been sent since the trial service began.
         if ((isTrial && !status.equals("active") && !status.equals("expired") && !status.equals("revoked"))
                 || (!isTrial && !status.equals("standard_workspace"))) {
@@ -155,10 +293,13 @@ public final class TrialClient {
         int days = daysField(response, 0);
         // A trial without a link gets none here, so whoever shows it picks the page for its state (CloudPlanNotices);
         // billing is a key from an account's way on, never a trial's, which has no account to sign in to.
+        JsonElement open = response.get("freePlanOpen");
         return new TrialStatusResult(isTrial, status, expiresAt(response, days), days,
                 stringField(response, "upgradeUrl", stringField(response, "claimUrl",
                         isTrial ? "" : CloudRecovery.BILLING_URL)),
-                lenient(() -> stringField(response, "activatedAt", ""), ""));
+                lenient(() -> stringField(response, "activatedAt", ""), ""), null,
+                isTrial && open != null && open.isJsonPrimitive() && open.getAsJsonPrimitive().isBoolean()
+                        && open.getAsBoolean());
     }
 
     private static JsonObject responseObject(String body) throws TrialException {
@@ -202,7 +343,18 @@ public final class TrialClient {
 
     public enum TrialError {
         ALREADY_CLAIMED,
+        /** Too many requests, for no reason the service named. */
         RATE_LIMITED,
+        /** This network has had its lifetime's trials: the way on is a free account. */
+        LIFETIME_LIMIT,
+        /** A trial started from this network recently: another can start from {@link TrialException#retryAt()}. */
+        COOLDOWN,
+        /** The service is busy: try again after {@link TrialException#retryAfterSeconds()}. */
+        BUSY,
+        /** New free plans are paused; existing ones keep working. */
+        FREE_PLAN_CLOSED,
+        /** Refused for the reason its {@link TrialException#code()} names. */
+        REFUSED,
         FORBIDDEN,
         INVALID_ENDPOINT,
         INVALID_RESPONSE,
@@ -212,35 +364,89 @@ public final class TrialClient {
 
     public static final class TrialException extends Exception {
         private final TrialError error;
+        private final String code;
+        private final String retryAt;
+        private final long retryAfterSeconds;
 
         public TrialException(TrialError error, String message) {
+            this(error, message, "", "", 0L);
+        }
+
+        public TrialException(TrialError error, String message, String code, String retryAt, long retryAfterSeconds) {
             super(message);
             this.error = error;
+            this.code = code == null ? "" : code;
+            this.retryAt = retryAt == null ? "" : retryAt;
+            this.retryAfterSeconds = Math.max(0L, retryAfterSeconds);
         }
 
         public TrialError error() {
             return error;
         }
-    }
 
-    public record TrialResult(String apiKey, String expiresAt, int daysRemaining, String claimUrl) {
-        public TrialResult(String apiKey, String expiresAt, int daysRemaining) {
-            this(apiKey, expiresAt, daysRemaining, CloudRecovery.SIGNUP_URL);
+        /** The service's own code for the refusal ({@code trial_ended}, {@code install_mismatch}...), or empty. */
+        public String code() {
+            return code;
+        }
+
+        /** The day another trial can start from this network (a cooldown), as ISO; empty when none was given. */
+        public String retryAt() {
+            return retryAt;
+        }
+
+        /** How long to wait before asking again; 0 when the service did not say. */
+        public long retryAfterSeconds() {
+            return retryAfterSeconds;
         }
     }
 
+    /**
+     * A started plan: its key, and either a trial's end ({@code freePlan} null) or the free plan ({@code expiresAt}
+     * empty, as a free plan has no end).
+     */
+    public record TrialResult(String apiKey, String expiresAt, int daysRemaining, String claimUrl, FreePlan freePlan) {
+        public TrialResult(String apiKey, String expiresAt, int daysRemaining) {
+            this(apiKey, expiresAt, daysRemaining, CloudRecovery.SIGNUP_URL);
+        }
+
+        public TrialResult(String apiKey, String expiresAt, int daysRemaining, String claimUrl) {
+            this(apiKey, expiresAt, daysRemaining, claimUrl, null);
+        }
+
+        public boolean onFreePlan() {
+            return freePlan != null;
+        }
+    }
+
+    /**
+     * What the trial service says of a key: a trial (running, ended or revoked), the free plan ({@code freePlan}, whose
+     * {@code upgradeUrl} is its claim link while unclaimed on this install, its account's billing once claimed, else
+     * empty) or a key from an account. {@code freePlanOpen}: a trial this install may move onto the free plan now (a
+     * running one with the admin's yes, an ended one once); false when the service does not say.
+     */
     public record TrialStatusResult(
             boolean isTrial,
             String status,
             String expiresAt,
             int daysRemaining,
             String upgradeUrl,
-            String activatedAt
+            String activatedAt,
+            FreePlan freePlan,
+            boolean freePlanOpen
     ) {
         private static final long DAY_MILLIS = TimeUnit.DAYS.toMillis(1);
 
         public TrialStatusResult(boolean isTrial, String status, String expiresAt, int daysRemaining, String upgradeUrl) {
             this(isTrial, status, expiresAt, daysRemaining, upgradeUrl, "");
+        }
+
+        public TrialStatusResult(boolean isTrial, String status, String expiresAt, int daysRemaining, String upgradeUrl,
+                                 String activatedAt) {
+            this(isTrial, status, expiresAt, daysRemaining, upgradeUrl, activatedAt, null, false);
+        }
+
+        public boolean onFreePlan() {
+            return freePlan != null;
         }
 
         public boolean isExpired() {

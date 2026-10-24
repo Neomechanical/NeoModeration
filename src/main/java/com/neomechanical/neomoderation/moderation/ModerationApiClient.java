@@ -1,5 +1,7 @@
 package com.neomechanical.neomoderation.moderation;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.neomechanical.neomoderation.config.ModerationApiSettings;
 import com.neomechanical.neomoderation.config.ModerationCategorySettings;
 
@@ -54,8 +56,34 @@ public final class ModerationApiClient {
         }
         int status = response.statusCode();
         if (status < 200 || status >= 300) {
-            return ModerationApiResult.fromHttpFailureStatus(status);
+            return refusal(response);
         }
         return ChatModerationResponseParser.parseResult(response.body(), categorySettings);
+    }
+
+    /** A refusal, read by the free plan's code in its body and the wait in its Retry-After header (else its body). */
+    static ModerationApiResult refusal(HttpResponse<String> response) {
+        return refusal(response.statusCode(), response.body(),
+                response.headers().firstValueAsLong("Retry-After").orElse(0L));
+    }
+
+    /** As {@link #refusal(HttpResponse)}, from the status, the body and the Retry-After header's seconds (0: none). */
+    static ModerationApiResult refusal(int status, String text, long retryAfterHeader) {
+        String code = "";
+        long wait = retryAfterHeader;
+        try {
+            JsonObject body = CloudResponseJson.parseObject(text);
+            if (body != null) {
+                JsonElement sent = body.get("code");
+                code = sent != null && sent.isJsonPrimitive() && sent.getAsJsonPrimitive().isString() ? sent.getAsString() : "";
+                JsonElement seconds = body.get("retryAfterSeconds");
+                if (wait <= 0 && seconds != null && seconds.isJsonPrimitive() && seconds.getAsJsonPrimitive().isNumber()) {
+                    wait = seconds.getAsLong();
+                }
+            }
+        } catch (RuntimeException unreadable) {
+            // A body this version cannot read (a proxy's page): the status alone says what happened.
+        }
+        return ModerationApiResult.fromRefusal(status, code, wait);
     }
 }

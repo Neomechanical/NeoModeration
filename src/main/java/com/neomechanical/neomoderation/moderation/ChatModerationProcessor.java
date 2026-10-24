@@ -120,6 +120,15 @@ public final class ChatModerationProcessor {
             return passed;
         }
         String checked = text;
+        if (!coordinator.playerBudget().tryTake(player.getUniqueId(), freePlanDailyChecks(), System.currentTimeMillis())) {
+            // This player used their share of the free plan's day: local rules alone check them until 00:00 UTC. A
+            // server that set failOpen to false holds their chat instead, as it would any message the cloud cannot check.
+            if (!settings.failOpen() && settings.cloudMode() == ModerationMode.ENFORCE && mayWait) {
+                plugin.messages().send(player, "chat.cloud-unavailable");
+                return ChatDecision.block();
+            }
+            return passed;
+        }
         if (settings.cloudMode() == ModerationMode.MONITOR || !mayWait) {
             // The cloud can only alert staff here, so the message goes now and the answer follows it.
             coordinator.checkInBackground(player, checked, settings, lateAnswer(player, checked, false));
@@ -140,6 +149,13 @@ public final class ChatModerationProcessor {
                 handler.handle(player, "chat", cloudResult.reason(), checked, DetectionHandler.Disposition.BLOCK,
                         DetectionHandler.Source.CLOUD),
                 null);
+    }
+
+    /** The free plan's checks a day, which each player gets a share of; 0 for any other key, which has no day. */
+    private int freePlanDailyChecks() {
+        CloudPlanWatch watch = plugin.cloudPlan();
+        CloudPlanWatch.Snapshot plan = watch == null ? CloudPlanWatch.Snapshot.UNKNOWN : watch.current();
+        return plan.state() == CloudPlanWatch.State.FREE_PLAN ? plan.status().freePlan().dailyChecks() : 0;
     }
 
     /** Drops what is held for a player who left, such as the fragments of a split message. */

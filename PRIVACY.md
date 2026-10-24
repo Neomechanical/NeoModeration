@@ -24,7 +24,7 @@ leaves your server**:
 
 ## What the cloud receives (only when you add an API key)
 
-When you start the trial (`/nmod trial start`) or add a key
+When you start free cloud checks (`/nmod trial start`) or add a key
 (`/nmod setup <apiKey>`), each checked chat message (or scanned map image) is
 sent over HTTPS to the configured endpoint (default
 `https://api.neomechanical.com/v1/events`). The request contains:
@@ -69,12 +69,19 @@ happened, the rule, what was done and, unless `includeMessage` is `false`, a
 short preview of the message. Nothing goes to Discord until you set a webhook;
 `/nmod discord off` stops it.
 
-## The trial request
+## Starting free cloud checks
 
-`/nmod trial start` sends Neomechanical a random install ID and the server
-software and version. The ID is kept in `plugins/NeoModeration/.install-id`, so
-each server can claim one trial. `/nmod trial status` sends only the key. Neither
-carries anything about players.
+`/nmod trial start` sends Neomechanical a random install ID, the server
+software and version, and the date of the terms you accepted on its start screen.
+The ID is kept in `plugins/NeoModeration/.install-id`, so each server gets one
+free plan or trial. `/nmod trial status` and `/nmod trial free` (which moves a
+running trial to the free plan) send the key and the same install ID, so a free
+plan's sign-up link goes only to its own server. None of these carries anything
+about players.
+
+The plugin also keeps the date it was first installed in
+`plugins/NeoModeration/.first-start` (or `unknown` on a server that upgraded
+from before 1.8.0). It stays on your server; only its age bucket goes to bStats.
 
 ## Update check
 
@@ -87,8 +94,11 @@ User-Agent; it carries nothing about your players. Turn it off with
 ## Plugin usage metrics
 
 NeoModeration uses [bStats](https://bstats.org/plugin/bukkit/NeoModeration/32542)
-with standard technical metrics and 19 plugin-specific aggregate charts. These
-report local/cloud modes, cloud health, configuration state, platform family,
+with standard technical metrics and 23 plugin-specific aggregate charts. These
+report local/cloud modes, cloud health, the cloud plan (none, trial, free plan
+or account), which free plan offers an admin was shown, why a start of cloud
+checks was refused, how long ago the plugin was installed (in wide buckets),
+configuration state, platform family,
 detection count buckets, chat detections per thousand messages, chat messages a
 day (in wide buckets), how many words are allowed, the share of online players
 whose game language is neither the server's nor English, and whether those

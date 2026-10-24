@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -66,7 +67,7 @@ class TrialCmdTest {
 
         new TrialCmd(plugin, trialClient).execute(sender, "nmod", new String[]{"trial"});
 
-        verify(trialClient, never()).activateTrial(any(), any(), any());
+        verify(trialClient, never()).activate(any(), any(), any(), anyBoolean());
         assertTrue(lines().contains("[NeoMod] Cloud trial until 22 October 2026. Days left: 12"),
                 String.join("\n", lines()));
     }
@@ -79,7 +80,8 @@ class TrialCmdTest {
 
         verifyNoInteractions(trialClient);
         String transcript = String.join("\n", lines());
-        assertTrue(transcript.contains("each chat message and map picture goes to Neomechanical"), transcript);
+        assertTrue(transcript.contains("Each chat message and map picture goes to Neomechanical"), transcript);
+        assertTrue(transcript.contains("Starting accepts the terms at https://neomechanical.com/terms"), transcript);
         assertTrue(transcript.contains("Cloud decisions only alert staff until you run /nmod cloudmode enforce"),
                 transcript);
         assertTrue(lines().contains("  Run /nmod trial start to begin."), transcript);
@@ -88,18 +90,18 @@ class TrialCmdTest {
     @Test
     void startingTheTrialSavesTheKeyAndLeavesModerationAsTheAdminSetIt() throws Exception {
         NeoModerationPlugin plugin = plugin("");
-        when(trialClient.activateTrial(any(), any(), any()))
+        when(trialClient.activate(any(), any(), any(), anyBoolean()))
                 .thenReturn(new TrialClient.TrialResult("nmt_trial_key_999", "2026-10-15T00:00:00Z", 14));
 
         new TrialCmd(plugin, trialClient).execute(sender, "nmod", new String[]{"trial", "start"});
 
-        verify(trialClient).activateTrial(any(), any(), eq("Paper 1.21.4"));
+        verify(trialClient).activate(any(), any(), eq("Paper 1.21.4"), eq(false));
         verify(plugin).editConfig(any());
         assertEquals(null, config.get("moderation.enabled"), "a trial never switches moderation on by itself");
         assertEquals("nmt_trial_key_999", config.get("moderation.api.apiKey"));
         assertEquals("monitor", config.get("moderation.cloudMode"));
         assertEquals(List.of(
-                "[NeoMod] Starting your free 14-day cloud trial...",
+                "[NeoMod] Starting free cloud checks...",
                 "[NeoMod] Your 14-day cloud trial is on until 15 October 2026.",
                 "[NeoMod] Cloud decisions alert staff first. Run /nmod cloudmode enforce when you trust them.",
                 "[NeoMod] Moderation is off, so nothing is checked yet. Run /nmod on when you are ready.",
@@ -109,7 +111,7 @@ class TrialCmdTest {
     @Test
     void activationDoesNotOverwriteAKeyConfiguredDuringTheRequest() throws Exception {
         NeoModerationPlugin plugin = plugin("");
-        when(trialClient.activateTrial(any(), any(), any())).thenAnswer(call -> {
+        when(trialClient.activate(any(), any(), any(), anyBoolean())).thenAnswer(call -> {
             config.set("moderation.api.apiKey", "owner-configured-key");
             when(plugin.settings()).thenReturn(ModerationSettings.from(new BukkitConfigView(config)));
             return new TrialClient.TrialResult("nmt_trial_key_999", "2026-10-15T00:00:00Z", 14);
@@ -119,7 +121,7 @@ class TrialCmdTest {
 
         assertEquals("owner-configured-key", config.get("moderation.api.apiKey"));
         assertEquals(null, config.get("moderation.cloudMode"), "nothing of the trial was written");
-        assertTrue(lines().get(lines().size() - 1).startsWith("[NeoMod] The cloud settings changed while the trial"),
+        assertTrue(lines().get(lines().size() - 1).startsWith("[NeoMod] The cloud settings changed while cloud checks started"),
                 String.join("\n", lines()));
         verify(plugin).finishTrialActivation();
     }
@@ -132,13 +134,13 @@ class TrialCmdTest {
         new TrialCmd(plugin, trialClient).execute(sender, "nmod", new String[]{"trial", "start"});
 
         verifyNoInteractions(trialClient);
-        assertEquals(List.of("[NeoMod] A trial is already starting. Wait for it to finish."), lines());
+        assertEquals(List.of("[NeoMod] Cloud checks are already starting. Wait for them to finish."), lines());
     }
 
     @Test
     void alreadyClaimedSendsTheAdminToSignUpNotToBilling() throws Exception {
         NeoModerationPlugin plugin = plugin("");
-        when(trialClient.activateTrial(any(), any(), any()))
+        when(trialClient.activate(any(), any(), any(), anyBoolean()))
                 .thenThrow(new TrialClient.TrialException(TrialClient.TrialError.ALREADY_CLAIMED, "claimed"));
 
         new TrialCmd(plugin, trialClient).execute(sender, "nmod", new String[]{"trial", "start"});
@@ -153,7 +155,7 @@ class TrialCmdTest {
     @Test
     void rateLimitedShowsRateLimitMessage() throws Exception {
         NeoModerationPlugin plugin = plugin("");
-        when(trialClient.activateTrial(any(), any(), any()))
+        when(trialClient.activate(any(), any(), any(), anyBoolean()))
                 .thenThrow(new TrialClient.TrialException(TrialClient.TrialError.RATE_LIMITED, "rate limit"));
 
         new TrialCmd(plugin, trialClient).execute(sender, "nmod", new String[]{"trial", "start"});
@@ -165,7 +167,7 @@ class TrialCmdTest {
     @Test
     void otherFailuresSayWhatWentWrongInWords() throws Exception {
         NeoModerationPlugin plugin = plugin("");
-        when(trialClient.activateTrial(any(), any(), any()))
+        when(trialClient.activate(any(), any(), any(), anyBoolean()))
                 .thenThrow(new TrialClient.TrialException(TrialClient.TrialError.TRANSPORT_ERROR, "timeout"));
 
         new TrialCmd(plugin, trialClient).execute(sender, "nmod", new String[]{"trial", "start"});
@@ -180,7 +182,7 @@ class TrialCmdTest {
             CommandSender reader = mock(CommandSender.class);
             NeoModerationPlugin plugin = plugin("");
             // doThrow, because when() would call the mock and meet the previous round's exception.
-            doThrow(new TrialClient.TrialException(error, "test")).when(trialClient).activateTrial(any(), any(), any());
+            doThrow(new TrialClient.TrialException(error, "test")).when(trialClient).activate(any(), any(), any(), anyBoolean());
 
             new TrialCmd(plugin, trialClient).execute(reader, "nmod", new String[]{"trial", "start"});
 
@@ -209,7 +211,7 @@ class TrialCmdTest {
         new TrialCmd(plugin, trialClient).execute(sender, "nmod", new String[]{"trial", "status"});
 
         assertEquals(List.of(
-                "[NeoMod] Checking the cloud trial...",
+                "[NeoMod] Checking the cloud plan...",
                 "[NeoMod] Cloud trial until 22 October 2026. Days left: 12",
                 KEEP_IN_GAME), lines(), "nothing caught yet says nothing");
     }
@@ -223,7 +225,7 @@ class TrialCmdTest {
         new TrialCmd(plugin, trialClient).execute(sender, "nmod", new String[]{"trial", "status"});
 
         assertEquals(List.of(
-                "[NeoMod] Checking the cloud trial...",
+                "[NeoMod] Checking the cloud plan...",
                 "[NeoMod] The cloud trial ended on 1 October 2026. Local rules still run. To keep cloud checks, "
                         + "create a free account, then a key, and run /nmod setup <key>.",
                 "  [Create a free account] https://neomechanical.com/signup?src=neomoderation"), lines());
@@ -235,7 +237,7 @@ class TrialCmdTest {
 
         new TrialCmd(plugin, trialClient).execute(sender, "nmod", new String[]{"trial", "status"});
 
-        assertEquals(List.of("[NeoMod] No cloud key yet. Run /nmod trial for a free 14-day trial."), lines());
+        assertEquals(List.of("[NeoMod] No cloud key yet. Run /nmod trial for free cloud checks."), lines());
         verifyNoInteractions(trialClient);
     }
 
@@ -248,7 +250,7 @@ class TrialCmdTest {
         new TrialCmd(plugin, trialClient).execute(sender, "nmod", new String[]{"trial", "status"});
 
         assertEquals(List.of(
-                "[NeoMod] Checking the cloud trial...",
+                "[NeoMod] Checking the cloud plan...",
                 "[NeoMod] The cloud trial was stopped. Local rules still run. To keep cloud checks, create a free "
                         + "account, then a key, and run /nmod setup <key>.",
                 "  [Create a free account] https://neomechanical.com/signup?src=neomoderation"), lines());
@@ -275,7 +277,7 @@ class TrialCmdTest {
         new TrialCmd(plugin, trialClient).execute(sender, "nmod", new String[]{"trial", "status"});
 
         assertEquals(List.of(
-                "[NeoMod] Checking the cloud trial...",
+                "[NeoMod] Checking the cloud plan...",
                 "[NeoMod] Could not read the cloud trial: the key was rejected."), lines(),
                 "nothing was started, so it is not \"the trial didn't start\"");
         assertEquals(CloudPlanWatch.State.KEY_REJECTED, plugin.cloudPlan().state());
@@ -293,7 +295,7 @@ class TrialCmdTest {
         new TrialCmd(plugin, trialClient).execute(sender, "nmod", new String[]{"trial", "status"});
 
         assertEquals(List.of(
-                "[NeoMod] Checking the cloud trial...",
+                "[NeoMod] Checking the cloud plan...",
                 "[NeoMod] Cloud trial until 22 October 2026. Days left: 12",
                 "[NeoMod] The trial's credits are used up. Keep it in a free account first, then add credits there.",
                 KEEP_IN_GAME), lines());
@@ -303,7 +305,7 @@ class TrialCmdTest {
     @Test
     void startingTheTrialFromTheConsoleNeverPrintsItsClaimLink() throws Exception {
         NeoModerationPlugin plugin = plugin("");
-        when(trialClient.activateTrial(any(), any(), any()))
+        when(trialClient.activate(any(), any(), any(), anyBoolean()))
                 .thenReturn(new TrialClient.TrialResult("nmt_trial_key_999", "2026-10-15T00:00:00Z", 14, CLAIM));
 
         new TrialCmd(plugin, trialClient).execute(sender, "nmod", new String[]{"trial", "start"});
@@ -349,6 +351,6 @@ class TrialCmdTest {
     }
 
     private static final String CLAIM = "https://neomechanical.com/signup?trial=t&src=neomoderation_trial";
-    private static final String KEEP_IN_GAME = "  To keep the trial, run /nmod trial status in game and click [Keep cloud moderation]. Whoever opens its link "
-                        + "first owns the trial, so the server log never shows it.";
+    private static final String KEEP_IN_GAME = "  To keep it in an account, run /nmod trial status in game and click [Keep cloud moderation]. Whoever opens its "
+                        + "link first owns it, so the server log never shows it.";
 }

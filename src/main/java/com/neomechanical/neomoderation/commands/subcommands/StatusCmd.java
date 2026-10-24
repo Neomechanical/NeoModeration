@@ -17,6 +17,7 @@ import com.neomechanical.neomoderation.moderation.ModerationApiResult;
 import com.neomechanical.neomoderation.moderation.ModerationCoverage;
 import org.bukkit.command.CommandSender;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -110,13 +111,23 @@ public class StatusCmd implements SubCommand {
         sendPlanLine(messages, sender, plan, last, plugin.cloudPlan().now());
         String lastCheck = cloudStatusKey(last, plan);
         if (lastCheck != null) {
+            String backAt = plugin.coordinator().freeChecksBackAt().map(Instant::toString).orElse("");
             messages.send(sender, lastCheck, Map.of(
                     "keysUrl", CloudRecovery.API_KEYS_URL,
-                    "billingUrl", CloudRecovery.BILLING_URL));
+                    "billingUrl", CloudRecovery.BILLING_URL,
+                    "issuesUrl", CloudRecovery.ISSUES_URL,
+                    "date", DateText.of(messages, sender, backAt),
+                    "time", DateText.utcTime(backAt)));
         }
+        plugin.coordinator().freePicturesBackAt().ifPresent(back -> messages.send(sender, "status.cloud-free-pictures",
+                Map.of("date", DateText.of(messages, sender, back.toString()), "time", DateText.utcTime(back.toString()))));
         long busy = plugin.coordinator().busySkipped();
         if (busy > 0) {
             messages.send(sender, "status.cloud-busy", Map.of("count", String.valueOf(busy)));
+        }
+        long overShare = plugin.coordinator().playerBudget().skipped();
+        if (overShare > 0) {
+            messages.send(sender, "status.cloud-player-share", Map.of("count", String.valueOf(overShare)));
         }
     }
 
@@ -181,8 +192,12 @@ public class StatusCmd implements SubCommand {
             case CLIENT_AUTH, INSUFFICIENT_CREDITS ->
                     "status.cloud-" + CloudPlanNotices.lastCheck(CloudPlanNotices.refusal(plan, kind));
             case CLIENT_REQUEST -> "status.cloud-request-error";
-            // A busy server is counted on its own line, never recorded as the cloud's result.
-            case TRANSIENT_TRANSPORT, OVERLOADED -> "status.cloud-transient";
+            // The free plan's line says when its checks come back; without one, this line does.
+            case FREE_PLAN_CAPPED -> plan.state() == CloudPlanWatch.State.FREE_PLAN ? null : "status.cloud-free-capped";
+            case FREE_PLAN_REQUEST_SHAPE -> "status.cloud-free-plan-bug";
+            // A busy server is counted on its own line, never recorded as the cloud's result; nor are the free plan's
+            // picture allowance (its own line) and busy minutes, which pass on their own.
+            case TRANSIENT_TRANSPORT, OVERLOADED, FREE_PLAN_PICTURES, FREE_PLAN_BUSY -> "status.cloud-transient";
         };
     }
 }
