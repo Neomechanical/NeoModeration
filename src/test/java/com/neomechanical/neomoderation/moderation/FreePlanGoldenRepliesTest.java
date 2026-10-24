@@ -72,7 +72,8 @@ class FreePlanGoldenRepliesTest {
         for (String needed : new String[]{"activation 201 free plan", "activation 201 trial",
                 "activation 429 free_plan_closed", "activation 429 ip_trial_limit_reached (the trial's 429)",
                 "conversion 200", "conversion 403 install_mismatch", "status 200 free plan, unclaimed",
-                "status 200 free plan, claimed", "status 200 trial, free plan open", "429 free_plan_daily_cap",
+                "status 200 free plan, claimed", "status 200 free plan, revoked", "status 200 trial, free plan open",
+                "429 free_plan_daily_cap",
                 "429 free_plan_image_allowance", "429 free_plan_busy (budget, at admission)",
                 "intake 400 free_plan_request_shape"}) {
             assertTrue(entries.contains(needed), "missing " + needed + " in " + entries);
@@ -110,6 +111,11 @@ class FreePlanGoldenRepliesTest {
             assertEquals(CloudPlanWatch.State.FREE_PLAN, CloudPlanWatch.classify(status), entry);
             assertEquals(7, status.freePlan().checksToday(), entry);
         }
+        JsonObject revoked = sample("status 200 free plan, revoked", golden.getAsJsonObject("status 200 free plan, revoked")
+                .getAsJsonObject("body"), Map.of("plan", new JsonPrimitive("free"), "status", new JsonPrimitive("revoked"),
+                "isTrial", new JsonPrimitive(false)));
+        TrialClient.TrialStatusResult stopped = TrialClient.parseStatusSuccess(revoked.toString());
+        assertEquals(CloudPlanWatch.State.FREE_PLAN_ENDED, CloudPlanWatch.classify(stopped), "a stopped free plan");
         JsonObject trial = sample("status 200 trial, free plan open", golden.getAsJsonObject("status 200 trial, free plan open")
                 .getAsJsonObject("body"), Map.of("isTrial", new JsonPrimitive(true), "status", new JsonPrimitive("active"),
                 "freePlanOpen", new JsonPrimitive(true)));

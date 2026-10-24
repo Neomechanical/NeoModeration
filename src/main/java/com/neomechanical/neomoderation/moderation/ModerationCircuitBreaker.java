@@ -129,6 +129,20 @@ public final class ModerationCircuitBreaker {
         }
     }
 
+    /**
+     * The free plan's checks are no longer held for the day: its plan was claimed, so checks past the cap are billed to
+     * its account and go on now.
+     */
+    public void freeChecksBack() {
+        synchronized (lock) {
+            cappedUntilMillis = 0L;
+            loggedFailures.remove(ModerationApiResult.Kind.FREE_PLAN_CAPPED);
+            if (lastResultKind == ModerationApiResult.Kind.FREE_PLAN_CAPPED) {
+                lastResultKind = null;
+            }
+        }
+    }
+
     /** When the free plan's checks come back, while today's are used up; empty otherwise. */
     public Optional<Instant> cappedUntil() {
         synchronized (lock) {

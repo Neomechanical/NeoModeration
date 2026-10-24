@@ -72,4 +72,21 @@ class FreePlanNoticesTest {
         assertEquals("00:00", capped.values().get("time"));
         assertNull(CloudPlanNotices.refusal(plan, ModerationApiResult.Kind.FREE_PLAN_CAPPED), "the cap is no refusal");
     }
+
+    @Test
+    void aStoppedFreePlanReadsAsStoppedWithTheWayToAnAccountNeverAsAWorkingPlan() throws Exception {
+        TrialClient.TrialStatusResult stopped = TrialClient.parseStatusSuccess("{\"authorized\":true,\"exists\":true,"
+                + "\"isTrial\":false,\"active\":false,\"expired\":true,\"plan\":\"free\",\"status\":\"revoked\"}");
+        assertTrue(stopped.freePlanEnded());
+        CloudPlanWatch.Snapshot plan = snapshot(stopped);
+        assertEquals(CloudPlanWatch.State.FREE_PLAN_ENDED, plan.state());
+        assertEquals("free-ended", CloudPlanNotices.planLine(plan, null, NOW).name());
+        CloudPlanNotices.Reason refused = CloudPlanNotices.refusal(plan, ModerationApiResult.Kind.CLIENT_AUTH);
+        assertEquals("free-ended", refused.name());
+        assertEquals(CloudRecovery.SIGNUP_URL, refused.url());
+        assertEquals("refused", CloudPlanNotices.lastCheck(refused), "the plan line says why");
+        assertEquals("free-ended", CloudPlanNotices.knownProblem(plan).name());
+        assertTrue(TrialClient.parseStatusSuccess("{\"isTrial\":false,\"status\":\"expired\",\"plan\":\"free\"}")
+                .freePlanEnded(), "ended by a key rotation too");
+    }
 }

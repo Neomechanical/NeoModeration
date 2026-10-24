@@ -65,8 +65,16 @@ public final class CloudWiring {
         }
     }
 
+    /** A free plan an account now holds: checks held for today's cap go on, billed to the account. */
+    public static void freePlanAnswered(ChatModerationCoordinator coordinator, CloudPlanWatch.Snapshot snapshot) {
+        if (snapshot.state() == CloudPlanWatch.State.FREE_PLAN && snapshot.status().freePlan().claimed()) {
+            coordinator.freePlanClaimed();
+        }
+    }
+
     /** What the trial service said about the key, told to the console once for each notice. */
     private void tellConsole(CloudPlanWatch.Snapshot snapshot, ModerationApiResult.Kind refusal) {
+        freePlanAnswered(coordinator, snapshot);
         CloudPlanNotices.Notice notice = notices.next(snapshot, refusal);
         if (notice == null) {
             return;

@@ -155,6 +155,18 @@
       "status": "string"
     }
   },
+  "status 200 free plan, revoked": {
+    "status": 200,
+    "body": {
+      "active": "boolean",
+      "authorized": "boolean",
+      "exists": "boolean",
+      "expired": "boolean",
+      "isTrial": "boolean",
+      "plan": "string",
+      "status": "string"
+    }
+  },
   "status 200 free plan, unclaimed": {
     "status": 200,
     "body": {

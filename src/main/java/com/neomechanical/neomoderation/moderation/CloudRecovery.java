@@ -8,6 +8,7 @@ package com.neomechanical.neomoderation.moderation;
  */
 public final class CloudRecovery {
     public static final String SIGNUP_URL = "https://neomechanical.com/signup?src=neomoderation";
+    public static final String SIGN_IN_URL = "https://neomechanical.com/login?src=neomoderation";
     public static final String API_KEYS_URL = "https://neomechanical.com/api-keys?src=neomoderation";
     public static final String BILLING_URL = "https://neomechanical.com/billing?src=neomoderation_credits";
     /** The terms starting a cloud plan accepts, and the policy that says how its data is handled. */

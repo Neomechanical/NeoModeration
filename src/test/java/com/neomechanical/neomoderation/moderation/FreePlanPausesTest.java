@@ -121,4 +121,14 @@ class FreePlanPausesTest {
         assertEquals(ModerationApiResult.Kind.FREE_PLAN_REQUEST_SHAPE, breaker.lastResultKind());
         assertTrue(breaker.shouldCallAutomatically(), "chat goes on with local rules and the next checks");
     }
+
+    @Test
+    void aPlanClaimedAfterItsCapChecksAgainAtOnce() {
+        breaker.record(refused("free_plan_daily_cap", 3600));
+        assertFalse(breaker.shouldCallAutomatically());
+        breaker.freeChecksBack();
+        assertTrue(breaker.shouldCallAutomatically(), "its account now pays past the cap");
+        assertTrue(breaker.cappedUntil().isEmpty());
+        assertNull(breaker.lastResultKind());
+    }
 }

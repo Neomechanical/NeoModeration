@@ -149,6 +149,11 @@ public final class ChatModerationCoordinator implements AutoCloseable {
         return circuit.shouldCheckPictures();
     }
 
+    /** The free plan was claimed: checks past its cap are billed, so they go on now ({@link CloudWiring}). */
+    public void freePlanClaimed() {
+        circuit.freeChecksBack();
+    }
+
     /** When the free plan's checks come back, while today's are used up. */
     public Optional<Instant> freeChecksBackAt() {
         return circuit.cappedUntil();

@@ -170,6 +170,11 @@ public final class Reasons {
     }
 
     /** The statistics bucket of a reason, as /nmod mode lists it. */
+    /** A map held because the cloud could not check it (mapArt.failClosed): nobody judged it. */
+    public static boolean unchecked(String reason) {
+        return reason != null && reason.endsWith(":unchecked");
+    }
+
     public static String bucket(String reason) {
         Parsed parsed = parse(reason);
         return switch (parsed.kind()) {

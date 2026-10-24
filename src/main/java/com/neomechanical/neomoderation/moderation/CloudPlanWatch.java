@@ -46,6 +46,8 @@ public final class CloudPlanWatch {
         STANDARD,
         /** The free plan (1.8.0 on): so many checks a day with no end, claimed by an account or not yet. */
         FREE_PLAN,
+        /** A free plan whose key no longer works (revoked, or ended by a key rotation): its way on is an account. */
+        FREE_PLAN_ENDED,
         /** The trial service does not know the key either. */
         KEY_REJECTED
     }
@@ -192,10 +194,11 @@ public final class CloudPlanWatch {
             latest = latest.withRefusal(null);
             State state = asOfNow(latest).state();
             long now = clock.getAsLong();
-            if ((state == State.TRIAL_ENDED || state == State.KEY_REJECTED) && inFlight != null) {
+            boolean stopped = state == State.TRIAL_ENDED || state == State.KEY_REJECTED || state == State.FREE_PLAN_ENDED;
+            if (stopped && inFlight != null) {
                 // The question out was asked before the key worked: its answer is old the moment it lands.
                 inFlight.outdatedBySuccess = true;
-            } else if (state == State.TRIAL_ENDED || state == State.KEY_REJECTED) {
+            } else if (stopped) {
                 if (lastRecheck == Long.MIN_VALUE || now - lastRecheck >= RECHECK_MILLIS) {
                     lastRecheck = now;
                     lastRecheckFor = null;
@@ -363,6 +366,9 @@ public final class CloudPlanWatch {
         }
         if (status.isTrial()) {
             return status.hasEnded() ? State.TRIAL_ENDED : State.TRIAL_ACTIVE;
+        }
+        if (status.freePlanEnded()) {
+            return State.FREE_PLAN_ENDED;
         }
         return status.onFreePlan() ? State.FREE_PLAN : State.STANDARD;
     }

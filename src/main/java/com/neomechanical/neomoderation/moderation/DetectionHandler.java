@@ -86,8 +86,9 @@ public final class DetectionHandler {
         Disposition effective = alertOnly ? Disposition.ALLOW : requested;
         int strike = 0;
         List<ModerationAction> actions = new ArrayList<>();
-        // Strikes and actions are for abuse. Spam is only blocked, so a flood of "gg" never mutes or kicks anyone.
-        if (!alertOnly && !"spam".equals(Reasons.bucket(reason))) {
+        // Strikes and actions are for abuse. Spam is only blocked, so a flood of "gg" never mutes or kicks anyone, and a
+        // map held only because the cloud could not check it (mapArt.failClosed) was judged by nobody.
+        if (!alertOnly && !"spam".equals(Reasons.bucket(reason)) && !Reasons.unchecked(reason)) {
             StrikeService.Result result =
                     strikes.recordStrike(player.getUniqueId(), settings.strikes(), System.currentTimeMillis());
             strike = result.strikes();

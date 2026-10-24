@@ -235,7 +235,9 @@ moderation:
     checksPerPlayerPerHour: 30
     # Treat a new map the cloud cannot check as a flagged one: the free plan's
     # pictures for today are used up, the cloud is paused, or the player has
-    # spent their hourly allowance. When false, such a map stays unchecked.
+    # spent their hourly allowance. It is taken only with confiscate: true, and
+    # the player gets no strike, since nobody judged it. When false, such a map
+    # stays unchecked.
     failClosed: false
 
   # ---- Extra actions after a message is blocked ---------------------------

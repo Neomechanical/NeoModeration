@@ -11,6 +11,7 @@ import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.moderation.CloudPlanNotices;
 import com.neomechanical.neomoderation.moderation.CloudPlanWatch;
 import com.neomechanical.neomoderation.moderation.CloudRecovery;
+import com.neomechanical.neomoderation.moderation.CloudWiring;
 import com.neomechanical.neomoderation.moderation.FreePlan;
 import com.neomechanical.neomoderation.moderation.TrialClient;
 import com.neomechanical.neomoderation.platform.InstallIdentity;
@@ -139,7 +140,9 @@ public class TrialCmd implements SubCommand {
             try {
                 return trialClient.activate(api, installId, platform, comeBack);
             } catch (TrialClient.TrialException e) {
-                if (e.error() != TrialClient.TrialError.BUSY || attempt >= BUSY_ATTEMPTS) {
+                // A wait longer than the backoff allows (the hourly cap's ten minutes) is said at once, not waited out.
+                if (e.error() != TrialClient.TrialError.BUSY || attempt >= BUSY_ATTEMPTS
+                        || e.retryAfterSeconds() > MAX_BUSY_WAIT_SECONDS) {
                     throw e;
                 }
                 long wait = busyWait(e.retryAfterSeconds(), attempt);
@@ -218,9 +221,8 @@ public class TrialCmd implements SubCommand {
                     }
                 });
             } catch (TrialClient.TrialException e) {
-                if (e.error() == TrialClient.TrialError.FORBIDDEN) {
-                    plugin.cloudPlan().rejected(api.apiKey());
-                }
+                // A 401 from the move says only that the key is no trial's (an account's key gets one too), so the
+                // plan watch is not told the key was rejected.
                 reply(sender, () -> sendFailure(sender, e));
             }
         });
@@ -251,6 +253,7 @@ public class TrialCmd implements SubCommand {
             try {
                 TrialClient.TrialStatusResult status = trialClient.fetchTrialStatus(api);
                 plugin.cloudPlan().accept(api.apiKey(), status);
+                CloudWiring.freePlanAnswered(plugin.coordinator(), plugin.cloudPlan().current());
                 long caught = TrialPromptSupport.caughtDuringTrial(plugin, status);
                 reply(sender, () -> sendStatus(sender, status, caught));
             } catch (TrialClient.TrialException e) {
@@ -266,6 +269,12 @@ public class TrialCmd implements SubCommand {
         MessageService messages = plugin.messages();
         if (status.onFreePlan()) {
             sendFreePlanStatus(sender, status);
+            return;
+        }
+        if (status.freePlanEnded()) {
+            // A stopped free plan cannot come back: its way on is a new account.
+            messages.send(sender, "trial.status-free-ended");
+            sendButton(sender, "trial.create-account-button", CloudRecovery.SIGNUP_URL);
             return;
         }
         if (!status.isTrial()) {
@@ -390,7 +399,9 @@ public class TrialCmd implements SubCommand {
             case RATE_LIMITED -> messages.send(sender, "trial.rate-limited", signup);
             case REFUSED -> {
                 if (REFUSAL_CODES.contains(e.code())) {
-                    messages.send(sender, "trial.refused-" + e.code(), signup);
+                    // A trial in an account is managed by signing in to it, never by a new sign-up.
+                    messages.send(sender, "trial.refused-" + e.code(), e.code().equals("trial_claimed")
+                            ? Map.of("url", CloudRecovery.SIGN_IN_URL) : signup);
                 } else {
                     messages.send(sender, "trial.failed", Map.of("error", e.code()));
                 }

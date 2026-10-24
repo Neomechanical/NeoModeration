@@ -275,6 +275,10 @@ public final class TrialClient {
         }
         boolean isTrial = trial.getAsBoolean();
         String status = stringField(response, "status", "");
+        if (!isTrial && onFreePlan(response) && (status.equals("revoked") || status.equals("expired"))) {
+            // A free plan whose key was revoked, or given an end by a rotation that passed: its way on is an account.
+            return new TrialStatusResult(false, status, "", 0, CloudRecovery.SIGNUP_URL, "", null, false);
+        }
         if (!isTrial && onFreePlan(response)) {
             FreePlan plan = FreePlan.read(response);
             if (plan == null || !status.equals("free_plan")) {
@@ -447,6 +451,11 @@ public final class TrialClient {
 
         public boolean onFreePlan() {
             return freePlan != null;
+        }
+
+        /** A free plan whose key no longer works: revoked, or ended by a key rotation that passed. */
+        public boolean freePlanEnded() {
+            return !isTrial && freePlan == null && ("revoked".equals(status) || "expired".equals(status));
         }
 
         public boolean isExpired() {

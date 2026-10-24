@@ -20,13 +20,16 @@ public final class CloudPlanNotices {
 
     /** Every {@link Reason#name()}: each surface has a message for each. */
     public static final List<String> REASONS = List.of("auth", "credits", "trial-ended", "trial-revoked",
-            "trial-credits");
+            "trial-credits", "free-ended");
 
     /** The free plan's two join offers, and the markers that keep each to once per install. */
     static final String FREE_OFFER = "cloud-plan.join-free-offer";
     static final String COME_BACK = "cloud-plan.join-come-back";
     public static final String FREE_OFFER_MARKER = ".join-free-offer";
     public static final String COME_BACK_MARKER = ".join-come-back";
+
+    /** A free plan whose key no longer works: like a stopped trial, its way on is a new account. */
+    static final Reason FREE_PLAN_STOPPED = new Reason("free-ended", CloudRecovery.SIGNUP_URL, "");
 
     /** Every {@link #lastCheck}: {@code /nmod status} and {@code /nmod doctor} have a message for each. */
     public static final List<String> LAST_CHECKS = List.of("auth", "credits", "refused");
@@ -59,6 +62,7 @@ public final class CloudPlanNotices {
         TrialClient.TrialStatusResult status = snapshot.status();
         return switch (snapshot.state()) {
             case TRIAL_ENDED -> ended(status);
+            case FREE_PLAN_ENDED -> FREE_PLAN_STOPPED;
             case TRIAL_ACTIVE -> kind == ModerationApiResult.Kind.INSUFFICIENT_CREDITS
                     ? new Reason("trial-credits", "", "")
                     : new Reason("auth", CloudRecovery.API_KEYS_URL, "");
@@ -104,6 +108,7 @@ public final class CloudPlanNotices {
             }
             case STANDARD -> new PlanLine("standard", Map.of());
             case FREE_PLAN -> freePlanLine(status.freePlan(), lastCheck, nowMillis);
+            case FREE_PLAN_ENDED -> new PlanLine(FREE_PLAN_STOPPED.name(), Map.of("url", FREE_PLAN_STOPPED.url()));
             case KEY_REJECTED, UNKNOWN -> null;
         };
     }
@@ -141,7 +146,7 @@ public final class CloudPlanNotices {
      * beside it already says why and what to do, as it does for every trial reason. Each fact is said once.
      */
     public static String lastCheck(Reason reason) {
-        return reason.name().startsWith("trial-") ? "refused" : reason.name();
+        return reason.name().startsWith("trial-") || reason.name().startsWith("free-") ? "refused" : reason.name();
     }
 
     /**
@@ -151,6 +156,7 @@ public final class CloudPlanNotices {
     public static Reason knownProblem(CloudPlanWatch.Snapshot snapshot) {
         return switch (snapshot.state()) {
             case TRIAL_ENDED -> ended(snapshot.status());
+            case FREE_PLAN_ENDED -> FREE_PLAN_STOPPED;
             case KEY_REJECTED -> new Reason("auth", CloudRecovery.API_KEYS_URL, "");
             default -> null;
         };
