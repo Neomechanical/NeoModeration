@@ -250,7 +250,12 @@ public final class ModerationCircuitBreaker {
             lastResultKind = kind;
             if (loggedFailures.add(kind)) {
                 capped = Instant.ofEpochMilli(cappedUntilMillis);
-                logger.warning("Today's free cloud checks are used up until " + LOG_TIME.format(capped)
+                boolean staggered = (cappedUntilMillis % DAY_MILLIS) != 0L;
+                logger.warning(staggered
+                        ? "Today's free cloud checks are used up (resets 00:00 UTC; automatic checks resume at "
+                        + LOG_TIME.format(capped)
+                        + "). Local rules still run. Run /nmod trial status to add an account and keep checking."
+                        : "Today's free cloud checks are used up until " + LOG_TIME.format(capped)
                         + ". Local rules still run. Run /nmod trial status to add an account and keep checking.");
             }
         }

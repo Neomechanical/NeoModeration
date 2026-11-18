@@ -48,10 +48,16 @@ public final class CaseLog implements AutoCloseable {
         }
     }
 
+    private static final long DAY_MILLIS = 86_400_000L;
+    private static final int PRUNE_EVERY_WRITES = 250;
+
     private final Object lock = new Object();
     private final Connection connection;
-    /** Rows written so far. Rows are never deleted, so the highest id counts them; kept here so no reader waits on SQLite. */
+    /** Lifetime rows written so far (from sqlite_sequence / MAX(id)); kept here so no reader waits on SQLite. */
     private final AtomicLong total;
+    private volatile int retentionDays;
+    private volatile int maxRows;
+    private long writesSincePrune;
 
     private CaseLog(Connection connection, long total) {
         this.connection = connection;
@@ -83,17 +89,73 @@ public final class CaseLog implements AutoCloseable {
                 }
                 statement.executeUpdate(
                         "CREATE INDEX IF NOT EXISTS cases_player ON cases(player COLLATE NOCASE)");
+                statement.executeUpdate(
+                        "CREATE INDEX IF NOT EXISTS cases_ts ON cases(ts)");
             }
-            long total;
-            try (Statement statement = connection.createStatement();
-                 ResultSet rows = statement.executeQuery("SELECT MAX(id) FROM cases")) {
-                total = rows.next() ? rows.getLong(1) : 0L;
-            }
+            long total = readLifetimeTotal(connection);
             return new CaseLog(connection, total);
         } catch (ClassNotFoundException | SQLException e) {
             logger.warning("Case history unavailable (" + e.getMessage() + "); detections will not be logged to disk.");
             return new CaseLog(null, 0L);
         }
+    }
+
+    private static long readLifetimeTotal(Connection connection) throws SQLException {
+        long maxId = 0L;
+        try (Statement statement = connection.createStatement();
+             ResultSet rows = statement.executeQuery("SELECT MAX(id) FROM cases")) {
+            if (rows.next()) {
+                maxId = rows.getLong(1);
+            }
+        }
+        long seq = 0L;
+        try (Statement statement = connection.createStatement();
+             ResultSet rows = statement.executeQuery("SELECT seq FROM sqlite_sequence WHERE name = 'cases'")) {
+            if (rows.next()) {
+                seq = rows.getLong(1);
+            }
+        } catch (SQLException ignored) {
+            // sqlite_sequence is created on first insert into an AUTOINCREMENT table.
+        }
+        return Math.max(maxId, seq);
+    }
+
+    /** Configures automatic pruning bounds (0 disables either bound). */
+    public void configureRetention(int retentionDays, int maxRows) {
+        this.retentionDays = Math.max(0, retentionDays);
+        this.maxRows = Math.max(0, maxRows);
+    }
+
+    /**
+     * Deletes rows older than {@code retentionDays} and rows beyond the newest {@code maxRows}.
+     * Lifetime {@link #totalCount()} is unaffected because AUTOINCREMENT tracks the highest issued id.
+     */
+    public int prune(long nowMillis, int retentionDays, int maxRows) {
+        if (connection == null || (retentionDays <= 0 && maxRows <= 0)) {
+            return 0;
+        }
+        int deleted = 0;
+        synchronized (lock) {
+            if (retentionDays > 0) {
+                long cutoff = nowMillis - retentionDays * DAY_MILLIS;
+                try (PreparedStatement deleteAge = connection.prepareStatement("DELETE FROM cases WHERE ts < ?")) {
+                    deleteAge.setLong(1, cutoff);
+                    deleted += deleteAge.executeUpdate();
+                } catch (SQLException ignored) {
+                    // Retention must never disrupt moderation.
+                }
+            }
+            if (maxRows > 0) {
+                try (PreparedStatement deleteExcess = connection.prepareStatement(
+                        "DELETE FROM cases WHERE id <= (SELECT id FROM cases ORDER BY id DESC LIMIT 1 OFFSET ?)")) {
+                    deleteExcess.setInt(1, maxRows);
+                    deleted += deleteExcess.executeUpdate();
+                } catch (SQLException ignored) {
+                    // Retention must never disrupt moderation.
+                }
+            }
+        }
+        return deleted;
     }
 
     public boolean isAvailable() {
@@ -127,6 +189,12 @@ public final class CaseLog implements AutoCloseable {
                     if (keys.next()) {
                         long id = keys.getLong(1);
                         total.accumulateAndGet(id, Math::max);
+                        int days = retentionDays;
+                        int cap = maxRows;
+                        if ((days > 0 || cap > 0) && ++writesSincePrune >= PRUNE_EVERY_WRITES) {
+                            writesSincePrune = 0;
+                            prune(timestamp, days, cap);
+                        }
                         return id;
                     }
                 }

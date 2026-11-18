@@ -103,6 +103,7 @@ public final class NeoModerationPlugin extends JavaPlugin {
         discordAlerts = new DiscordAlerts();
         spamDetector = new SpamDetector();
         caseLog = CaseLog.open(getDataFolder().toPath().resolve("cases.db"), getLogger());
+        applyCaseRetention(true);
         detectionHandler = new DetectionHandler(
                 this,
                 new ChatModerationActionExecutor("NeoModeration", muteService, player -> getLogger().warning(
@@ -217,6 +218,19 @@ public final class NeoModerationPlugin extends JavaPlugin {
             if (cloud != null) {
                 cloud.settingsLoaded(cloudBefore, settings.api(), resetCloud);
             }
+            applyCaseRetention(false);
+        }
+    }
+
+    private void applyCaseRetention(boolean pruneNow) {
+        if (caseLog == null || settings == null) {
+            return;
+        }
+        int days = settings.cases().retentionDays();
+        int cap = settings.cases().maxRows();
+        caseLog.configureRetention(days, cap);
+        if (pruneNow && (days > 0 || cap > 0)) {
+            runAsync(() -> caseLog.prune(System.currentTimeMillis(), days, cap));
         }
     }
 

@@ -65,16 +65,12 @@ final class CaseView {
         List<Button> buttons = new ArrayList<>();
         buttons.add(button(messages, reader, "resolve", ids, "/" + label + " cases resolve " + id));
         buttons.add(button(messages, reader, "dismiss", ids, "/" + label + " cases dismiss " + id));
-        Reasons.Parsed reason = Reasons.parse(row.reason());
-        // Allowing a word changes config.yml, which only admins may do. A word read across a space or
-        // across messages is not offered: allowing it would let the word itself through, not what was written.
-        // Nor is a word another language uses every day ("fag"): allowing it would let the slur through for
-        // everyone, and the hint above names the setting that lets those players use it.
-        if (reason.kind() == Reasons.Kind.WORD && !reason.split() && !reason.spaced() && !reason.detail().isBlank()
-                && BundledWordPacks.languagesUsing(reason.detail(), row.preview()).isEmpty()
-                && reader.hasPermission(Permissions.ADMIN)) {
-            buttons.add(button(messages, reader, "allow", Map.of("word", reason.detail()),
-                    "/" + label + " allow word add " + reason.detail()));
+        // Allowing a word changes config.yml, which only admins may do (shared eligibility in Reasons.allowCommand).
+        if (reader.hasPermission(Permissions.ADMIN)) {
+            Reasons.allowCommand(label, row.reason(), row.preview())
+                    .filter(Reasons.AllowSuggestion::word)
+                    .ifPresent(allow -> buttons.add(button(messages, reader, "allow",
+                            Map.of("word", allow.target()), allow.command())));
         }
         buttons.add(button(messages, reader, "history", ids, CaseLog.historyCommand(label, row.player())));
         buttons.add(button(messages, reader, "mute", ids, "/" + label + " mute " + row.player() + " 10m"));

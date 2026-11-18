@@ -177,4 +177,22 @@ class DetectionNotifierTest {
                 String.join("\n", alerts));
         assertTrue(alerts.stream().noneMatch(line -> line.contains("sind zurück")), "the alerts are not back");
     }
+
+    @Test
+    void alertReasonAndSurfaceNeverUseUnreadableDarkGreyInAnyLocale() {
+        for (String code : MessageService.BUNDLED_LOCALES) {
+            YamlConfiguration locale = YamlConfiguration.loadConfiguration(
+                    new java.io.File("src/main/resources/locale/" + code + ".yml"));
+            for (String key : List.of("alert.line", "alert.found", "alert.then",
+                    "test.local-flagged", "test.cloud-flagged", "cases.line")) {
+                String value = locale.getString(key, "");
+                assertTrue(!value.contains("{#faint}({reason}") && !value.contains("{#faint} in {surface}")
+                                && !value.contains("{#faint} en {surface}") && !value.contains("{#faint} {surface}")
+                                && !value.contains("{#faint}then") && !value.contains("{#faint}danach")
+                                && !value.contains("{#faint}luego") && !value.contains("{#faint}puis")
+                                && !value.contains("{#faint}depois") && !value.contains("{#faint}ardından"),
+                        code + " " + key + " must use readable muted colour instead of faint dark grey: " + value);
+            }
+        }
+    }
 }

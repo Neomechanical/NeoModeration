@@ -8,6 +8,7 @@ import com.neomechanical.neomoderation.config.ModerationMode;
 import com.neomechanical.neomoderation.config.ModerationSettings;
 import com.neomechanical.neomoderation.messages.ActionText;
 import com.neomechanical.neomoderation.messages.DateText;
+import com.neomechanical.neomoderation.messages.MenuRenderer;
 import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.messages.Reasons;
 import com.neomechanical.neomoderation.moderation.CloudPlanNotices;
@@ -22,6 +23,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.Arrays;
+import java.util.List;
 import java.time.Instant;
 import java.util.Map;
 
@@ -87,6 +89,14 @@ public class TestCmd implements SubCommand {
             Reasons.languageWordHint(messages, sender, local.reason(), message,
                             settings.offline().trustPlayerLanguage())
                     .ifPresent(sender::sendMessage);
+            if (sender.hasPermission(Permissions.ADMIN)) {
+                Reasons.allowCommand(label, local.reason(), message).ifPresent(allow ->
+                        messages.sendMenu(sender, List.of(MenuRenderer.clickableLine(
+                                messages.format(sender, "test.allow-hint", Map.of("command", allow.command())),
+                                allow.command(),
+                                messages.format(sender, "test.allow-hint-hover", Map.of("command", allow.command())),
+                                MenuRenderer.ClickAction.SUGGEST))));
+            }
             messages.send(sender, "test.cloud-skipped-local");
             boolean censored = settings.chatCensorLocal()
                     && OfflineModerationEngine.censorCompletely(message, settings.offline(), speaker).isPresent();

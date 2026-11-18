@@ -60,6 +60,7 @@ class FreePlanPausesTest {
         assertEquals(ModerationApiResult.Kind.FREE_PLAN_CAPPED, breaker.lastResultKind());
         assertEquals(List.of(back), told, "told once");
         assertEquals(1, warnings.size(), "logged once");
+        assertTrue(warnings.get(0).contains("00:00 UTC"), warnings.get(0));
         assertTrue(warnings.get(0).contains("00:05 UTC"), warnings.get(0));
 
         clock.set(back.toEpochMilli());
