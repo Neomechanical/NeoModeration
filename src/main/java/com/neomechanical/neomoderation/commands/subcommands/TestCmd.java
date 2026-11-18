@@ -22,9 +22,9 @@ import com.neomechanical.neomoderation.platform.GameLanguage;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
-import java.time.Instant;
 import java.util.Map;
 
 /**

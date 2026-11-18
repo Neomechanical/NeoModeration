@@ -223,14 +223,14 @@ public final class NeoModerationPlugin extends JavaPlugin {
     }
 
     private void applyCaseRetention(boolean pruneNow) {
-        if (caseLog == null || settings == null) {
+        if (caseLog == null || !caseLog.isAvailable() || settings == null) {
             return;
         }
         int days = settings.cases().retentionDays();
         int cap = settings.cases().maxRows();
         caseLog.configureRetention(days, cap);
         if (pruneNow && (days > 0 || cap > 0)) {
-            runAsync(() -> caseLog.prune(System.currentTimeMillis(), days, cap));
+            runAsync(() -> caseLog.prune(System.currentTimeMillis()));
         }
     }
 

@@ -11,6 +11,7 @@ import com.neomechanical.neomoderation.moderation.CloudRecovery;
 import com.neomechanical.neomoderation.moderation.CloudWiring;
 import com.neomechanical.neomoderation.moderation.TrialClient;
 import com.neomechanical.neomoderation.platform.InstallIdentity;
+import com.neomechanical.neomoderation.platform.InstallTelemetry;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -106,7 +107,10 @@ public class TrialCmd implements SubCommand {
                 });
             } catch (TrialClient.TrialException e) {
                 plugin.finishTrialActivation();
-                reply(sender, () -> view.sendFailure(sender, e));
+                reply(sender, () -> {
+                    plugin.noteStartRefusal(InstallTelemetry.startRefusal(e.error(), e.code()));
+                    view.sendFailure(sender, e);
+                });
             } catch (RuntimeException e) {
                 plugin.finishTrialActivation();
                 throw e;
@@ -183,7 +187,10 @@ public class TrialCmd implements SubCommand {
             } catch (TrialClient.TrialException e) {
                 // A 401 from the move says only that the key is no trial's (an account's key gets one too), so the
                 // plan watch is not told the key was rejected.
-                reply(sender, () -> view.sendFailure(sender, e));
+                reply(sender, () -> {
+                    plugin.noteStartRefusal(InstallTelemetry.startRefusal(e.error(), e.code()));
+                    view.sendFailure(sender, e);
+                });
             }
         });
     }

@@ -80,6 +80,15 @@ class FreePlanPausesTest {
     }
 
     @Test
+    void aCapLandingWithinTheMidnightMinuteUsesPlainMidnightWording() {
+        clock.set(NOON + 412L);
+        breaker.record(refused("free_plan_daily_cap", 12 * 3600 + 30));
+        assertEquals(1, warnings.size());
+        assertTrue(warnings.get(0).contains("used up until 00:00 UTC"), warnings.get(0));
+        assertFalse(warnings.get(0).contains("automatic checks resume at 00:00 UTC"), warnings.get(0));
+    }
+
+    @Test
     void usedUpPicturesStopOnlyMapsAndNeverPauseChat() {
         breaker.record(refused("free_plan_image_allowance", 3600));
         assertTrue(breaker.shouldCallAutomatically(), "chat goes on");

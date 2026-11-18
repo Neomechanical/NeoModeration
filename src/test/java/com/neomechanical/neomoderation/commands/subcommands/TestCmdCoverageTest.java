@@ -104,6 +104,9 @@ class TestCmdCoverageTest {
 
         String languageWord = testAs(config, "hvilket fag har du", true);
         assertFalse(languageWord.contains("/nmod allow word add fag"), languageWord);
+
+        String spacedWord = testAs(config, "b a d w o r d", true);
+        assertFalse(spacedWord.contains("/nmod allow word add badword"), spacedWord);
     }
 
     private static String test(YamlConfiguration config, String message) {

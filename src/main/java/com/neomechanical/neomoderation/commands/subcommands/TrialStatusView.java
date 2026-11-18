@@ -9,7 +9,6 @@ import com.neomechanical.neomoderation.moderation.CloudPlanNotices;
 import com.neomechanical.neomoderation.moderation.CloudRecovery;
 import com.neomechanical.neomoderation.moderation.FreePlan;
 import com.neomechanical.neomoderation.moderation.TrialClient;
-import com.neomechanical.neomoderation.platform.InstallTelemetry;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -37,18 +36,11 @@ final class TrialStatusView {
         // Starting accepts the terms; the version shown here is the one activation sends (TrialClient.TERMS_VERSION).
         messages.send(sender, "trial.explain-terms", Map.of("terms", CloudRecovery.TERMS_URL,
                 "privacy", CloudRecovery.PRIVACY_URL));
-        String command = "/" + label + " trial start";
-        if (sender instanceof Player) {
-            messages.sendMenu(sender, List.of(MenuRenderer.clickableLine(messages.text(sender, "trial.start-button"),
-                    command, messages.format(sender, "trial.start-hover", Map.of("command", command)),
-                    MenuRenderer.ClickAction.RUN)));
-        } else {
-            messages.send(sender, "trial.start-console", Map.of("command", command));
-        }
+        sendCommandButton(sender, "trial.start-button", "/" + label + " trial start");
     }
 
     /** A free plan's day as message values: its checks and pictures, and when they start again. */
-    Map<String, String> freePlanValues(MessageService messages, CommandSender sender, FreePlan plan) {
+    private Map<String, String> freePlanValues(MessageService messages, CommandSender sender, FreePlan plan) {
         FreePlan known = plan != null ? plan : new FreePlan(0, 0, 0, 0, "", false, false);
         String resets = known.resetsAtOr(plugin.cloudPlan().now()).toString();
         return Map.of(
@@ -176,7 +168,7 @@ final class TrialStatusView {
      * so only a player gets it, as a button: the console's lines are the server log, which hosts keep and admins paste
      * when they ask for help. The console is told to run the command in game.
      */
-    void sendKeepButton(CommandSender sender, String claimUrl) {
+    private void sendKeepButton(CommandSender sender, String claimUrl) {
         if (!(sender instanceof Player)) {
             plugin.messages().send(sender, "trial.keep-in-game");
             return;
@@ -203,7 +195,6 @@ final class TrialStatusView {
 
     void sendFailure(CommandSender sender, TrialClient.TrialException e) {
         MessageService messages = plugin.messages();
-        plugin.noteStartRefusal(InstallTelemetry.startRefusal(e.error(), e.code()));
         Map<String, String> signup = Map.of("url", CloudRecovery.SIGNUP_URL);
         switch (e.error()) {
             // An install that used its trial has no account yet: the way on is one, never billing's sign-in.

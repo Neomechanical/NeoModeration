@@ -7,7 +7,6 @@ import com.neomechanical.neomoderation.messages.MenuRenderer.Button;
 import com.neomechanical.neomoderation.messages.MenuRenderer;
 import com.neomechanical.neomoderation.messages.MessageService;
 import com.neomechanical.neomoderation.messages.Reasons;
-import com.neomechanical.neomoderation.moderation.BundledWordPacks;
 import com.neomechanical.neomoderation.moderation.CaseLog.CaseRecord;
 import com.neomechanical.neomoderation.moderation.CaseLog;
 import com.neomechanical.neomoderation.moderation.Outcome;
