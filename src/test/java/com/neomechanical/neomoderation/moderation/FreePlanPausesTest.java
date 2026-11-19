@@ -60,6 +60,7 @@ class FreePlanPausesTest {
         assertEquals(ModerationApiResult.Kind.FREE_PLAN_CAPPED, breaker.lastResultKind());
         assertEquals(List.of(back), told, "told once");
         assertEquals(1, warnings.size(), "logged once");
+        assertTrue(warnings.get(0).contains("00:00 UTC"), warnings.get(0));
         assertTrue(warnings.get(0).contains("00:05 UTC"), warnings.get(0));
 
         clock.set(back.toEpochMilli());
@@ -76,6 +77,15 @@ class FreePlanPausesTest {
         breaker.record(ModerationApiResult.clear());
         assertTrue(breaker.cappedUntil().isEmpty(), "an account now pays past the cap");
         assertTrue(breaker.shouldCallAutomatically());
+    }
+
+    @Test
+    void aCapLandingWithinTheMidnightMinuteUsesPlainMidnightWording() {
+        clock.set(NOON + 412L);
+        breaker.record(refused("free_plan_daily_cap", 12 * 3600 + 30));
+        assertEquals(1, warnings.size());
+        assertTrue(warnings.get(0).contains("used up until 00:00 UTC"), warnings.get(0));
+        assertFalse(warnings.get(0).contains("automatic checks resume at 00:00 UTC"), warnings.get(0));
     }
 
     @Test

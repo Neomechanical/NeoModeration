@@ -48,10 +48,21 @@ public final class CaseLog implements AutoCloseable {
         }
     }
 
+    private static final long DAY_MILLIS = 86_400_000L;
+    private static final int PRUNE_EVERY_WRITES = 250;
+
+    private record Retention(int retentionDays, int maxRows) {
+        boolean active() {
+            return retentionDays > 0 || maxRows > 0;
+        }
+    }
+
     private final Object lock = new Object();
     private final Connection connection;
-    /** Rows written so far. Rows are never deleted, so the highest id counts them; kept here so no reader waits on SQLite. */
+    /** Lifetime rows written so far (from sqlite_sequence / MAX(id)); kept here so no reader waits on SQLite. */
     private final AtomicLong total;
+    private volatile Retention retention = new Retention(0, 0);
+    private long writesSincePrune;
 
     private CaseLog(Connection connection, long total) {
         this.connection = connection;
@@ -83,17 +94,82 @@ public final class CaseLog implements AutoCloseable {
                 }
                 statement.executeUpdate(
                         "CREATE INDEX IF NOT EXISTS cases_player ON cases(player COLLATE NOCASE)");
+                statement.executeUpdate(
+                        "CREATE INDEX IF NOT EXISTS cases_ts ON cases(ts)");
             }
-            long total;
-            try (Statement statement = connection.createStatement();
-                 ResultSet rows = statement.executeQuery("SELECT MAX(id) FROM cases")) {
-                total = rows.next() ? rows.getLong(1) : 0L;
-            }
+            long total = readLifetimeTotal(connection);
             return new CaseLog(connection, total);
         } catch (ClassNotFoundException | SQLException e) {
             logger.warning("Case history unavailable (" + e.getMessage() + "); detections will not be logged to disk.");
             return new CaseLog(null, 0L);
         }
+    }
+
+    private static long readLifetimeTotal(Connection connection) throws SQLException {
+        long maxId = 0L;
+        try (Statement statement = connection.createStatement();
+             ResultSet rows = statement.executeQuery("SELECT MAX(id) FROM cases")) {
+            if (rows.next()) {
+                maxId = rows.getLong(1);
+            }
+        }
+        long seq = 0L;
+        try (Statement statement = connection.createStatement();
+             ResultSet rows = statement.executeQuery("SELECT seq FROM sqlite_sequence WHERE name = 'cases'")) {
+            if (rows.next()) {
+                seq = rows.getLong(1);
+            }
+        } catch (SQLException ignored) {
+            // sqlite_sequence is created on first insert into an AUTOINCREMENT table.
+        }
+        return Math.max(maxId, seq);
+    }
+
+    /** Configures automatic pruning bounds (0 disables either bound). */
+    public void configureRetention(int retentionDays, int maxRows) {
+        this.retention = new Retention(Math.max(0, retentionDays), Math.max(0, maxRows));
+    }
+
+    /** Prunes using the currently configured retention bounds. */
+    public int prune(long nowMillis) {
+        Retention active = this.retention;
+        return prune(nowMillis, active.retentionDays(), active.maxRows());
+    }
+
+    /**
+     * Deletes rows older than {@code retentionDays} and rows beyond the newest {@code maxRows}.
+     * Lifetime {@link #totalCount()} is unaffected because AUTOINCREMENT tracks the highest issued id.
+     */
+    public int prune(long nowMillis, int retentionDays, int maxRows) {
+        if (connection == null || (retentionDays <= 0 && maxRows <= 0)) {
+            return 0;
+        }
+        synchronized (lock) {
+            return pruneLocked(nowMillis, retentionDays, maxRows);
+        }
+    }
+
+    private int pruneLocked(long nowMillis, int retentionDays, int maxRows) {
+        int deleted = 0;
+        if (retentionDays > 0) {
+            long cutoff = nowMillis - (long) retentionDays * DAY_MILLIS;
+            try (PreparedStatement deleteAge = connection.prepareStatement("DELETE FROM cases WHERE ts < ?")) {
+                deleteAge.setLong(1, cutoff);
+                deleted += deleteAge.executeUpdate();
+            } catch (SQLException ignored) {
+                // Retention must never disrupt moderation.
+            }
+        }
+        if (maxRows > 0) {
+            try (PreparedStatement deleteExcess = connection.prepareStatement(
+                    "DELETE FROM cases WHERE id <= (SELECT id FROM cases ORDER BY id DESC LIMIT 1 OFFSET ?)")) {
+                deleteExcess.setInt(1, maxRows);
+                deleted += deleteExcess.executeUpdate();
+            } catch (SQLException ignored) {
+                // Retention must never disrupt moderation.
+            }
+        }
+        return deleted;
     }
 
     public boolean isAvailable() {
@@ -111,6 +187,7 @@ public final class CaseLog implements AutoCloseable {
             return -1L;
         }
         synchronized (lock) {
+            long id = -1L;
             try (PreparedStatement insert = connection.prepareStatement(
                     "INSERT INTO cases (ts, uuid, player, surface, reason, action, mode, preview, status) VALUES (?,?,?,?,?,?,?,?,'open')",
                     Statement.RETURN_GENERATED_KEYS)) {
@@ -125,16 +202,22 @@ public final class CaseLog implements AutoCloseable {
                 insert.executeUpdate();
                 try (ResultSet keys = insert.getGeneratedKeys()) {
                     if (keys.next()) {
-                        long id = keys.getLong(1);
+                        id = keys.getLong(1);
                         total.accumulateAndGet(id, Math::max);
-                        return id;
                     }
                 }
             } catch (SQLException ignored) {
                 // A failed audit row must never break moderation.
             }
+            if (id >= 0L) {
+                Retention active = this.retention;
+                if (active.active() && ++writesSincePrune >= PRUNE_EVERY_WRITES) {
+                    writesSincePrune = 0;
+                    pruneLocked(timestamp, active.retentionDays(), active.maxRows());
+                }
+            }
+            return id;
         }
-        return -1L;
     }
 
     public boolean updateStatus(long id, String status) {

@@ -51,7 +51,33 @@ public final class Reasons {
     public record Parsed(Kind kind, boolean split, boolean spaced, String detail) {
     }
 
+    /** A safe command an admin can run to allow a false alarm ({@code /nmod allow word|url add <target>}). */
+    public record AllowSuggestion(String command, String target, boolean word) {
+    }
+
     private Reasons() {
+    }
+
+    /**
+     * The allow-list command for a locally matched word or link, or empty when allowing it would be unsafe
+     * (split across messages, spaced, or an everyday word in another language that belongs under
+     * {@code trustPlayerLanguage}). Shared by {@code /nmod case} and {@code /nmod test}.
+     */
+    public static Optional<AllowSuggestion> allowCommand(String label, String reason, String written) {
+        Parsed parsed = parse(reason);
+        if (parsed.detail().isBlank()) {
+            return Optional.empty();
+        }
+        if (parsed.kind() == Kind.WORD && !parsed.split() && !parsed.spaced()
+                && BundledWordPacks.languagesUsing(parsed.detail(), written).isEmpty()) {
+            return Optional.of(new AllowSuggestion("/" + label + " allow word add " + parsed.detail(),
+                    parsed.detail(), true));
+        }
+        if (parsed.kind() == Kind.LINK) {
+            return Optional.of(new AllowSuggestion("/" + label + " allow url add " + parsed.detail(),
+                    parsed.detail(), false));
+        }
+        return Optional.empty();
     }
 
     public static Parsed parse(String reason) {

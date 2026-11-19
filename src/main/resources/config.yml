@@ -306,6 +306,10 @@ moderation:
     # Keep a short preview of what the player wrote. Off by default, so the
     # history holds who, where and why, never the message.
     storeContent: false
+    # Remove cases older than this many days (0 keeps all ages).
+    retentionDays: 90
+    # Keep at most this many newest cases in cases.db (0 keeps all rows).
+    maxRows: 50000
 
   # ---- Staff alerts --------------------------------------------------------
   # Players with the neomoderation.notify permission (ops by default) get an
